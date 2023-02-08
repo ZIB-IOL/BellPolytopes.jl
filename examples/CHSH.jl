@@ -1,10 +1,13 @@
+# Bipartite example recovering the CHSH inequality together with a local model
 using BellPolytopes
 using FrankWolfe
 using LinearAlgebra
 
 N = 2 # bipartite scenario
-measurements_vecA = [1 0 0; 0 0 1] # Bloch vectors of the measurements to be performed on Alice's side
-measurements_vecB = [1 0 1; 1 0 -1] / sqrt(2) # Bloch vectors of the measurements to be performed on Bob's side
+# Bloch vectors of the measurements to be performed on Alice's side
+measurements_vecA = [1 0 0; 0 0 1]
+# Bloch vectors of the measurements to be performed on Bob's side
+measurements_vecB = [1 0 1; 1 0 -1] / sqrt(2)
 rho = rho_singlet() # shared state
 _, lower_bound, upper_bound, local_model, bell_inequality, _ =
     nonlocality_threshold([measurements_vecA, measurements_vecB], N; rho = rho)
