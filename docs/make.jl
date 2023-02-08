@@ -34,7 +34,10 @@ makedocs(;
         edit_link="main",
         assets=String[],
     ),
-    pages=["Home" => "index.md"],
+    pages=[
+        "Home" => "index.md",
+        "API reference" => "api.md",
+    ],
 )
 
-deploydocs(; repo="github.com/ZIB-IOL/BellPolytopes.jl", devbranch="main")
+deploydocs(; repo="github.com/ZIB-IOL/BellPolytopes.jl", devbranch="main", push_preview=true)
