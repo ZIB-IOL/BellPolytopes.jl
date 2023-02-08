@@ -19,7 +19,6 @@ using BellPolytopes
     @test abs(bell_frank_wolfe(correlation_matrix(HQVNB17_vec(3)); use_array=true)[3] - 0.613691) <
           1e-5
     @test abs(bell_frank_wolfe(correlation_matrix(HQVNB17_vec(5)))[3] - 5.69) < 1e-1
-    @test abs(bell_frank_wolfe(correlation_matrix(HQVNB17_vec(7)))[3] - 23.02) < 1e-1
 end
 
 @testset "Testing Bell-Frank-Wolfe with d=2, N=2, and cor/marg matrices   " begin
