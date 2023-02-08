@@ -8,7 +8,7 @@ rho = rho_GHZ(N) # shared state
 lower_bound_infinite, lower_bound, upper_bound, local_model, bell_inequality, _ =
     nonlocality_threshold(measurements_vec, N; rho = rho) # the marginals vanish in this case
 
-println("Correlation matrix")
+println("Correlation tensor")
 p = correlation_tensor(measurements_vec, N; rho = rho, marg = false)
 display(p[:, :, 1]) # only printing part of the tensor
 
