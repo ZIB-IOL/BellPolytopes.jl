@@ -29,8 +29,8 @@ Arguments:
 Returns:
  - `x`: a correlation tensor of order `N`, the output of the Frank-Wolfe algorithm,
  - `ds`: a deterministic strategy, the atom returned by the last LMO,
- - `primal`: ½|x-v0*p|²
- - `dual_gap`: <x-v0*p,x-ds>
+ - `primal`: `½|x-v₀*p|²`
+ - `dual_gap`: `⟨x-v₀*p, x-ds⟩`
  - `traj_data`: trajectory of the algorithm,
  - `active_set`: all deterministic strategies used for the decomposition of the last iterate `x`, contains fields `weights`, `atoms`, and `x`,
  - `M`: a Bell inequality, meaningful only if the dual gap is small enough
