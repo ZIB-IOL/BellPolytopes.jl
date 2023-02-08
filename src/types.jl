@@ -290,7 +290,7 @@ function ActiveSetStorage(as::FrankWolfe.ActiveSet{BellCorrelationsDS{T, N, IsSy
     return ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray}(as.weights, ax, as.atoms[1].lmo.data)
 end
 
-function load_active_set(ass::ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray}; type=T, sym=IsSymmetric, marg=HasMarginals, use_array=UseArray, reynolds=(IsSymmetric ? BellFrankWolfe.reynolds_permutedims : nothing)) where T<:Number where N where IsSymmetric where HasMarginals where UseArray
+function load_active_set(ass::ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray}; type=T, sym=IsSymmetric, marg=HasMarginals, use_array=UseArray, reynolds=(IsSymmetric ? reynolds_permutedims : nothing)) where T<:Number where N where IsSymmetric where HasMarginals where UseArray
     m = size(ass.ax[1], 2)
     p = zeros(type, (marg ? m+1 : m)*ones(Int, N)...)
     lmo = BellCorrelationsLMO(p; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds, data=ass.data)

@@ -58,7 +58,7 @@ function build_callback(
                 FrankWolfe.compute_active_set_iterate!(active_set)
             end
             if mod(state.t, reduce_interval) == 0
-                BellFrankWolfe.active_set_reduce_dot!(active_set, state.v)
+                active_set_reduce_dot!(active_set, state.v)
             end
             if mod(state.t, hyperplane_interval) == 0
                 a = -state.gradient # v*p+(1-v)*o-active_set.x
