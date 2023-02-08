@@ -7,6 +7,7 @@
 
 This package addresses the membership problem for local polytopes: it constructs Bell inequalities and local models in multipartite Bell scenarios with binary outcomes.
 
+
 ## Installation
 
 The most recent release is available via the julia package manager, e.g., with
