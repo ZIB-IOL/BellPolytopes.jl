@@ -55,33 +55,33 @@ Optional arguments:
 """
 function bell_frank_wolfe(
     p::Array{T,N};
-    marg::Bool = N  ==  2 ? false : true,
-    v0 = one(T),
-    epsilon = 1e-7,
-    verbose = 0,
-    shr2 = NaN,
-    TD::DataType = T,
-    mode::Int = 0,
-    nb::Int = 10^2,
-    TL::DataType = T,
-    mode_last::Int = 0,
-    nb_last::Int = 10^5,
-    sym::Union{Nothing,Bool} = nothing,
-    use_array::Union{Nothing,Bool} = nothing,
-    active_set = nothing, # warm start
-    lazy::Bool = true, # default in FW package is false
-    max_iteration::Int = 10^7, # default in FW package is 10^4
-    recompute_last_vertex = false, # default in FW package is true
-    callback_interval::Int = verbose > 0 ? 10^4 : typemax(Int),
-    renorm_interval::Int = verbose > 0 ? callback_interval : typemax(Int),
-    reduce_interval::Int = verbose > 0 ? 100callback_interval : typemax(Int),
-    hyperplane_interval::Int = verbose > 0 ? 10callback_interval : typemax(Int),
-    bound_interval::Int = verbose > 0 ? 10callback_interval : typemax(Int),
-    nb_increment_interval::Int = verbose > 0 ? 10callback_interval : typemax(Int),
-    save_interval::Int = verbose > 0 ? 100callback_interval : typemax(Int),
-    save::Bool = false,
-    file = nothing,
-    seed::Int = 0,
+    marg::Bool=N == 2 ? false : true,
+    v0=one(T),
+    epsilon=1e-7,
+    verbose=0,
+    shr2=NaN,
+    TD::DataType=T,
+    mode::Int=0,
+    nb::Int=10^2,
+    TL::DataType=T,
+    mode_last::Int=0,
+    nb_last::Int=10^5,
+    sym::Union{Nothing,Bool}=nothing,
+    use_array::Union{Nothing,Bool}=nothing,
+    active_set=nothing, # warm start
+    lazy::Bool=true, # default in FW package is false
+    max_iteration::Int=10^7, # default in FW package is 10^4
+    recompute_last_vertex=false, # default in FW package is true
+    callback_interval::Int=verbose > 0 ? 10^4 : typemax(Int),
+    renorm_interval::Int=verbose > 0 ? callback_interval : typemax(Int),
+    reduce_interval::Int=verbose > 0 ? 100callback_interval : typemax(Int),
+    hyperplane_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
+    bound_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
+    nb_increment_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
+    save_interval::Int=verbose > 0 ? 100callback_interval : typemax(Int),
+    save::Bool=false,
+    file=nothing,
+    seed::Int=0,
     kwargs...,
 ) where {T<:Number} where {N}
     Random.seed!(seed)
@@ -127,12 +127,12 @@ function bell_frank_wolfe(
     # create the LMO
     lmo = BellCorrelationsLMO(
         vp;
-        mode = mode,
-        nb = nb,
-        sym = sym,
-        marg = marg,
-        use_array = use_array,
-        reynolds = reynolds,
+        mode=mode,
+        nb=nb,
+        sym=sym,
+        marg=marg,
+        use_array=use_array,
+        reynolds=reynolds,
     )
     # useful to make f efficient
     normp2 = dot(vp, vp) / 2
@@ -155,11 +155,11 @@ function bell_frank_wolfe(
         if active_set isa ActiveSetStorage
             active_set = load_active_set(
                 active_set;
-                type = TD,
-                sym = sym,
-                marg = marg,
-                use_array = use_array,
-                reynolds = reynolds,
+                type=TD,
+                sym=sym,
+                marg=marg,
+                use_array=use_array,
+                reynolds=reynolds,
             )
         end
         active_set_link_lmo!(active_set, lmo)
@@ -196,15 +196,15 @@ function bell_frank_wolfe(
         grad!,
         lmo,
         active_set;
-        callback = callback,
-        epsilon = epsilon,
-        lazy = lazy,
-        line_search = FrankWolfe.Shortstep(one(TD)),
-        max_iteration = max_iteration,
-        recompute_last_vertex = recompute_last_vertex,
-        renorm_interval = typemax(Int),
-        trajectory = true,
-        verbose = false,
+        callback=callback,
+        epsilon=epsilon,
+        lazy=lazy,
+        line_search=FrankWolfe.Shortstep(one(TD)),
+        max_iteration=max_iteration,
+        recompute_last_vertex=recompute_last_vertex,
+        renorm_interval=typemax(Int),
+        trajectory=true,
+        verbose=false,
         kwargs...,
     )
     if verbose ≥ 2
@@ -215,7 +215,7 @@ function bell_frank_wolfe(
         @printf("    It/sec: %.2e\n", traj_data[end][1] / traj_data[end][5])
         @printf("    #Atoms: %d\n", length(as))
     end
-    atoms = BellCorrelationsDS.(as.atoms; type = TL)
+    atoms = BellCorrelationsDS.(as.atoms; type=TL)
     as = FrankWolfe.ActiveSet{eltype(atoms),TL,Array{TL,N}}(
         TL.(as.weights),
         atoms,
@@ -227,14 +227,14 @@ function bell_frank_wolfe(
     if mode_last ≥ 0 # bypass the last LMO with a negative mode
         time_start = time_ns()
         ds = FrankWolfe.compute_extreme_point(
-            BellCorrelationsLMO(lmo; mode = mode_last, type = TL, nb = nb_last),
+            BellCorrelationsLMO(lmo; mode=mode_last, type=TL, nb=nb_last),
             -M;
-            verbose = verbose > 0,
-            last = true,
+            verbose=verbose > 0,
+            last=true,
         )
         time = time_ns() - time_start
     else
-        ds = BellCorrelationsDS(ds; type = TL)
+        ds = BellCorrelationsDS(ds; type=TL)
     end
     β = FrankWolfe.fast_dot(M, ds) # local/global max found by the LMO
     dual_gap = FrankWolfe.fast_dot(x - vp, x) - FrankWolfe.fast_dot(x - vp, ds)
@@ -257,8 +257,17 @@ end
 """
 Compute the local bound of a Bell inequality parametrised by `M`.
 """
-function local_bound(M::Array{T, N}; mode::Int = 1, nb::Int = 10^5, verbose = false) where {T<:Number} where {N}
-    ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M; mode = mode, nb = nb), -M; verbose = verbose)
+function local_bound(
+    M::Array{T,N};
+    mode::Int=1,
+    nb::Int=10^5,
+    verbose=false,
+) where {T<:Number} where {N}
+    ds = FrankWolfe.compute_extreme_point(
+        BellCorrelationsLMO(M; mode=mode, nb=nb),
+        -M;
+        verbose=verbose,
+    )
     return FrankWolfe.fast_dot(M, ds), ds
 end
 
@@ -285,16 +294,16 @@ Optional arguments:
 function nonlocality_threshold(
     vec::Union{TB,Vector{TB}},
     N::Int;
-    rho = N  ==  2 ? rho_singlet(; type = T) : rho_GHZ(N; type = T),
-    epsilon = 1e-8,
-    marg::Bool = false,
-    v0 = one(T),
-    precision = 4,
-    verbose = -1,
+    rho=N == 2 ? rho_singlet(; type=T) : rho_GHZ(N; type=T),
+    epsilon=1e-8,
+    marg::Bool=false,
+    v0=one(T),
+    precision=4,
+    verbose=-1,
     kwargs...,
 ) where {TB<:AbstractMatrix{T}} where {T<:Number}
-    p = correlation_tensor(vec, N; rho = rho, marg = marg)
-    shr2 = shrinking_squared(vec; verbose = verbose > 0)
+    p = correlation_tensor(vec, N; rho=rho, marg=marg)
+    shr2 = shrinking_squared(vec; verbose=verbose > 0)
     lower_bound = zero(T)
     upper_bound = one(T)
     local_model = nothing
@@ -303,11 +312,11 @@ function nonlocality_threshold(
     while upper_bound - lower_bound > 10.0^(-precision)
         res = bell_frank_wolfe(
             p;
-            v0 = v0,
-            verbose = verbose + (upper_bound == one(T)) / 2,
-            epsilon = epsilon,
-            shr2 = shr2,
-            marg = marg,
+            v0=v0,
+            verbose=verbose + (upper_bound == one(T)) / 2,
+            epsilon=epsilon,
+            shr2=shr2,
+            marg=marg,
             kwargs...,
         )
         push!(traj_data, res)
@@ -317,12 +326,12 @@ function nonlocality_threshold(
         end
         if dual_gap < primal
             if β < upper_bound
-                upper_bound = round(β; digits = precision)
+                upper_bound = round(β; digits=precision)
                 bell_inequality = M
-                if v0 == round(β; digits = precision)
-                    v0 = round(β - 10.0^(-precision); digits = precision)
+                if v0 == round(β; digits=precision)
+                    v0 = round(β - 10.0^(-precision); digits=precision)
                 else
-                    v0 = round(β; digits = precision)
+                    v0 = round(β; digits=precision)
                 end
             else
                 @warn "Unexpected output"
@@ -332,7 +341,7 @@ function nonlocality_threshold(
             lower_bound = v0
             local_model = as
             if upper_bound < lower_bound
-                upper_bound = round(v0 + 2*10.0^(-precision); digits = precision)
+                upper_bound = round(v0 + 2 * 10.0^(-precision); digits=precision)
             end
             v0 = (lower_bound + upper_bound) / 2
         end

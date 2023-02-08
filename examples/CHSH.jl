@@ -10,10 +10,10 @@ measurements_vecA = [1 0 0; 0 0 1]
 measurements_vecB = [1 0 1; 1 0 -1] / sqrt(2)
 rho = rho_singlet() # shared state
 _, lower_bound, upper_bound, local_model, bell_inequality, _ =
-    nonlocality_threshold([measurements_vecA, measurements_vecB], N; rho = rho)
+    nonlocality_threshold([measurements_vecA, measurements_vecB], N; rho=rho)
 
 println("Correlation matrix")
-p = correlation_tensor([measurements_vecA, measurements_vecB], N; rho = rho, marg = false)
+p = correlation_tensor([measurements_vecA, measurements_vecB], N; rho=rho, marg=false)
 display(p)
 
 println()
