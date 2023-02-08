@@ -4,7 +4,7 @@ CurrentModule = BellPolytopes
 
 # BellPolytopes
 
-Documentation for [BellPolytopes](https://github.com/matbesancon/BellPolytopes.jl).
+Documentation for [BellPolytopes](https://github.com/ZIB-IOL/BellPolytopes.jl).
 
 ```@index
 ```

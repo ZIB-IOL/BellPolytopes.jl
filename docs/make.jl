@@ -5,12 +5,12 @@ DocMeta.setdocmeta!(BellPolytopes, :DocTestSetup, :(using BellPolytopes); recurs
 
 makedocs(;
     modules=[BellPolytopes],
-    authors="Mathieu Besançon <mathieu.besancon@gmail.com> and contributors",
-    repo="https://github.com/matbesancon/BellPolytopes.jl/blob/{commit}{path}#{line}",
+    authors="ZIB AISST",
+    repo="https://github.com/ZIB-IOL/BellPolytopes.jl/blob/{commit}{path}#{line}",
     sitename="BellPolytopes.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://matbesancon.github.io/BellPolytopes.jl",
+        canonical="https://zib-iol.github.io/BellPolytopes.jl",
         edit_link="main",
         assets=String[],
     ),
@@ -20,6 +20,6 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/matbesancon/BellPolytopes.jl",
+    repo="github.com/ZIB-IOL/BellPolytopes.jl",
     devbranch="main",
 )
