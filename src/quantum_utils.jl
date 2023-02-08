@@ -90,14 +90,11 @@ end
 
 # platonic solids
 cube_vec() = [1 1 1; 1 -1 -1; -1 1 -1; -1 -1 1] / sqrt(3)
-cube_mes() = qubit_mes(cube_vec())
 octahedron_vec() = [1 0 0; 0 1 0; 0 0 1]
-octahedron_mes() = qubit_rho(octahedron_vec())
 function icosahedron_vec(; type=Float64)
     φ = (1 + sqrt(type(5))) / 2
     return [0 1 φ; 0 1 -φ; 1 φ 0; 1 -φ 0; φ 0 1; φ 0 -1] / sqrt(2 + φ)
 end
-icosahedron_mes() = return qubit_mes(icosahedron_vec())
 function dodecahedron_vec(; type=Float64)
     φ = (1 + sqrt(type(5))) / 2
     return [
@@ -113,10 +110,9 @@ function dodecahedron_vec(; type=Float64)
         φ 0 -1/φ
     ] / sqrt(type(3))
 end
-dodecahedron_mes() = qubit_mes(dodecahedron_vec())
 
 # measurements from arXiv:1609.05011 (regular polyhedron in the XY plane)
-function BNV16_vec(m::Int; type=Float64)
+function polygonXY_vec(m::Int; type=Float64)
     if type <: AbstractFloat
         return collect(
             hcat(

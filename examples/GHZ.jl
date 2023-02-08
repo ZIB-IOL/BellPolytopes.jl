@@ -3,13 +3,13 @@ using FrankWolfe
 using LinearAlgebra
 
 N = 3 # tripartite scenario
-vertices = BNV16_vec(8) # Bloch vectors of the measurements to be performed by all parties (regular polygon on the XY plane)
+measurements_vec = polygonXY_vec(8) # Bloch vectors of the measurements to be performed by all parties (regular polygon on the XY plane)
 rho = rho_GHZ(N) # shared state
 lower_bound_infinite, lower_bound, upper_bound, local_model, bell_inequality, _ =
-    nonlocality_threshold(vertices, N; rho=rho) # the marginals vanish in this case
+    nonlocality_threshold(measurements_vec, N; rho = rho) # the marginals vanish in this case
 
 println("Correlation matrix")
-p = correlation_tensor(vertices, N; rho=rho, marg=false)
+p = correlation_tensor(measurements_vec, N; rho = rho, marg = false)
 display(p[:, :, 1]) # only printing part of the tensor
 
 println()
