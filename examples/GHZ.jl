@@ -5,7 +5,8 @@ using LinearAlgebra
 N = 3 # tripartite scenario
 vertices = BNV16_vec(8) # Bloch vectors of the measurements to be performed by all parties (regular polygon on the XY plane)
 rho = rho_GHZ(N) # shared state
-lower_bound_infinite, lower_bound, upper_bound, local_model, bell_inequality, _ = nonlocality_threshold(vertices, N; rho=rho) # the marginals vanish in this case
+lower_bound_infinite, lower_bound, upper_bound, local_model, bell_inequality, _ =
+    nonlocality_threshold(vertices, N; rho=rho) # the marginals vanish in this case
 
 println("Correlation matrix")
 p = correlation_tensor(vertices, N; rho=rho, marg=false)
@@ -22,7 +23,10 @@ println("Lower bound")
 println(lower_bound) # 0.4931
 println("Local model")
 display(local_model.x[:, :, 1])
-println(local_model.x == sum(local_model.weights[i]*local_model.atoms[i] for i = 1:length(local_model))) # true
+println(
+    local_model.x ==
+    sum(local_model.weights[i] * local_model.atoms[i] for i in 1:length(local_model)),
+) # true
 
 println()
 
