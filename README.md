@@ -48,7 +48,8 @@ julia> measurements_vec = icosahedron_vec() # Bloch vectors forming an icosahedr
  0.850651   0.0        0.525731
  0.850651   0.0       -0.525731
 
-julia> _, lower_bound, upper_bound, local_model, bell_inequality, _ = nonlocality_threshold(measurements_vec, N; rho = rho);
+julia> _, lower_bound, upper_bound, local_model, bell_inequality, _ =
+       nonlocality_threshold(measurements_vec, N; rho = rho);
 
 julia> println([lower_bound, upper_bound])
 [0.7784, 0.7784]
