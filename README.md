@@ -6,6 +6,9 @@
 
 This package addresses the membership problem for local polytopes: it constructs Bell inequalities and local models in multipartite Bell scenarios with binary outcomes.
 
+The original article for which it was written can be found here:
+
+> [Improved local models and new Bell inequalities via Frank-Wolfe algorithms](http://arxiv.org/abs/2302.04721).
 
 ## Installation
 
