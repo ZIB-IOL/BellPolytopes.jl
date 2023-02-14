@@ -26,7 +26,7 @@ function BellCorrelationsLMO(
     sym::Bool=false,
     marg::Bool=false,
     use_array::Bool=true,
-    reynolds=nothing,
+    reynolds=reynolds_permutedims,
     data=[0, 0],
 ) where {T<:Number} where {N}
     return BellCorrelationsLMO{T,N,mode,sym,marg,use_array}(
@@ -104,7 +104,6 @@ end
 
 Base.size(ds::BellCorrelationsDS) = Tuple(length.(ds.ax))
 
-# flag distinguishes long-term atoms for which we need all fields from short-term atoms used in compute_extreme_point
 function BellCorrelationsDS(
     ax::Vector{Vector{T}},
     lmo::BellCorrelationsLMO{T,N,Mode,IsSymmetric,HasMarginals,UseArray};
@@ -157,6 +156,39 @@ function BellCorrelationsDS(
         zeros(type, zeros(Int, N)...),
     )
     set_array!(res)
+    return res
+end
+
+# method used to convert active_set.atoms into a desired type (intended Rational{BigInt})
+# to recompute the last iterate
+function BellCorrelationsDS(
+    vds::Vector{BellCorrelationsDS{T1,N,IsSymmetric,HasMarginals,UseArray}},
+    ::Type{T2};
+    sym=IsSymmetric,
+    marg=HasMarginals,
+    use_array=false,
+) where {T1<:Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray} where {T2<:Number}
+    array = zeros(T2, size(vds[1]))
+    lmo = BellCorrelationsLMO(array; sym=sym, marg=marg)
+    dotp = zero(T2)
+    dot = T2[]
+    hash = 0
+    modified = true
+    weight = zero(T2)
+    gap = zero(T2)
+    res = BellCorrelationsDS{T2,N,sym,marg,use_array}[]
+    for ds in vds
+        if marg == HasMarginals
+            ax = ds.ax
+        elseif HasMarginals
+            ax = [axn[1:end-1] for axn in ds.ax]
+        else
+            ax = [vcat(axn, one(T)) for axn in ax]
+        end
+        atom = BellCorrelationsDS{T2,N,sym,marg,use_array}(broadcast.(T2, ax), lmo, dotp, dot, hash, modified, weight, gap, array)
+        set_array!(atom)
+        push!(res, atom)
+    end
     return res
 end
 

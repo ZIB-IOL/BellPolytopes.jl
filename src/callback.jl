@@ -1,7 +1,3 @@
-using FrankWolfe
-using Serialization
-using Printf
-
 function build_callback(
     trajectory_arr,
     p,
