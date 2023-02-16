@@ -15,7 +15,7 @@ function FrankWolfe.compute_extreme_point(
     args_alternating_minimisation = arguments_alternating_minimisation(lmo, A)
     for i in 1:lmo.nb
         for n in 1:N-1
-            Random.rand!(ax[n], [-one(T), one(T)])
+            rand!(ax[n], [-one(T), one(T)])
             if HasMarginals
                 ax[n][end] = one(T)
             end
@@ -392,7 +392,7 @@ function FrankWolfe.active_set_argminmax(
             push!(idx_modified, j)
         end
     end
-    @inbounds for i in eachindex(active_set)
+    @inbounds @batch minbatch=100 for i in eachindex(active_set)
         for j in idx_modified
             if j ≤ i
                 active_set.atoms[i].gap +=
@@ -404,6 +404,8 @@ function FrankWolfe.active_set_argminmax(
                     active_set.atoms[j].dot[active_set.atoms[i].hash]
             end
         end
+    end
+    @inbounds for i in eachindex(active_set)
         temp_val = active_set.atoms[i].gap - active_set.atoms[i].dotp
         #  if abs(temp_val - FrankWolfe.fast_dot(active_set.atoms[i], direction)) > 1e-8
         #  println(temp_val)
