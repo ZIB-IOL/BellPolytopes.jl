@@ -58,18 +58,17 @@ function FrankWolfe.compute_extreme_point(
         digits!(intax, λa2, base=2)
         ax[2][1:m] .= 2intax .- 1
         mul!(lmo.tmp, A, ax[2])
-        for λa1 in (IsSymmetric ? λa2 : 0):L-1
-            digits!(intax, λa1, base=2)
-            ax[1][1:m] .= 2intax .- 1
-            sc = dot(ax[1], lmo.tmp)
-            if sc < scm
-                scm = sc
-                axm[1] .= ax[1]
-                axm[2] .= ax[2]
-            end
-            if verbose && sc ≈ scm
-                println(rpad(string([λa2, λa1]), 4 + 2ndigits(L)), " ", string(-scm))
-            end
+        for x2 in 1:length(ax[1])-HasMarginals
+            ax[1][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+        end
+        sc = dot(ax[1], lmo.tmp)
+        if sc < scm
+            scm = sc
+            axm[1] .= ax[1]
+            axm[2] .= ax[2]
+        end
+        if verbose && sc ≈ scm
+            println(rpad(string([λa2, λa1]), 4 + 2ndigits(L)), " ", string(-scm))
         end
     end
     dsm = BellCorrelationsDS(axm, lmo; initialise=initialise)
@@ -89,8 +88,7 @@ function FrankWolfe.compute_extreme_point(
     if IsSymmetric && last
         A .= lmo.reynolds(A; lmo=lmo)
     end
-    # one could get a nice speedup by factorising the tensor contractions as in the bipartite case
-    ds = BellCorrelationsDS([ones(T, lmo.m) for n in 1:3], lmo; use_array=false, initialise=false)
+    ax = [ones(T, lmo.m) for n in 1:3]
     axm = [zeros(T, lmo.m) for n in 1:3]
     scm = typemax(T)
     m = HasMarginals ? lmo.m - 1 : lmo.m
@@ -101,23 +99,23 @@ function FrankWolfe.compute_extreme_point(
     intax = zeros(Int, m)
     for λa3 in 0:L-1
         digits!(intax, λa3, base=2)
-        ds.ax[3][1:m] .= 2intax .- 1
+        ax[3][1:m] .= 2intax .- 1
         for λa2 in (IsSymmetric ? λa3 : 0):L-1
             digits!(intax, λa2, base=2)
-            ds.ax[2][1:m] .= 2intax .- 1
-            for λa1 in (IsSymmetric ? λa2 : 0):L-1
-                digits!(intax, λa1, base=2)
-                ds.ax[1][1:m] .= 2intax .- 1
-                sc = FrankWolfe.fast_dot(ds, A)
-                if sc < scm
-                    scm = sc
-                    for n in 1:3
-                        axm[n] .= ds.ax[n]
-                    end
+            ax[2][1:m] .= 2intax .- 1
+            @tullio lmo.tmp[x1] = A[x1, x2, x3] * ax[2][x2] * ax[3][x3]
+            for x1 in 1:length(ax[1])-HasMarginals
+                ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+            end
+            sc = dot(ax[1], lmo.tmp)
+            if sc < scm
+                scm = sc
+                for n in 1:3
+                    axm[n] .= ax[n]
                 end
-                if verbose && sc ≈ scm
-                    println(rpad(string([λa3, λa2, λa1]), 6 + 3ndigits(L)), " ", string(-scm))
-                end
+            end
+            if verbose && sc ≈ scm
+                println(rpad(string([λa3, λa2, λa1]), 6 + 3ndigits(L)), " ", string(-scm))
             end
         end
     end
@@ -138,8 +136,7 @@ function FrankWolfe.compute_extreme_point(
     if IsSymmetric && last
         A .= lmo.reynolds(A; lmo=lmo)
     end
-    # one could get a nice speedup by factorising the tensor contractions as in the bipartite case
-    ds = BellCorrelationsDS([ones(T, lmo.m) for n in 1:4], lmo; use_array=false, initialise=false)
+    ax = [ones(T, lmo.m) for n in 1:4]
     axm = [zeros(T, lmo.m) for n in 1:4]
     scm = typemax(T)
     m = HasMarginals ? lmo.m - 1 : lmo.m
@@ -150,30 +147,30 @@ function FrankWolfe.compute_extreme_point(
     intax = zeros(Int, m)
     for λa4 in 0:L-1
         digits!(intax, λa4, base=2)
-        ds.ax[4][1:m] .= 2intax .- 1
+        ax[4][1:m] .= 2intax .- 1
         for λa3 in (IsSymmetric ? λa4 : 0):L-1
             digits!(intax, λa3, base=2)
-            ds.ax[3][1:m] .= 2intax .- 1
+            ax[3][1:m] .= 2intax .- 1
             for λa2 in (IsSymmetric ? λa3 : 0):L-1
                 digits!(intax, λa2, base=2)
-                ds.ax[2][1:m] .= 2intax .- 1
-                for λa1 in (IsSymmetric ? λa2 : 0):L-1
-                    digits!(intax, λa1, base=2)
-                    ds.ax[1][1:m] .= 2intax .- 1
-                    sc = FrankWolfe.fast_dot(ds, A)
-                    if sc < scm
-                        scm = sc
-                        for n in 1:4
-                            axm[n] .= ds.ax[n]
-                        end
+                ax[2][1:m] .= 2intax .- 1
+                @tullio lmo.tmp[x1] = A[x1, x2, x3, x4] * ax[2][x2] * ax[3][x3] * ax[4][x4]
+                for x1 in 1:length(ax[1])-HasMarginals
+                    ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+                end
+                sc = dot(ax[1], lmo.tmp)
+                if sc < scm
+                    scm = sc
+                    for n in 1:4
+                        axm[n] .= ax[n]
                     end
-                    if verbose && sc ≈ scm
-                        println(
+                end
+                if verbose && sc ≈ scm
+                    println(
                             rpad(string([λa4, λa3, λa2, λa1]), 8 + 4ndigits(L)),
                             " ",
                             string(-scm),
-                        )
-                    end
+                           )
                 end
             end
         end
@@ -195,8 +192,7 @@ function FrankWolfe.compute_extreme_point(
     if IsSymmetric && last
         A .= lmo.reynolds(A; lmo=lmo)
     end
-    # one could get a nice speedup by factorising the tensor contractions as in the bipartite case
-    ds = BellCorrelationsDS([ones(T, lmo.m) for n in 1:5], lmo; use_array=false, initialise=false)
+    ax = [ones(T, lmo.m) for n in 1:5]
     axm = [zeros(T, lmo.m) for n in 1:5]
     scm = typemax(T)
     m = HasMarginals ? lmo.m - 1 : lmo.m
@@ -207,33 +203,33 @@ function FrankWolfe.compute_extreme_point(
     intax = zeros(Int, m)
     for λa5 in 0:L-1
         digits!(intax, λa5, base=2)
-        ds.ax[5][1:m] .= 2intax .- 1
+        ax[5][1:m] .= 2intax .- 1
         for λa4 in (IsSymmetric ? λa5 : 0):L-1
             digits!(intax, λa4, base=2)
-            ds.ax[4][1:m] .= 2intax .- 1
+            ax[4][1:m] .= 2intax .- 1
             for λa3 in (IsSymmetric ? λa4 : 0):L-1
                 digits!(intax, λa3, base=2)
-                ds.ax[3][1:m] .= 2intax .- 1
+                ax[3][1:m] .= 2intax .- 1
                 for λa2 in (IsSymmetric ? λa3 : 0):L-1
                     digits!(intax, λa2, base=2)
-                    ds.ax[2][1:m] .= 2intax .- 1
-                    for λa1 in (IsSymmetric ? λa2 : 0):L-1
-                        digits!(intax, λa1, base=2)
-                        ds.ax[1][1:m] .= 2intax .- 1
-                        sc = FrankWolfe.fast_dot(ds, A)
-                        if sc < scm
-                            scm = sc
-                            for n in 1:5
-                                axm[n] .= ds.ax[n]
-                            end
+                    ax[2][1:m] .= 2intax .- 1
+                    @tullio lmo.tmp[x1] = A[x1, x2, x3, x4, x5] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
+                    for x1 in 1:length(ax[1])-HasMarginals
+                        ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+                    end
+                    sc = dot(ax[1], lmo.tmp)
+                    if sc < scm
+                        scm = sc
+                        for n in 1:5
+                            axm[n] .= ax[n]
                         end
-                        if verbose && sc ≈ scm
-                            println(
+                    end
+                    if verbose && sc ≈ scm
+                        println(
                                 rpad(string([λa5, λa4, λa3, λa2, λa1]), 10 + 5ndigits(L)),
                                 " ",
                                 string(-scm),
-                            )
-                        end
+                               )
                     end
                 end
             end
@@ -256,8 +252,7 @@ function FrankWolfe.compute_extreme_point(
     if IsSymmetric && last
         A .= lmo.reynolds(A; lmo=lmo)
     end
-    # one could get a nice speedup by factorising the tensor contractions as in the bipartite case
-    ds = BellCorrelationsDS([ones(T, lmo.m) for n in 1:6], lmo; use_array=false, initialise=false)
+    ax = [ones(T, lmo.m) for n in 1:6]
     axm = [zeros(T, lmo.m) for n in 1:6]
     scm = typemax(T)
     m = HasMarginals ? lmo.m - 1 : lmo.m
@@ -268,36 +263,37 @@ function FrankWolfe.compute_extreme_point(
     intax = zeros(Int, m)
     for λa6 in 0:L-1
         digits!(intax, λa6, base=2)
-        ds.ax[6][1:m] .= 2intax .- 1
+        ax[6][1:m] .= 2intax .- 1
         for λa5 in (IsSymmetric ? λa6 : 0):L-1
             digits!(intax, λa5, base=2)
-            ds.ax[5][1:m] .= 2intax .- 1
+            ax[5][1:m] .= 2intax .- 1
             for λa4 in (IsSymmetric ? λa5 : 0):L-1
                 digits!(intax, λa4, base=2)
-                ds.ax[4][1:m] .= 2intax .- 1
+                ax[4][1:m] .= 2intax .- 1
                 for λa3 in (IsSymmetric ? λa4 : 0):L-1
                     digits!(intax, λa3, base=2)
-                    ds.ax[3][1:m] .= 2intax .- 1
+                    ax[3][1:m] .= 2intax .- 1
                     for λa2 in (IsSymmetric ? λa3 : 0):L-1
                         digits!(intax, λa2, base=2)
-                        ds.ax[2][1:m] .= 2intax .- 1
-                        for λa1 in (IsSymmetric ? λa2 : 0):L-1
-                            digits!(intax, λa1, base=2)
-                            ds.ax[1][1:m] .= 2intax .- 1
-                            sc = FrankWolfe.fast_dot(ds, A)
-                            if sc < scm
-                                scm = sc
-                                for n in 1:6
-                                    axm[n] .= ds.ax[n]
-                                end
+                        ax[2][1:m] .= 2intax .- 1
+                        @tullio lmo.tmp[x1] =
+                        A[x1, x2, x3, x4, x5, x6] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+                        for x1 in 1:length(ax[1])-HasMarginals
+                            ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+                        end
+                        sc = dot(ax[1], lmo.tmp)
+                        if sc < scm
+                            scm = sc
+                            for n in 1:6
+                                axm[n] .= ax[n]
                             end
-                            if verbose && sc ≈ scm
-                                println(
+                        end
+                        if verbose && sc ≈ scm
+                            println(
                                     rpad(string([λa6, λa5, λa4, λa3, λa2, λa1]), 12 + 6ndigits(L)),
                                     " ",
                                     string(-scm),
-                                )
-                            end
+                                   )
                         end
                     end
                 end
@@ -318,12 +314,11 @@ function FrankWolfe.compute_extreme_point(
     initialise=true,
     kwargs...,
 ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
+    @warn("This function is naive and should not be used for actual computations.")
     if IsSymmetric && last
         A .= lmo.reynolds(A; lmo=lmo)
     end
-    # one could get a nice speedup by factorising the tensor contractions as in the bipartite case
-    # the approach with the λa here is very naive and only allows support for very small cases
-    # TODO add a warning
+    # the approach with the λa here is very naive and only allows pedagogical support for very small cases
     ds = BellCorrelationsDS([ones(T, lmo.m) for n in 1:N], lmo; initialise=false)
     axm = [zeros(T, lmo.m) for n in 1:N]
     scm = typemax(T)
