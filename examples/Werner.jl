@@ -2,7 +2,6 @@
 using BellPolytopes
 using FrankWolfe
 using LinearAlgebra
-using Serialization
 
 N = 2 # bipartite scenario
 # Bloch vectors of the measurements to be performed by all parties

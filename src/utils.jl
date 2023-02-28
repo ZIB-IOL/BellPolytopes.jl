@@ -3,16 +3,16 @@
 #############
 
 function arguments_alternating_minimisation(
-    lmo::BellCorrelationsLMO{T,2,0,IsSymmetric},
-    A::Array{T,2},
-) where {T<:Number} where {IsSymmetric}
+    lmo::BellCorrelationsLMO{T, 2, 0, IsSymmetric},
+    A::Array{T, 2},
+) where {T <: Number} where {IsSymmetric}
     return (A, IsSymmetric ? A : collect(A'))
 end
 
 function arguments_alternating_minimisation(
-    lmo::BellCorrelationsLMO{T,N,0},
-    A::Array{T,N},
-) where {T<:Number} where {N}
+    lmo::BellCorrelationsLMO{T, N, 0},
+    A::Array{T, N},
+) where {T <: Number} where {N}
     return (A,)
 end
 
@@ -20,10 +20,10 @@ end
 # min_ab ∑_xy M_xy a_x b_y with a_x and b_y being ±1
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T,2,0,IsSymmetric,HasMarginals},
-    A::Array{T,2},
-    At::Array{T,2},
-) where {T<:Number} where {IsSymmetric} where {HasMarginals}
+    lmo::BellCorrelationsLMO{T, 2, 0, IsSymmetric, HasMarginals},
+    A::Array{T, 2},
+    At::Array{T, 2},
+) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -45,9 +45,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T,3,0,IsSymmetric,HasMarginals},
-    A::Array{T,3},
-) where {T<:Number} where {IsSymmetric} where {HasMarginals}
+    lmo::BellCorrelationsLMO{T, 3, 0, IsSymmetric, HasMarginals},
+    A::Array{T, 3},
+) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -74,9 +74,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T,4,0,IsSymmetric,HasMarginals},
-    A::Array{T,4},
-) where {T<:Number} where {IsSymmetric} where {HasMarginals}
+    lmo::BellCorrelationsLMO{T, 4, 0, IsSymmetric, HasMarginals},
+    A::Array{T, 4},
+) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -104,9 +104,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T,5,0,IsSymmetric,HasMarginals},
-    A::Array{T,5},
-) where {T<:Number} where {IsSymmetric} where {HasMarginals}
+    lmo::BellCorrelationsLMO{T, 5, 0, IsSymmetric, HasMarginals},
+    A::Array{T, 5},
+) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -138,9 +138,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T,6,0,IsSymmetric,HasMarginals},
-    A::Array{T,6},
-) where {T<:Number} where {IsSymmetric} where {HasMarginals}
+    lmo::BellCorrelationsLMO{T, 6, 0, IsSymmetric, HasMarginals},
+    A::Array{T, 6},
+) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -182,9 +182,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T,7,0,IsSymmetric,HasMarginals},
-    A::Array{T,7},
-) where {T<:Number} where {IsSymmetric} where {HasMarginals}
+    lmo::BellCorrelationsLMO{T, 7, 0, IsSymmetric, HasMarginals},
+    A::Array{T, 7},
+) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -273,9 +273,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T,8,0,IsSymmetric,HasMarginals},
-    A::Array{T,8},
-) where {T<:Number} where {IsSymmetric} where {HasMarginals}
+    lmo::BellCorrelationsLMO{T, 8, 0, IsSymmetric, HasMarginals},
+    A::Array{T, 8},
+) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -383,9 +383,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T,N,0},
-    A::Array{T,N},
-) where {T<:Number} where {N}
+    lmo::BellCorrelationsLMO{T, N, 0},
+    A::Array{T, N},
+) where {T <: Number} where {N}
     error(
         "Number of parties (" *
         string(N) *
@@ -399,11 +399,11 @@ end
 
 # associate a new lmo with all atoms
 function active_set_link_lmo!(
-    as::FrankWolfe.ActiveSet{AT,T,IT},
+    as::FrankWolfe.ActiveSet{AT, T, IT},
     lmo::LMO,
 ) where {
-    AT<:BellCorrelationsDS{T,N},
-} where {IT<:Array{T}} where {LMO<:BellCorrelationsLMO{T,N}} where {T<:Number} where {N}
+    AT <: BellCorrelationsDS{T, N},
+} where {IT <: Array{T}} where {LMO <: BellCorrelationsLMO{T, N}} where {T <: Number} where {N}
     lmo.data = as.atoms[1].lmo.data
     @inbounds for i in eachindex(as)
         as.atoms[i].lmo = lmo
@@ -413,8 +413,8 @@ end
 
 # initialise an active set from a previously computed active set
 function active_set_reinitialise!(
-    as::FrankWolfe.ActiveSet{AT,T,IT},
-) where {IT<:Array{T}} where {AT<:BellCorrelationsDS{T,N}} where {T<:Number} where {N}
+    as::FrankWolfe.ActiveSet{AT, T, IT},
+) where {IT <: Array{T}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
     FrankWolfe.active_set_renormalize!(as)
     @inbounds for i in eachindex(as)
         set_array!(as.atoms[i])
@@ -439,9 +439,9 @@ end
 
 # reduce the hash to reduce the size of the dot vector
 function active_set_reduce_dot!(
-    as::FrankWolfe.ActiveSet{AT,T,IT},
+    as::FrankWolfe.ActiveSet{AT, T, IT},
     v::AT,
-) where {IT<:Array{T}} where {AT<:BellCorrelationsDS{T,N}} where {T<:Number} where {N}
+) where {IT <: Array{T}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
     @inbounds for i in eachindex(as)
         new_dot = zeros(T, i)
         for j in 1:i
@@ -467,16 +467,16 @@ end
 ############
 
 function reynolds_permutedims(
-    A::Array{T,2};
+    A::Array{T, 2};
     lmo::BellCorrelationsLMO=BellCorrelationsLMO(A),
-) where {T<:Number}
+) where {T <: Number}
     return (A + A') / 2
 end
 
 function reynolds_permutedims(
-    A::Array{T,N};
+    A::Array{T, N};
     lmo::BellCorrelationsLMO=BellCorrelationsLMO(A),
-) where {T<:Number} where {N}
+) where {T <: Number} where {N}
     res = zeros(T, size(A))
     for per in lmo.per
         res .+= permutedims(A, per)
@@ -511,7 +511,7 @@ function polyhedronisme(f::String, m::Int)
 end
 
 # acos handling floating point imprecision
-function _unsafe_acos(x::T) where {T<:Number}
+function _unsafe_acos(x::T) where {T <: Number}
     if x > one(T)
         return 0.0
     elseif x < -one(T)
@@ -524,7 +524,7 @@ end
 """
 Compute a rational approximation of a `m × 3` Bloch matrix.
 """
-function pythagorean_approximation(vecfloat::Matrix{T}; epsilon=1e-16) where {T<:Number}
+function pythagorean_approximation(vecfloat::Matrix{T}; epsilon=1e-16) where {T <: Number}
     m = size(vecfloat, 1)
     vecfloat[abs.(vecfloat).<epsilon] .= zero(T) # remove the elements that are almost zero
     res = zeros(Rational{BigInt}, m, 3)
@@ -551,7 +551,7 @@ end
 """
 Compute the shrinking factor of a `m × 3` Bloch matrix, symmetrising it to account for antipodal vectors.
 """
-function shrinking_squared(vec::AbstractMatrix{T}; verbose=true) where {T<:Number}
+function shrinking_squared(vec::AbstractMatrix{T}; verbose=true) where {T <: Number}
     pol = polyhedron(vrep([vec; -vec]))
     eta2 = typemax(T)
     for hs in halfspaces(hrep(pol))
@@ -570,7 +570,7 @@ end
 function shrinking_squared(
     vecs::Vector{TB};
     verbose=true,
-) where {TB<:AbstractMatrix{T}} where {T<:Number}
+) where {TB <: AbstractMatrix{T}} where {T <: Number}
     eta2 = typemax(T)
     for i in 1:length(vecs)
         eta2 = min(eta2, shrinking_squared(vecs[i]; verbose=false))

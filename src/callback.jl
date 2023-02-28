@@ -1,7 +1,3 @@
-using FrankWolfe
-using Serialization
-using Printf
-
 function build_callback(
     trajectory_arr,
     p,
@@ -107,4 +103,3 @@ function build_callback(
         return state.primal > epsilon
     end
 end
-
