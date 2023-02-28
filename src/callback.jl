@@ -103,4 +103,3 @@ function build_callback(
         return state.primal > epsilon
     end
 end
-

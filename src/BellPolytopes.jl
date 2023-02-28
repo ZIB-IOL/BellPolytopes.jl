@@ -55,7 +55,7 @@ Optional arguments:
  - `seed`: an integer, the initial random seed.
 """
 function bell_frank_wolfe(
-    p::Array{T,N};
+    p::Array{T, N};
     marg::Bool=N == 2 ? false : true,
     v0=one(T),
     epsilon=1e-7,
@@ -67,8 +67,8 @@ function bell_frank_wolfe(
     TL::DataType=T,
     mode_last::Int=0,
     nb_last::Int=10^5,
-    sym::Union{Nothing,Bool}=nothing,
-    use_array::Union{Nothing,Bool}=nothing,
+    sym::Union{Nothing, Bool}=nothing,
+    use_array::Union{Nothing, Bool}=nothing,
     active_set=nothing, # warm start
     lazy::Bool=true, # default in FW package is false
     max_iteration::Int=10^7, # default in FW package is 10^4
@@ -84,7 +84,7 @@ function bell_frank_wolfe(
     file=nothing,
     seed::Int=0,
     kwargs...,
-) where {T<:Number} where {N}
+) where {T <: Number} where {N}
     Random.seed!(seed)
     if verbose > 0
         println("\nVisibility: ", v0)
@@ -217,7 +217,7 @@ function bell_frank_wolfe(
         @printf("    #Atoms: %d\n", length(as))
     end
     atoms = BellCorrelationsDS.(as.atoms; type=TL)
-    as = FrankWolfe.ActiveSet{eltype(atoms),TL,Array{TL,N}}(
+    as = FrankWolfe.ActiveSet{eltype(atoms), TL, Array{TL, N}}(
         TL.(as.weights),
         atoms,
         zeros(TL, size(vp)),
@@ -259,11 +259,11 @@ end
 Compute the local bound of a Bell inequality parametrised by `M`.
 """
 function local_bound(
-    M::Array{T,N};
+    M::Array{T, N};
     mode::Int=1,
     nb::Int=10^5,
     verbose=false,
-) where {T<:Number} where {N}
+) where {T <: Number} where {N}
     ds = FrankWolfe.compute_extreme_point(
         BellCorrelationsLMO(M; mode=mode, nb=nb),
         -M;
@@ -293,7 +293,7 @@ Optional arguments:
  - for the other optional arguments, see `bell_frank_wolfe`.
 """
 function nonlocality_threshold(
-    vec::Union{TB,Vector{TB}},
+    vec::Union{TB, Vector{TB}},
     N::Int;
     rho=N == 2 ? rho_singlet(; type=T) : rho_GHZ(N; type=T),
     epsilon=1e-8,
@@ -302,7 +302,7 @@ function nonlocality_threshold(
     precision=4,
     verbose=-1,
     kwargs...,
-) where {TB<:AbstractMatrix{T}} where {T<:Number}
+) where {TB <: AbstractMatrix{T}} where {T <: Number}
     p = correlation_tensor(vec, N; rho=rho, marg=marg)
     shr2 = shrinking_squared(vec; verbose=verbose > 0)
     lower_bound = zero(T)

@@ -3,10 +3,10 @@
 #######
 
 function FrankWolfe.compute_extreme_point(
-    lmo::BellCorrelationsLMO{T,N,0,IsSymmetric,HasMarginals},
-    A::Array{T,N};
+    lmo::BellCorrelationsLMO{T, N, 0, IsSymmetric, HasMarginals},
+    A::Array{T, N};
     kwargs...,
-) where {T<:Number} where {N} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
     ax = [ones(T, lmo.m) for n in 1:N]
     sc = zero(T)
     axm = [zeros(T, lmo.m) for n in 1:N]
@@ -35,13 +35,13 @@ function FrankWolfe.compute_extreme_point(
 end
 
 function FrankWolfe.compute_extreme_point(
-    lmo::BellCorrelationsLMO{T,2,1,IsSymmetric,HasMarginals},
-    A::Array{T,2};
+    lmo::BellCorrelationsLMO{T, 2, 1, IsSymmetric, HasMarginals},
+    A::Array{T, 2};
     verbose=false,
     last=false,
     initialise=true,
     kwargs...,
-) where {T<:Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     if IsSymmetric && last
         A .= lmo.reynolds(A; lmo=lmo)
     end
@@ -79,13 +79,13 @@ function FrankWolfe.compute_extreme_point(
 end
 
 function FrankWolfe.compute_extreme_point(
-    lmo::BellCorrelationsLMO{T,3,1,IsSymmetric,HasMarginals},
-    A::Array{T,3};
+    lmo::BellCorrelationsLMO{T, 3, 1, IsSymmetric, HasMarginals},
+    A::Array{T, 3};
     verbose=false,
     last=false,
     initialise=true,
     kwargs...,
-) where {T<:Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     if IsSymmetric && last
         A .= lmo.reynolds(A; lmo=lmo)
     end
@@ -128,13 +128,13 @@ function FrankWolfe.compute_extreme_point(
 end
 
 function FrankWolfe.compute_extreme_point(
-    lmo::BellCorrelationsLMO{T,4,1,IsSymmetric,HasMarginals},
-    A::Array{T,4};
+    lmo::BellCorrelationsLMO{T, 4, 1, IsSymmetric, HasMarginals},
+    A::Array{T, 4};
     verbose=false,
     last=false,
     initialise=true,
     kwargs...,
-) where {T<:Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     if IsSymmetric && last
         A .= lmo.reynolds(A; lmo=lmo)
     end
@@ -185,13 +185,13 @@ function FrankWolfe.compute_extreme_point(
 end
 
 function FrankWolfe.compute_extreme_point(
-    lmo::BellCorrelationsLMO{T,5,1,IsSymmetric,HasMarginals},
-    A::Array{T,5};
+    lmo::BellCorrelationsLMO{T, 5, 1, IsSymmetric, HasMarginals},
+    A::Array{T, 5};
     verbose=false,
     last=false,
     initialise=true,
     kwargs...,
-) where {T<:Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     if IsSymmetric && last
         A .= lmo.reynolds(A; lmo=lmo)
     end
@@ -246,13 +246,13 @@ function FrankWolfe.compute_extreme_point(
 end
 
 function FrankWolfe.compute_extreme_point(
-    lmo::BellCorrelationsLMO{T,6,1,IsSymmetric,HasMarginals},
-    A::Array{T,6};
+    lmo::BellCorrelationsLMO{T, 6, 1, IsSymmetric, HasMarginals},
+    A::Array{T, 6};
     verbose=false,
     last=false,
     initialise=true,
     kwargs...,
-) where {T<:Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     if IsSymmetric && last
         A .= lmo.reynolds(A; lmo=lmo)
     end
@@ -311,13 +311,13 @@ function FrankWolfe.compute_extreme_point(
 end
 
 function FrankWolfe.compute_extreme_point(
-    lmo::BellCorrelationsLMO{T,N,1,IsSymmetric,HasMarginals},
-    A::Array{T,N};
+    lmo::BellCorrelationsLMO{T, N, 1, IsSymmetric, HasMarginals},
+    A::Array{T, N};
     verbose=false,
     last=false,
     initialise=true,
     kwargs...,
-) where {T<:Number} where {N} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
     if IsSymmetric && last
         A .= lmo.reynolds(A; lmo=lmo)
     end
@@ -368,9 +368,9 @@ end
 # create an active set from x0
 function FrankWolfe.ActiveSet(
     atom::AT,
-) where {AT<:BellCorrelationsDS{T,N}} where {T<:Number} where {N}
+) where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
     x = similar(atom)
-    as = FrankWolfe.ActiveSet{AT,T,typeof(x)}([one(T)], [atom], x)
+    as = FrankWolfe.ActiveSet{AT, T, typeof(x)}([one(T)], [atom], x)
     FrankWolfe.compute_active_set_iterate!(as)
     return as
 end
@@ -378,10 +378,10 @@ end
 # find the best and worst atoms in the active set
 # direction is not used and assumed to be x-p where x is the current active set iterate
 function FrankWolfe.active_set_argminmax(
-    active_set::FrankWolfe.ActiveSet{AT,T,IT},
+    active_set::FrankWolfe.ActiveSet{AT, T, IT},
     direction::IT;
     Φ=0.5,
-) where {IT<:Array{T,N}} where {AT<:BellCorrelationsDS{T,N}} where {T<:Number} where {N}
+) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
     val = typemax(T)
     valM = typemin(T)
     idx = -1
@@ -392,7 +392,7 @@ function FrankWolfe.active_set_argminmax(
             push!(idx_modified, j)
         end
     end
-    @inbounds @batch minbatch=100 for i in eachindex(active_set)
+    @inbounds @batch minbatch = 100 for i in eachindex(active_set)
         for j in idx_modified
             if j ≤ i
                 active_set.atoms[i].gap +=
@@ -429,8 +429,8 @@ function FrankWolfe.active_set_argminmax(
 end
 
 function FrankWolfe.compute_active_set_iterate!(
-    active_set::FrankWolfe.ActiveSet{AT,T,IT},
-) where {IT<:Array{T,N}} where {AT<:BellCorrelationsDS{T,N}} where {T<:Number} where {N}
+    active_set::FrankWolfe.ActiveSet{AT, T, IT},
+) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
     active_set.x .= zero(T)
     for (λi, ai) in active_set
         @inbounds for x in active_set.atoms[1].lmo.ci
@@ -441,10 +441,10 @@ function FrankWolfe.compute_active_set_iterate!(
 end
 
 function FrankWolfe.active_set_update_scale!(
-    xit::Array{T,N},
+    xit::Array{T, N},
     lambda::T,
-    atom::BellCorrelationsDS{T,N},
-) where {T<:Number} where {N}
+    atom::BellCorrelationsDS{T, N},
+) where {T <: Number} where {N}
     @inbounds for x in atom.lmo.ci
         xit[x] = (1 - lambda) * xit[x] + lambda * atom[x]
     end
@@ -453,12 +453,12 @@ end
 
 # add a new atom in the active set
 function FrankWolfe.active_set_update!(
-    active_set::FrankWolfe.ActiveSet{AT,T,IT},
+    active_set::FrankWolfe.ActiveSet{AT, T, IT},
     lambda::T,
     atom::AT,
     renorm=true,
     idx=nothing,
-) where {IT<:Array{T,N}} where {AT<:BellCorrelationsDS{T,N}} where {T<:Number} where {N}
+) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
     # rescale active set
     active_set.weights .*= (1 - lambda)
     @inbounds for i in eachindex(active_set)
@@ -485,8 +485,8 @@ function FrankWolfe.active_set_update!(
 end
 
 function FrankWolfe.active_set_renormalize!(
-    active_set::FrankWolfe.ActiveSet{AT,T,IT},
-) where {IT<:Array{T,N}} where {AT<:BellCorrelationsDS{T,N}} where {T<:Number} where {N}
+    active_set::FrankWolfe.ActiveSet{AT, T, IT},
+) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
     renorm = sum(active_set.weights)
     active_set.weights ./= renorm
     @inbounds for i in eachindex(active_set)
@@ -501,7 +501,7 @@ function FrankWolfe.active_set_update_iterate_pairwise!(
     lambda::T,
     fw_atom::AT,
     away_atom::AT,
-) where {IT<:Array{T,N}} where {AT<:BellCorrelationsDS{T,N}} where {T<:Number} where {N}
+) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
     fw_atom.modified = true
     away_atom.modified = true
     @inbounds for x in fw_atom.lmo.ci
@@ -511,9 +511,9 @@ function FrankWolfe.active_set_update_iterate_pairwise!(
 end
 
 function Base.push!(
-    as::FrankWolfe.ActiveSet{AT,T,IT},
+    as::FrankWolfe.ActiveSet{AT, T, IT},
     (λ, a),
-) where {IT<:Array{T,N}} where {AT<:BellCorrelationsDS{T,N}} where {T<:Number} where {N}
+) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
     push!(as.weights, λ)
     push!(as.atoms, a)
     #  a.dotp = FrankWolfe.fast_dot(a.lmo.p, a)
@@ -529,9 +529,9 @@ function Base.push!(
 end
 
 function Base.deleteat!(
-    as::FrankWolfe.ActiveSet{AT,T,IT},
+    as::FrankWolfe.ActiveSet{AT, T, IT},
     idx::Int,
-) where {IT<:Array{T,N}} where {AT<:BellCorrelationsDS{T,N}} where {T<:Number} where {N}
+) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
     @inbounds for j in eachindex(as)
         if j ≤ idx
             as.atoms[j].gap -= as.weights[idx] * as.atoms[idx].dot[as.atoms[j].hash]
@@ -552,10 +552,10 @@ end
 # quite an ugly hack...
 function FrankWolfe.muladd_memory_mode(
     memory_mode::FrankWolfe.InplaceEmphasis,
-    d::Array{T,N},
+    d::Array{T, N},
     a::AT,
     v::AT,
-) where {AT<:BellCorrelationsDS{T,N}} where {T<:Number} where {N}
+) where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
     d[1] = Inf
     if a.hash > v.hash
         @inbounds d[2] =
@@ -569,10 +569,10 @@ end
 
 function FrankWolfe.muladd_memory_mode(
     memory_mode::FrankWolfe.InplaceEmphasis,
-    d::Array{T,N},
-    xit::Array{T,N},
-    v::BellCorrelationsDS{T,N},
-) where {T<:Number} where {N}
+    d::Array{T, N},
+    xit::Array{T, N},
+    v::BellCorrelationsDS{T, N},
+) where {T <: Number} where {N}
     @inbounds for x in v.lmo.ci
         d[x] = xit[x] - v[x]
     end
@@ -590,7 +590,7 @@ function FrankWolfe.perform_line_search(
     gamma_max::T,
     workspace,
     memory_mode::FrankWolfe.InplaceEmphasis,
-) where {T<:Number}
+) where {T <: Number}
     if d[1] == Inf
         return min(max(d[2], 0), gamma_max)
     else
