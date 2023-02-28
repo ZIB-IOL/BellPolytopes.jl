@@ -53,9 +53,7 @@ function BellCorrelationsLMO(
     nb=lmo.nb,
     reynolds=lmo.reynolds,
     data=lmo.data,
-) where {
-    T <: Number,
-} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
+) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
     if marg == HasMarginals
         m = lmo.m
         p = lmo.p
@@ -87,14 +85,98 @@ function BellCorrelationsLMO(
     )
 end
 
+# warning: N is twice the number of parties in this case
+mutable struct BellProbabilitiesLMO{T, N, Mode, IsSymmetric, UseArray} <:
+               FrankWolfe.LinearMinimizationOracle
+    # scenario fields
+    const d::Int # number of outputs
+    const m::Int # number of inputs
+    const p::Array{T, N} # point of interest
+    # general fields
+    tmp::Vector{Vector{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
+    nb::Int # number of repetition
+    cnt::Int # count the number of calls of the LMO and used to hash the atoms
+    const reynolds::Union{Nothing, Function}
+    const fac::T # factorial of N used in the symmetric case
+    const per::Vector{Vector{Int}} # permutations used in the symmetric case
+    const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
+    data::Vector{Any} # store information about the computation
+end
+
+# constructor with predefined values
+function BellProbabilitiesLMO(
+    p::Array{T, N};
+    mode::Int=0,
+    nb::Int=100,
+    sym::Bool=false,
+    use_array::Bool=true,
+    reynolds=nothing,
+    data=[0, 0],
+) where {T <: Number} where {N}
+    return BellProbabilitiesLMO{T, N, mode, sym, use_array}(
+        size(p)[1],
+        size(p)[end],
+        p,
+        zeros(T, size(p, 1)),
+        nb,
+        1,
+        reynolds,
+        T(factorial(N÷2)),
+        collect(permutations(1:N÷2)),
+        CartesianIndices(p),
+        data,
+    )
+end
+
+function BellProbabilitiesLMO(
+    lmo::BellProbabilitiesLMO{T, N, Mode, IsSymmetric, UseArray};
+    type=T,
+    mode=Mode,
+    sym=IsSymmetric,
+    use_array=UseArray,
+    nb=lmo.nb,
+    reynolds=lmo.reynolds,
+    data=lmo.data,
+) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {UseArray}
+    if marg == HasMarginals
+        m = lmo.m
+        p = lmo.p
+        tmp = lmo.tmp
+        ci = lmo.ci
+    elseif HasMarginals
+        m = lmo.m - 1
+        ci = CartesianIndices(size(p) .- 1)
+        p = lmo.p[ci]
+        tmp = zeros(type, m)
+    else
+        m = lmo.m + 1
+        p = zeros(type, size(lmo.p) .+ 1)
+        p[lmo.ci] .= lmo.p
+        tmp = zeros(type, m)
+        ci = CartesianIndices(p)
+    end
+    return BellProbabilitiesLMO{type, N, mode, sym, use_array}(
+        m,
+        p,
+        tmp,
+        nb,
+        lmo.cnt,
+        lmo.reynolds,
+        lmo.fac,
+        lmo.per,
+        lmo.ci,
+        data,
+    )
+end
+
 ######################
 # CORRELATION TENSOR #
 ######################
 
-# deterministic strategy structure for multipartite correlation matrix
+# deterministic strategy structure for multipartite correlation tensor
 mutable struct BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray} <: AbstractArray{T, N}
     const ax::Vector{Vector{T}} # strategies, ±1 vector
-    lmo::BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals} where {Mode} # sym, correlation matrix of interest, tmp
+    lmo::BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals} where {Mode} # sym, correlation tensor of interest, tmp
     dotp::T # dot product with the point p, stored to improve performance in argminmax
     dot::Vector{T} # dot product with the other atoms, stored to improve performance in argminmax
     hash::Int # unique number associated to each new atom from lmo.cnt
@@ -111,9 +193,7 @@ function BellCorrelationsDS(
     lmo::BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray};
     use_array=UseArray,
     initialise=true,
-) where {
-    T <: Number,
-} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
+) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
     res = BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, use_array}(
         ax,
         lmo,
@@ -171,9 +251,7 @@ function BellCorrelationsDS(
     sym=IsSymmetric,
     marg=HasMarginals,
     use_array=false,
-) where {
-    T1 <: Number,
-} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray} where {T2 <: Number}
+) where {T1 <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray} where {T2 <: Number}
     array = zeros(T2, size(vds[1]))
     lmo = BellCorrelationsLMO(array; sym=sym, marg=marg)
     dotp = zero(T2)
@@ -293,11 +371,6 @@ function get_array(
     aux = BellCorrelationsDS(ds; sym=false, use_array=false)
     @inbounds for x in eachindex(res)
         res[x] = aux[x]
-        if T <: AbstractFloat
-            if abs(res[x]) < Base.rtoldefault(T)
-                res[x] = zero(T)
-            end
-        end
     end
     return IsSymmetric ? ds.lmo.reynolds(res; lmo=ds.lmo) : res
 end
@@ -498,6 +571,170 @@ function FrankWolfe.fast_dot(
     end
     return prd - (HasMarginals ? one(T) : zero(T))
 end
+
+######################
+# PROBABILITY TENSOR #
+######################
+
+# deterministic strategy structure for multipartite probability tensor
+mutable struct BellProbabilitiesDS{T, N, IsSymmetric, UseArray} <: AbstractArray{T, N}
+    const ax::Vector{Vector{Int}} # strategies, 1..d vector
+    lmo::BellProbabilitiesLMO{T, N, Mode, IsSymmetric} where {Mode} # sym, probability tensor of interest, tmp
+    dotp::T # dot product with the point p, stored to improve performance in argminmax
+    dot::Vector{T} # dot product with the other atoms, stored to improve performance in argminmax
+    hash::Int # unique number associated to each new atom from lmo.cnt
+    modified::Bool # whether the atom has been modified by FW, to update accordingly in argminmax
+    weight::T # the previous weight of the atom, to be updated in argminmax
+    gap::T # the current gap of the atom <x,a> where x is the current iterate, stored to improve performance in argminmax
+    array::Array{T, N} # if UseArray, full storage to trade speed for memory
+end
+
+Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(d*ones(Int, N÷2), length.(ax)))
+
+function BellProbabilitiesDS(
+    ax::Vector{Vector{T}},
+    lmo::BellProbabilitiesLMO{T, N, Mode, IsSymmetric, UseArray};
+    use_array=UseArray,
+    initialise=true,
+) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {UseArray}
+    res = BellProbabilitiesDS{T, N, IsSymmetric, use_array}(
+        ax,
+        lmo,
+        zero(T),
+        zeros(T, lmo.cnt),
+        lmo.cnt,
+        true,
+        zero(T),
+        zero(T),
+        zeros(T, zeros(Int, N)...),
+    )
+    if initialise
+        set_array!(res)
+        # initialise the fields later used in argminmax
+        res.dotp = FrankWolfe.fast_dot(lmo.p, res)
+        res.dot[res.hash] = FrankWolfe.fast_dot(res, res)
+    end
+    return res
+end
+
+function BellProbabilitiesDS(
+    ds::BellProbabilitiesDS{T, N, IsSymmetric, UseArray};
+    type=T,
+    sym=IsSymmetric,
+    use_array=UseArray,
+) where {T <: Number} where {N} where {IsSymmetric} where {UseArray}
+    ax = ds.ax
+    res = BellProbabilitiesDS{type, N, sym, use_array}(
+        ax,
+        BellProbabilitiesLMO(ds.lmo; type=type, sym=sym),
+        type(ds.dotp),
+        type.(ds.dot),
+        ds.hash,
+        ds.modified,
+        type(ds.weight),
+        type(ds.gap),
+        zeros(type, zeros(Int, N)...),
+    )
+    set_array!(res)
+    return res
+end
+
+# method used to convert active_set.atoms into a desired type (intended Rational{BigInt})
+# to recompute the last iterate
+function BellProbabilitiesDS(
+    vds::Vector{BellProbabilitiesDS{T1, N, IsSymmetric, UseArray}},
+    ::Type{T2};
+    sym=IsSymmetric,
+    use_array=false,
+) where {T1 <: Number} where {N} where {IsSymmetric} where {UseArray} where {T2 <: Number}
+    array = zeros(T2, size(vds[1]))
+    lmo = BellProbabilitiesLMO(array; sym=sym)
+    dotp = zero(T2)
+    dot = T2[]
+    hash = 0
+    modified = true
+    weight = zero(T2)
+    gap = zero(T2)
+    res = BellProbabilitiesDS{T2, N, sym, use_array}[]
+    for ds in vds
+        ax = ds.ax
+        atom = BellProbabilitiesDS{T2, N, sym, use_array}(
+            ax,
+            lmo,
+            dotp,
+            dot,
+            hash,
+            modified,
+            weight,
+            gap,
+            array,
+        )
+        set_array!(atom)
+        push!(res, atom)
+    end
+    return res
+end
+
+function FrankWolfe._unsafe_equal(
+    ds1::BellProbabilitiesDS{T, N},
+    ds2::BellProbabilitiesDS{T, N},
+) where {T <: Number} where {N}
+    if ds1 === ds2
+        return true
+    end
+    @inbounds for n in 1:N
+        for x in eachindex(ds1.ax[n])
+            if ds1.ax[n][x] != ds2.ax[n][x]
+                return false
+            end
+        end
+    end
+    return true
+end
+
+Base.@propagate_inbounds function Base.getindex(
+    ds::BellProbabilitiesDS{T, N},
+    x::Int,
+) where {T <: Number} where {N}
+    return Base.getindex(ds, ds.lmo.ci[x])
+end
+
+Base.@propagate_inbounds function Base.getindex(
+    ds::BellProbabilitiesDS{T, N, IsSymmetric, true},
+    x::Vararg{Int, N},
+) where {T <: Number} where {N} where {IsSymmetric}
+    @boundscheck (checkbounds(ds, x...))
+    return @inbounds getindex(ds.array, x...)
+end
+
+Base.@propagate_inbounds function Base.getindex(
+    ds::BellProbabilitiesDS{T, N, false, false},
+    x::Vararg{Int, N},
+) where {T <: Number} where {N}
+    @boundscheck (checkbounds(ds, x...))
+    return all(n -> @inbounds ds.ax[n] == x[n], 1:N) ? one(T) : zero(T)
+end
+
+function get_array(
+    ds::BellProbabilitiesDS{T, N, IsSymmetric},
+) where {T <: Number} where {N} where {IsSymmetric}
+    res = zeros(T, size(ds))
+    aux = BellProbabilitiesDS(ds; sym=false, use_array=false)
+    @inbounds for x in eachindex(res)
+        res[x] = aux[x]
+    end
+    return IsSymmetric ? ds.lmo.reynolds(res; lmo=ds.lmo) : res
+end
+
+function set_array!(
+    ds::BellProbabilitiesDS{T, N, IsSymmetric, true},
+) where {T <: Number} where {N} where {IsSymmetric}
+    ds.array = get_array(ds)
+end
+
+function set_array!(
+    ds::BellProbabilitiesDS{T, N, IsSymmetric, false},
+) where {T <: Number} where {N} where {IsSymmetric} end
 
 ###########
 # STORAGE #
