@@ -116,7 +116,7 @@ function BellProbabilitiesLMO(
         size(p)[1],
         size(p)[end],
         p,
-        [zeros(T, size(p)[1]) for n in 1:N],
+        [zeros(T, size(p)[1]) for n in 1:size(p)[end]],
         nb,
         1,
         reynolds,
@@ -693,6 +693,31 @@ end
 function set_array!(
     ds::BellProbabilitiesDS{T, N, IsSymmetric, false},
 ) where {T <: Number} where {N} where {IsSymmetric} end
+
+FrankWolfe.fast_dot(A::Array, ds::BellProbabilitiesDS) = conj(FrankWolfe.fast_dot(ds, A))
+
+# assume the array A is symmetric when IsSymmetric is true
+function FrankWolfe.fast_dot(
+    ds::BellProbabilitiesDS{T, N, IsSymmetric, true},
+    A::Array{T, N},
+) where {T <: Number} where {N} where {IsSymmetric}
+    return dot(ds.array, A)
+end
+
+function FrankWolfe.fast_dot(
+    ds1::BellProbabilitiesDS{T, N, IsSymmetric, true},
+    ds2::BellProbabilitiesDS{T, N, IsSymmetric, true},
+) where {T <: Number} where {N} where {IsSymmetric}
+    return dot(ds1.array, ds2.array)
+end
+
+# specialised method for performance
+function FrankWolfe.fast_dot(
+    ds1::BellProbabilitiesDS{T, N, IsSymmetric, false},
+    ds2::BellProbabilitiesDS{T, N, IsSymmetric, false},
+) where {T <: Number} where {N} where {IsSymmetric}
+    error("TODO")
+end
 
 ###########
 # STORAGE #

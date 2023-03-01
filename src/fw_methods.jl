@@ -454,7 +454,7 @@ end
 
 function FrankWolfe.compute_active_set_iterate!(
     active_set::FrankWolfe.ActiveSet{AT, T, IT},
-) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     active_set.x .= zero(T)
     for (λi, ai) in active_set
         @inbounds for x in active_set.atoms[1].lmo.ci
@@ -467,8 +467,8 @@ end
 function FrankWolfe.active_set_update_scale!(
     xit::Array{T, N},
     lambda::T,
-    atom::BellCorrelationsDS{T, N},
-) where {T <: Number} where {N}
+    atom::AT,
+) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     @inbounds for x in atom.lmo.ci
         xit[x] = (1 - lambda) * xit[x] + lambda * atom[x]
     end
@@ -525,7 +525,7 @@ function FrankWolfe.active_set_update_iterate_pairwise!(
     lambda::T,
     fw_atom::AT,
     away_atom::AT,
-) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     fw_atom.modified = true
     away_atom.modified = true
     @inbounds for x in fw_atom.lmo.ci
@@ -579,7 +579,7 @@ function FrankWolfe.muladd_memory_mode(
     d::Array{T, N},
     a::AT,
     v::AT,
-   ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     d[1] = Inf
     if a.hash > v.hash
         @inbounds d[2] =
@@ -595,8 +595,8 @@ function FrankWolfe.muladd_memory_mode(
     memory_mode::FrankWolfe.InplaceEmphasis,
     d::Array{T, N},
     xit::Array{T, N},
-    v::BellCorrelationsDS{T, N},
-) where {T <: Number} where {N}
+    v::AT,
+) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     @inbounds for x in v.lmo.ci
         d[x] = xit[x] - v[x]
     end

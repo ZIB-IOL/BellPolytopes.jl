@@ -448,7 +448,7 @@ function active_set_link_lmo!(
     as::FrankWolfe.ActiveSet{AT, T, IT},
     lmo::LMO,
 ) where {
-    AT <: BellCorrelationsDS{T, N},
+    AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}},
 } where {IT <: Array{T}} where {LMO <: BellCorrelationsLMO{T, N}} where {T <: Number} where {N}
     lmo.data = as.atoms[1].lmo.data
     @inbounds for i in eachindex(as)
@@ -460,7 +460,7 @@ end
 # initialise an active set from a previously computed active set
 function active_set_reinitialise!(
     as::FrankWolfe.ActiveSet{AT, T, IT},
-) where {IT <: Array{T}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+   ) where {IT <: Array{T}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     FrankWolfe.active_set_renormalize!(as)
     @inbounds for i in eachindex(as)
         set_array!(as.atoms[i])
@@ -487,7 +487,7 @@ end
 function active_set_reduce_dot!(
     as::FrankWolfe.ActiveSet{AT, T, IT},
     v::AT,
-) where {IT <: Array{T}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+   ) where {IT <: Array{T}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     @inbounds for i in eachindex(as)
         new_dot = zeros(T, i)
         for j in 1:i
