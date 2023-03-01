@@ -679,7 +679,9 @@ Base.@propagate_inbounds function Base.getindex(
     x::Vararg{Int, N},
 ) where {T <: Number} where {N}
     @boundscheck (checkbounds(ds, x...))
-    return all(n -> @inbounds ds.ax[n] == x[n], 1:N) ? one(T) : zero(T)
+    println(x)
+    println(ds.ax)
+    return all(n -> @inbounds ds.ax[n][x[n+N÷2-1]] == x[n], 1:N÷2) ? one(T) : zero(T)
 end
 
 function get_array(
@@ -687,7 +689,7 @@ function get_array(
 ) where {T <: Number} where {N} where {IsSymmetric}
     res = zeros(T, size(ds))
     aux = BellProbabilitiesDS(ds; sym=false, use_array=false)
-    @inbounds for x in eachindex(res)
+    @inbounds for x in ds.lmo.ci
         res[x] = aux[x]
     end
     return IsSymmetric ? ds.lmo.reynolds(res; lmo=ds.lmo) : res
