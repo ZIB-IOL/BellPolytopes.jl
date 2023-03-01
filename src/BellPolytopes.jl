@@ -56,7 +56,7 @@ Optional arguments:
 """
 function bell_frank_wolfe(
     p::Array{T, N};
-    marg::Bool=!(N == 2),
+    marg::Bool=N != 2,
     prob::Bool=all(≥(0), p),
     v0=one(T),
     epsilon=1e-7,
@@ -128,7 +128,7 @@ function bell_frank_wolfe(
     end
     # center of the polytope
     if prob
-        o = ones(TD, size(p))/d^2
+        o = ones(TD, size(p)) / d^2
     else
         o = zeros(TD, size(p))
         if marg
@@ -141,7 +141,15 @@ function bell_frank_wolfe(
     if prob
         lmo = BellProbabilitiesLMO(vp; mode=mode, nb=nb, sym=sym, use_array=use_array, reynolds=reynolds)
     else
-        lmo = BellCorrelationsLMO(vp; mode=mode, nb=nb, sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
+        lmo = BellCorrelationsLMO(
+            vp;
+            mode=mode,
+            nb=nb,
+            sym=sym,
+            marg=marg,
+            use_array=use_array,
+            reynolds=reynolds,
+        )
     end
     # useful to make f efficient
     normp2 = dot(vp, vp) / 2
@@ -236,11 +244,11 @@ function bell_frank_wolfe(
         if mode_last ≥ 0 # bypass the last LMO with a negative mode
             time_start = time_ns()
             ds = FrankWolfe.compute_extreme_point(
-                                                  BellCorrelationsLMO(lmo; mode=mode_last, type=TL, nb=nb_last),
-                                                  -M;
-                                                  verbose=verbose > 0,
-                                                  last=true,
-                                                 )
+                BellCorrelationsLMO(lmo; mode=mode_last, type=TL, nb=nb_last),
+                -M;
+                verbose=verbose > 0,
+                last=true,
+            )
             time = time_ns() - time_start
         else
             ds = BellCorrelationsDS(ds; type=TL)
@@ -268,8 +276,19 @@ end
 Compute the local bound of a Bell inequality parametrised by `M`.
 No symmetry detection is implemented yet, used mostly for pedagogy and tests.
 """
-function local_bound(M::Array{T, N}; mode::Int=1, nb::Int=10^5, verbose=false) where {T <: Number} where {N}
-    ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M; mode=mode, nb=nb), -M; verbose=verbose)
+function local_bound(
+    M::Array{T, N};
+    marg::Bool=N != 2,
+    mode::Int=1,
+    sym::Bool=false,
+    nb::Int=10^5,
+    verbose=false,
+) where {T <: Number} where {N}
+    ds = FrankWolfe.compute_extreme_point(
+        BellCorrelationsLMO(M; marg=marg, mode=mode, sym=sym, nb=nb),
+        -M;
+        verbose=verbose,
+    )
     return FrankWolfe.fast_dot(M, ds), ds
 end
 
