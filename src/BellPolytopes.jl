@@ -91,17 +91,23 @@ function bell_frank_wolfe(
         println("\nProbability: ", prob)
         println(" Visibility: ", v0)
     end
-    # symmetry detection
-    if p ≈ reynolds_permutedims(p)
-        reynolds = reynolds_permutedims
-        if sym === nothing # respect the user choice if sym is false
-            sym = true
-        end
+    if prob
+        # TODO
+        sym = false
+        reynolds = nothing
     else
-        if sym == true
-            @warn "Input array seemingly inconsistant with sym being true"
+        # symmetry detection
+        if p ≈ reynolds_permutedims(p)
+            reynolds = reynolds_permutedims
+            if sym === nothing # respect the user choice if sym is false
+                sym = true
+            end
         else
-            reynolds = nothing
+            if sym == true
+                @warn "Input array seemingly inconsistant with sym being true"
+            else
+                reynolds = nothing
+            end
         end
     end
     if verbose > 1
@@ -233,8 +239,23 @@ function bell_frank_wolfe(
         @printf("    #Atoms: %d\n", length(as))
     end
     if prob
-        # TODO
-        return x, ds, primal, dual_gap, traj_data, as
+        atoms = BellProbabilitiesDS.(as.atoms; type=TL)
+        as = FrankWolfe.ActiveSet{eltype(atoms), TL, Array{TL, N}}(TL.(as.weights), atoms, zeros(TL, size(vp)))
+        FrankWolfe.compute_active_set_iterate!(as)
+        x = as.x
+        M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))
+        if mode_last ≥ 0 # bypass the last LMO with a negative mode
+            time_start = time_ns()
+            ds = FrankWolfe.compute_extreme_point(
+                BellProbabilitiesLMO(lmo; mode=mode_last, type=TL, nb=nb_last),
+                -M;
+                verbose=verbose > 0,
+                last=true,
+            )
+            time = time_ns() - time_start
+        else
+            ds = BellProbabilitiesDS(ds; type=TL)
+        end
     else
         atoms = BellCorrelationsDS.(as.atoms; type=TL)
         as = FrankWolfe.ActiveSet{eltype(atoms), TL, Array{TL, N}}(TL.(as.weights), atoms, zeros(TL, size(vp)))
@@ -253,20 +274,20 @@ function bell_frank_wolfe(
         else
             ds = BellCorrelationsDS(ds; type=TL)
         end
-        β = FrankWolfe.fast_dot(M, ds) # local/global max found by the LMO
-        dual_gap = FrankWolfe.fast_dot(x - vp, x) - FrankWolfe.fast_dot(x - vp, ds)
-        if verbose > 0
-            if verbose ≥ 2 && mode_last ≥ 0
-                @printf("  Dual gap: %.2e\n", dual_gap)
-                @printf("      Time: %.2e\n", time / 1e9)
-                println()
-            end
-            if primal > dual_gap
-                @printf("v_c ≤ %f\n", β)
-            else
-                ν = 1 / (1 + norm(v0 * p + (1 - v0) * o - as.x, 2))
-                @printf("v_c ≥ %f (%f)\n", shr2^(N / 2) * ν * v0, shr2^(N / 2) * v0)
-            end
+    end
+    β = FrankWolfe.fast_dot(M, ds) # local/global max found by the LMO
+    dual_gap = FrankWolfe.fast_dot(x - vp, x) - FrankWolfe.fast_dot(x - vp, ds)
+    if verbose > 0
+        if verbose ≥ 2 && mode_last ≥ 0
+            @printf("  Dual gap: %.2e\n", dual_gap)
+            @printf("      Time: %.2e\n", time / 1e9)
+            println()
+        end
+        if primal > dual_gap
+            @printf("v_c ≤ %f\n", β)
+        else
+            ν = 1 / (1 + norm(v0 * p + (1 - v0) * o - as.x, 2))
+            @printf("v_c ≥ %f (%f)\n", shr2^(N / 2) * ν * v0, shr2^(N / 2) * v0)
         end
     end
     return x, ds, primal, dual_gap, traj_data, as, M, β

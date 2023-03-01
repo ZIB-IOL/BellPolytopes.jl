@@ -649,7 +649,7 @@ function FrankWolfe._unsafe_equal(
     if ds1 === ds2
         return true
     end
-    @inbounds for n in 1:N
+    @inbounds for n in 1:length(ds1.ax)
         for x in eachindex(ds1.ax[n])
             if ds1.ax[n][x] != ds2.ax[n][x]
                 return false
