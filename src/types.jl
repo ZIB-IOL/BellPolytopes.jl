@@ -56,13 +56,13 @@ function BellCorrelationsLMO(
 ) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
     if marg == HasMarginals
         m = lmo.m
-        p = lmo.p
-        tmp = lmo.tmp
+        p = type.(lmo.p)
+        tmp = type.(lmo.tmp)
         ci = lmo.ci
     elseif HasMarginals
         m = lmo.m - 1
         ci = CartesianIndices(size(p) .- 1)
-        p = lmo.p[ci]
+        p = type.(lmo.p[ci])
         tmp = zeros(type, m)
     else
         m = lmo.m + 1
@@ -86,8 +86,7 @@ function BellCorrelationsLMO(
 end
 
 # warning: N is twice the number of parties in this case
-mutable struct BellProbabilitiesLMO{T, N, Mode, IsSymmetric, UseArray} <:
-               FrankWolfe.LinearMinimizationOracle
+mutable struct BellProbabilitiesLMO{T, N, Mode, IsSymmetric, UseArray} <: FrankWolfe.LinearMinimizationOracle
     # scenario fields
     const d::Int # number of outputs
     const m::Int # number of inputs
@@ -117,11 +116,11 @@ function BellProbabilitiesLMO(
         size(p)[1],
         size(p)[end],
         p,
-        zeros(T, size(p, 1)),
+        [zeros(T, size(p)[1]) for n in 1:N],
         nb,
         1,
         reynolds,
-        T(factorial(N÷2)),
+        T(factorial(N ÷ 2)),
         collect(permutations(1:N÷2)),
         CartesianIndices(p),
         data,
@@ -138,27 +137,11 @@ function BellProbabilitiesLMO(
     reynolds=lmo.reynolds,
     data=lmo.data,
 ) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {UseArray}
-    if marg == HasMarginals
-        m = lmo.m
-        p = lmo.p
-        tmp = lmo.tmp
-        ci = lmo.ci
-    elseif HasMarginals
-        m = lmo.m - 1
-        ci = CartesianIndices(size(p) .- 1)
-        p = lmo.p[ci]
-        tmp = zeros(type, m)
-    else
-        m = lmo.m + 1
-        p = zeros(type, size(lmo.p) .+ 1)
-        p[lmo.ci] .= lmo.p
-        tmp = zeros(type, m)
-        ci = CartesianIndices(p)
-    end
     return BellProbabilitiesLMO{type, N, mode, sym, use_array}(
-        m,
-        p,
-        tmp,
+        lmo.d,
+        lmo.m,
+        type.(lmo.p),
+        broadcast.(type, lmo.tmp),
         nb,
         lmo.cnt,
         lmo.reynolds,
@@ -364,9 +347,7 @@ Base.@propagate_inbounds function Base.getindex(
     return prd
 end
 
-function get_array(
-    ds::BellCorrelationsDS{T, N, IsSymmetric},
-) where {T <: Number} where {N} where {IsSymmetric}
+function get_array(ds::BellCorrelationsDS{T, N, IsSymmetric}) where {T <: Number} where {N} where {IsSymmetric}
     res = zeros(T, size(ds))
     aux = BellCorrelationsDS(ds; sym=false, use_array=false)
     @inbounds for x in eachindex(res)
@@ -448,12 +429,7 @@ function FrankWolfe.fast_dot(
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     res = zero(T)
     @tullio res =
-        A[x1, x2, x3, x4, x5] *
-        ds.ax[1][x1] *
-        ds.ax[2][x2] *
-        ds.ax[3][x3] *
-        ds.ax[4][x4] *
-        ds.ax[5][x5]
+        A[x1, x2, x3, x4, x5] * ds.ax[1][x1] * ds.ax[2][x2] * ds.ax[3][x3] * ds.ax[4][x4] * ds.ax[5][x5]
     return res
 end
 
@@ -589,10 +565,10 @@ mutable struct BellProbabilitiesDS{T, N, IsSymmetric, UseArray} <: AbstractArray
     array::Array{T, N} # if UseArray, full storage to trade speed for memory
 end
 
-Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(d*ones(Int, N÷2), length.(ax)))
+Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.d * ones(Int, length(ds.ax)), length.(ds.ax)))
 
 function BellProbabilitiesDS(
-    ax::Vector{Vector{T}},
+    ax::Vector{Vector{Int}},
     lmo::BellProbabilitiesLMO{T, N, Mode, IsSymmetric, UseArray};
     use_array=UseArray,
     initialise=true,
@@ -658,17 +634,8 @@ function BellProbabilitiesDS(
     res = BellProbabilitiesDS{T2, N, sym, use_array}[]
     for ds in vds
         ax = ds.ax
-        atom = BellProbabilitiesDS{T2, N, sym, use_array}(
-            ax,
-            lmo,
-            dotp,
-            dot,
-            hash,
-            modified,
-            weight,
-            gap,
-            array,
-        )
+        atom =
+            BellProbabilitiesDS{T2, N, sym, use_array}(ax, lmo, dotp, dot, hash, modified, weight, gap, array)
         set_array!(atom)
         push!(res, atom)
     end
@@ -747,11 +714,7 @@ struct ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray}
 end
 
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSet{
-        BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray},
-        T,
-        Array{T, N},
-    },
+    as::FrankWolfe.ActiveSet{BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}, T, Array{T, N}},
 ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray}
     m = HasMarginals ? as.atoms[1].lmo.m - 1 : as.atoms[1].lmo.m
     ax = [BitArray(undef, length(as), m) for _ in 1:N]
@@ -760,11 +723,7 @@ function ActiveSetStorage(
             @view(ax[n][i, :]) .= as.atoms[i].ax[n][1:m] .> zero(T)
         end
     end
-    return ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray}(
-        as.weights,
-        ax,
-        as.atoms[1].lmo.data,
-    )
+    return ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray}(as.weights, ax, as.atoms[1].lmo.data)
 end
 
 function load_active_set(
@@ -777,14 +736,7 @@ function load_active_set(
 ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray}
     m = size(ass.ax[1], 2)
     p = zeros(type, (marg ? m + 1 : m) * ones(Int, N)...)
-    lmo = BellCorrelationsLMO(
-        p;
-        sym=sym,
-        marg=marg,
-        use_array=use_array,
-        reynolds=reynolds,
-        data=ass.data,
-    )
+    lmo = BellCorrelationsLMO(p; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds, data=ass.data)
     atoms = BellCorrelationsDS{type, N, sym, marg, use_array}[]
     for i in 1:length(ass.weights)
         ax = [ones(type, marg ? m + 1 : m) for n in 1:N]
@@ -796,11 +748,8 @@ function load_active_set(
     end
     weights = type.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSet{eltype(atoms), type, Array{type, N}}(
-        weights,
-        atoms,
-        zeros(type, size(atoms[1])),
-    )
+    res =
+        FrankWolfe.ActiveSet{eltype(atoms), type, Array{type, N}}(weights, atoms, zeros(type, size(atoms[1])))
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end

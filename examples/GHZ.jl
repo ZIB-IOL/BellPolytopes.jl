@@ -25,10 +25,7 @@ println("Lower bound")
 println(lower_bound) # 0.4931
 println("Local model")
 display(local_model.x[:, :, 1])
-println(
-    local_model.x ==
-    sum(local_model.weights[i] * local_model.atoms[i] for i in 1:length(local_model)),
-) # true
+println(local_model.x == sum(local_model.weights[i] * local_model.atoms[i] for i in 1:length(local_model))) # true
 
 println()
 

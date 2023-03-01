@@ -15,7 +15,7 @@ include("quantum_utils.jl")
 export ketbra, qubit_mes, polygonXY_vec, HQVNB17_vec, rho_singlet, rho_GHZ, rho_W
 export cube_vec, octahedron_vec, icosahedron_vec, dodecahedron_vec
 include("types.jl")
-export correlation_matrix, correlation_tensor
+export correlation_matrix, correlation_tensor, probability_tensor
 include("fw_methods.jl")
 include("utils.jl")
 export polyhedronisme, shrinking_squared
@@ -56,7 +56,8 @@ Optional arguments:
 """
 function bell_frank_wolfe(
     p::Array{T, N};
-    marg::Bool=N == 2 ? false : true,
+    marg::Bool=!(N == 2),
+    prob::Bool=all(≥(0), p),
     v0=one(T),
     epsilon=1e-7,
     verbose=0,
@@ -87,7 +88,8 @@ function bell_frank_wolfe(
 ) where {T <: Number} where {N}
     Random.seed!(seed)
     if verbose > 0
-        println("\nVisibility: ", v0)
+        println("\nProbability: ", prob)
+        println(" Visibility: ", v0)
     end
     # symmetry detection
     if p ≈ reynolds_permutedims(p)
@@ -103,38 +105,44 @@ function bell_frank_wolfe(
         end
     end
     if verbose > 1
-        println(" Symmetric: ", sym)
+        println("  Symmetric: ", sym)
     end
     if use_array === nothing
         use_array = N > 2
     end
+    # nb of outputs
+    d = prob ? size(p)[1] : 2
     # nb of inputs
-    m = size(p, 1)
+    m = size(p)[end]
     if verbose > 1
-        println("   #Inputs: ", marg ? m - 1 : m)
-        println(
-            " Dimension: ",
-            sym ? marg ? sum(binomial(m + n - 2, n) for n in 1:N) : binomial(m + N - 1, N) :
-            marg ? m^N - 1 : m^N,
-        )
+        if prob
+            println("    #Inputs: ", m)
+        else
+            println("    #Inputs: ", marg ? m - 1 : m)
+            println(
+                "  Dimension: ",
+                sym ? marg ? sum(binomial(m + n - 2, n) for n in 1:N) : binomial(m + N - 1, N) :
+                marg ? m^N - 1 : m^N,
+            )
+        end
     end
     # center of the polytope
-    o = zeros(TD, size(p))
-    if marg
-        o[end] = one(TD)
+    if prob
+        o = ones(TD, size(p))/d^2
+    else
+        o = zeros(TD, size(p))
+        if marg
+            o[end] = one(TD)
+        end
     end
     # choosing the point on the line between o and p according to the visibility v0
     vp = v0 * TD.(p) + (one(TD) - v0) * o
     # create the LMO
-    lmo = BellCorrelationsLMO(
-        vp;
-        mode=mode,
-        nb=nb,
-        sym=sym,
-        marg=marg,
-        use_array=use_array,
-        reynolds=reynolds,
-    )
+    if prob
+        lmo = BellProbabilitiesLMO(vp; mode=mode, nb=nb, sym=sym, use_array=use_array, reynolds=reynolds)
+    else
+        lmo = BellCorrelationsLMO(vp; mode=mode, nb=nb, sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
+    end
     # useful to make f efficient
     normp2 = dot(vp, vp) / 2
     # weird syntax to enable the compiler to correctly understand the type
@@ -216,40 +224,41 @@ function bell_frank_wolfe(
         @printf("    It/sec: %.2e\n", traj_data[end][1] / traj_data[end][5])
         @printf("    #Atoms: %d\n", length(as))
     end
-    atoms = BellCorrelationsDS.(as.atoms; type=TL)
-    as = FrankWolfe.ActiveSet{eltype(atoms), TL, Array{TL, N}}(
-        TL.(as.weights),
-        atoms,
-        zeros(TL, size(vp)),
-    )
-    FrankWolfe.compute_active_set_iterate!(as)
-    x = as.x
-    M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))
-    if mode_last ≥ 0 # bypass the last LMO with a negative mode
-        time_start = time_ns()
-        ds = FrankWolfe.compute_extreme_point(
-            BellCorrelationsLMO(lmo; mode=mode_last, type=TL, nb=nb_last),
-            -M;
-            verbose=verbose > 0,
-            last=true,
-        )
-        time = time_ns() - time_start
+    if prob
+        # TODO
+        return x, ds, primal, dual_gap, traj_data, as
     else
-        ds = BellCorrelationsDS(ds; type=TL)
-    end
-    β = FrankWolfe.fast_dot(M, ds) # local/global max found by the LMO
-    dual_gap = FrankWolfe.fast_dot(x - vp, x) - FrankWolfe.fast_dot(x - vp, ds)
-    if verbose > 0
-        if verbose ≥ 2 && mode_last ≥ 0
-            @printf("  Dual gap: %.2e\n", dual_gap)
-            @printf("      Time: %.2e\n", time / 1e9)
-            println()
-        end
-        if primal > dual_gap
-            @printf("v_c ≤ %f\n", β)
+        atoms = BellCorrelationsDS.(as.atoms; type=TL)
+        as = FrankWolfe.ActiveSet{eltype(atoms), TL, Array{TL, N}}(TL.(as.weights), atoms, zeros(TL, size(vp)))
+        FrankWolfe.compute_active_set_iterate!(as)
+        x = as.x
+        M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))
+        if mode_last ≥ 0 # bypass the last LMO with a negative mode
+            time_start = time_ns()
+            ds = FrankWolfe.compute_extreme_point(
+                                                  BellCorrelationsLMO(lmo; mode=mode_last, type=TL, nb=nb_last),
+                                                  -M;
+                                                  verbose=verbose > 0,
+                                                  last=true,
+                                                 )
+            time = time_ns() - time_start
         else
-            ν = 1 / (1 + norm(v0 * p + (1 - v0) * o - as.x, 2))
-            @printf("v_c ≥ %f (%f)\n", shr2^(N / 2) * ν * v0, shr2^(N / 2) * v0)
+            ds = BellCorrelationsDS(ds; type=TL)
+        end
+        β = FrankWolfe.fast_dot(M, ds) # local/global max found by the LMO
+        dual_gap = FrankWolfe.fast_dot(x - vp, x) - FrankWolfe.fast_dot(x - vp, ds)
+        if verbose > 0
+            if verbose ≥ 2 && mode_last ≥ 0
+                @printf("  Dual gap: %.2e\n", dual_gap)
+                @printf("      Time: %.2e\n", time / 1e9)
+                println()
+            end
+            if primal > dual_gap
+                @printf("v_c ≤ %f\n", β)
+            else
+                ν = 1 / (1 + norm(v0 * p + (1 - v0) * o - as.x, 2))
+                @printf("v_c ≥ %f (%f)\n", shr2^(N / 2) * ν * v0, shr2^(N / 2) * v0)
+            end
         end
     end
     return x, ds, primal, dual_gap, traj_data, as, M, β
@@ -259,17 +268,8 @@ end
 Compute the local bound of a Bell inequality parametrised by `M`.
 No symmetry detection is implemented yet, used mostly for pedagogy and tests.
 """
-function local_bound(
-    M::Array{T, N};
-    mode::Int=1,
-    nb::Int=10^5,
-    verbose=false,
-) where {T <: Number} where {N}
-    ds = FrankWolfe.compute_extreme_point(
-        BellCorrelationsLMO(M; mode=mode, nb=nb),
-        -M;
-        verbose=verbose,
-    )
+function local_bound(M::Array{T, N}; mode::Int=1, nb::Int=10^5, verbose=false) where {T <: Number} where {N}
+    ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M; mode=mode, nb=nb), -M; verbose=verbose)
     return FrankWolfe.fast_dot(M, ds), ds
 end
 

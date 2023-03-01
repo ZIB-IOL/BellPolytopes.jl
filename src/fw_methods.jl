@@ -46,6 +46,7 @@ function FrankWolfe.compute_extreme_point(
         A .= lmo.reynolds(A; lmo=lmo)
     end
     ax = [ones(T, lmo.m) for n in 1:2]
+    sc = zero(T)
     axm = [zeros(T, lmo.m) for n in 1:2]
     scm = typemax(T)
     m = HasMarginals ? lmo.m - 1 : lmo.m
@@ -89,6 +90,7 @@ function FrankWolfe.compute_extreme_point(
         A .= lmo.reynolds(A; lmo=lmo)
     end
     ax = [ones(T, lmo.m) for n in 1:3]
+    sc = zero(T)
     axm = [zeros(T, lmo.m) for n in 1:3]
     scm = typemax(T)
     m = HasMarginals ? lmo.m - 1 : lmo.m
@@ -137,6 +139,7 @@ function FrankWolfe.compute_extreme_point(
         A .= lmo.reynolds(A; lmo=lmo)
     end
     ax = [ones(T, lmo.m) for n in 1:4]
+    sc = zero(T)
     axm = [zeros(T, lmo.m) for n in 1:4]
     scm = typemax(T)
     m = HasMarginals ? lmo.m - 1 : lmo.m
@@ -166,11 +169,7 @@ function FrankWolfe.compute_extreme_point(
                     end
                 end
                 if verbose && sc ≈ scm
-                    println(
-                            rpad(string([λa4, λa3, λa2, λa1]), 8 + 4ndigits(L)),
-                            " ",
-                            string(-scm),
-                           )
+                    println(rpad(string([λa4, λa3, λa2, λa1]), 8 + 4ndigits(L)), " ", string(-scm))
                 end
             end
         end
@@ -193,6 +192,7 @@ function FrankWolfe.compute_extreme_point(
         A .= lmo.reynolds(A; lmo=lmo)
     end
     ax = [ones(T, lmo.m) for n in 1:5]
+    sc = zero(T)
     axm = [zeros(T, lmo.m) for n in 1:5]
     scm = typemax(T)
     m = HasMarginals ? lmo.m - 1 : lmo.m
@@ -225,11 +225,7 @@ function FrankWolfe.compute_extreme_point(
                         end
                     end
                     if verbose && sc ≈ scm
-                        println(
-                                rpad(string([λa5, λa4, λa3, λa2, λa1]), 10 + 5ndigits(L)),
-                                " ",
-                                string(-scm),
-                               )
+                        println(rpad(string([λa5, λa4, λa3, λa2, λa1]), 10 + 5ndigits(L)), " ", string(-scm))
                     end
                 end
             end
@@ -253,6 +249,7 @@ function FrankWolfe.compute_extreme_point(
         A .= lmo.reynolds(A; lmo=lmo)
     end
     ax = [ones(T, lmo.m) for n in 1:6]
+    sc = zero(T)
     axm = [zeros(T, lmo.m) for n in 1:6]
     scm = typemax(T)
     m = HasMarginals ? lmo.m - 1 : lmo.m
@@ -277,7 +274,12 @@ function FrankWolfe.compute_extreme_point(
                         digits!(intax, λa2, base=2)
                         ax[2][1:m] .= 2intax .- 1
                         @tullio lmo.tmp[x1] =
-                        A[x1, x2, x3, x4, x5, x6] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+                            A[x1, x2, x3, x4, x5, x6] *
+                            ax[2][x2] *
+                            ax[3][x3] *
+                            ax[4][x4] *
+                            ax[5][x5] *
+                            ax[6][x6]
                         for x1 in 1:length(ax[1])-HasMarginals
                             ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
                         end
@@ -290,10 +292,10 @@ function FrankWolfe.compute_extreme_point(
                         end
                         if verbose && sc ≈ scm
                             println(
-                                    rpad(string([λa6, λa5, λa4, λa3, λa2, λa1]), 12 + 6ndigits(L)),
-                                    " ",
-                                    string(-scm),
-                                   )
+                                rpad(string([λa6, λa5, λa4, λa3, λa2, λa1]), 12 + 6ndigits(L)),
+                                " ",
+                                string(-scm),
+                            )
                         end
                     end
                 end
@@ -320,6 +322,7 @@ function FrankWolfe.compute_extreme_point(
     end
     # the approach with the λa here is very naive and only allows pedagogical support for very small cases
     ds = BellCorrelationsDS([ones(T, lmo.m) for n in 1:N], lmo; initialise=false)
+    sc = zero(T)
     axm = [zeros(T, lmo.m) for n in 1:N]
     scm = typemax(T)
     m = HasMarginals ? lmo.m - 1 : lmo.m
@@ -356,14 +359,40 @@ function FrankWolfe.compute_extreme_point(
     return dsm
 end
 
+function FrankWolfe.compute_extreme_point(
+    lmo::BellProbabilitiesLMO{T, N, 0, IsSymmetric},
+    A::Array{T, N};
+    kwargs...,
+) where {T <: Number} where {N} where {IsSymmetric}
+    N2 = N ÷ 2
+    ax = [ones(Int, lmo.m) for n in 1:N2]
+    sc = zero(T)
+    axm = [zeros(Int, lmo.m) for n in 1:N2]
+    scm = typemax(T)
+    for i in 1:lmo.nb
+        for n in 1:N2-1
+            rand!(ax[n], 1:lmo.d)
+        end
+        sc = alternating_minimisation!(ax, lmo, A)
+        if sc < scm
+            scm = sc
+            for n in 1:N2
+                axm[n] .= ax[n]
+            end
+        end
+    end
+    dsm = BellProbabilitiesDS(axm, lmo)
+    lmo.cnt += 1
+    lmo.data[2] += 1
+    return dsm
+end
+
 ##############
 # ACTIVE SET #
 ##############
 
 # create an active set from x0
-function FrankWolfe.ActiveSet(
-    atom::AT,
-) where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+function FrankWolfe.ActiveSet(atom::AT) where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
     x = similar(atom)
     as = FrankWolfe.ActiveSet{AT, T, typeof(x)}([one(T)], [atom], x)
     FrankWolfe.compute_active_set_iterate!(as)
@@ -591,10 +620,7 @@ function FrankWolfe.perform_line_search(
     else
         #  return min(max((FrankWolfe.fast_dot(gradient, x) - (d[1] - d[2])) * inv(FrankWolfe.fast_dot(x, x) + d[3]), 0), gamma_max)
         return min(
-            max(
-                FrankWolfe.fast_dot(gradient, d) * inv(line_search.L * FrankWolfe.fast_dot(d, d)),
-                0,
-            ),
+            max(FrankWolfe.fast_dot(gradient, d) * inv(line_search.L * FrankWolfe.fast_dot(d, d)), 0),
             gamma_max,
         )
     end

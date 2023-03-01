@@ -393,6 +393,52 @@ function alternating_minimisation!(
     )
 end
 
+# Algorithm 2 from arXiv:1609.06269 for probability array
+# min_ab ∑_xy A[a_x, b_y, x, y] with a_x and b_y being 1..d
+function alternating_minimisation!(
+    ax::Vector{Vector{Int}},
+    lmo::BellProbabilitiesLMO{T, 4, 0},
+    A::Array{T, 4},
+) where {T <: Number}
+    sc1 = zero(T)
+    sc2 = one(T)
+    @inbounds while sc1 < sc2
+        sc2 = sc1
+        # given a_x, b_y is argmin_b ∑_x A[a_x, b, x, y]
+        for x2 in 1:length(ax[2])
+            for a2 in 1:lmo.d
+                s = zero(T)
+                for x1 in 1:length(ax[1])
+                    s += A[ax[1][x1], a2, x1, x2]
+                end
+                lmo.tmp[x2][a2] = s
+            end
+        end
+        for x2 in 1:length(ax[2])
+            ax[2][x2] = argmin(lmo.tmp[x2])[1]
+        end
+        # given b_y, a_x is argmin_a ∑_x A[a, b_y, x, y]
+        for x1 in 1:length(ax[1])
+            for a1 in 1:lmo.d
+                s = zero(T)
+                for x2 in 1:length(ax[2])
+                    s += A[a1, ax[2][x2], x1, x2]
+                end
+                lmo.tmp[x1][a1] = s
+            end
+        end
+        for x1 in 1:length(ax[1])
+            ax[1][x1] = argmin(lmo.tmp[x1])[1]
+        end
+        # uses the precomputed sum of lines to compute the scalar product
+        sc1 = zero(T)
+        for x1 in 1:length(ax[1])
+            sc1 += lmo.tmp[x1][ax[1][x1]]
+        end
+    end
+    return sc1
+end
+
 ##############
 # ACTIVE SET #
 ##############
@@ -567,10 +613,7 @@ function shrinking_squared(vec::AbstractMatrix{T}; verbose=true) where {T <: Num
     return eta2
 end
 
-function shrinking_squared(
-    vecs::Vector{TB};
-    verbose=true,
-) where {TB <: AbstractMatrix{T}} where {T <: Number}
+function shrinking_squared(vecs::Vector{TB}; verbose=true) where {TB <: AbstractMatrix{T}} where {T <: Number}
     eta2 = typemax(T)
     for i in 1:length(vecs)
         eta2 = min(eta2, shrinking_squared(vecs[i]; verbose=false))

@@ -12,24 +12,11 @@
 function qubit_proj(v::Vector{T}; mes::Bool=false, type=Complex{T}) where {T <: Number}
     if mes
         return [
-            (
-                σI(; type=type) - v[1] * σX(; type=type) - v[2] * σY(; type=type) -
-                v[3] * σZ(; type=type)
-            ) / 2;;;
-            (
-                σI(; type=type) +
-                v[1] * σX(; type=type) +
-                v[2] * σY(; type=type) +
-                v[3] * σZ(; type=type)
-            ) / 2
+            (σI(; type=type) - v[1] * σX(; type=type) - v[2] * σY(; type=type) - v[3] * σZ(; type=type)) / 2;;;
+            (σI(; type=type) + v[1] * σX(; type=type) + v[2] * σY(; type=type) + v[3] * σZ(; type=type)) / 2
         ]
     else
-        return (
-            σI(; type=type) +
-            v[1] * σX(; type=type) +
-            v[2] * σY(; type=type) +
-            v[3] * σZ(; type=type)
-        ) / 2
+        return (σI(; type=type) + v[1] * σX(; type=type) + v[2] * σY(; type=type) + v[3] * σZ(; type=type)) / 2
     end
 end
 
@@ -115,22 +102,14 @@ end
 function polygonXY_vec(m::Int; type=Float64)
     if type <: AbstractFloat
         return collect(
-            hcat(
-                [
-                    [cos((x - 1) * type(pi) / m), sin((x - 1) * type(pi) / m), zero(type)] for
-                    x in 1:m
-                ]...,
-            )',
+            hcat([[cos((x - 1) * type(pi) / m), sin((x - 1) * type(pi) / m), zero(type)] for x in 1:m]...)',
         )
     elseif type <: Real
         return collect(
             hcat(
                 [
-                    [
-                        type(cos((x - 1) * big(pi) / m)),
-                        type(sin((x - 1) * big(pi) / m)),
-                        zero(type),
-                    ] for x in 1:m
+                    [type(cos((x - 1) * big(pi) / m)), type(sin((x - 1) * big(pi) / m)), zero(type)] for
+                    x in 1:m
                 ]...,
             )',
         )
@@ -191,10 +170,7 @@ end
 
 # convert a 2x...x2xmx...xm probability array into a mx...xm correlation array if marg = false (no marginals)
 # convert a 2x...x2xmx...xm probability array into a (m+1)x...x(m+1) correlation array if marg = true (marginals)
-function correlation_tensor(
-    p::AbstractArray{T, N2};
-    marg::Bool=false,
-) where {T <: Number} where {N2}
+function correlation_tensor(p::AbstractArray{T, N2}; marg::Bool=false) where {T <: Number} where {N2}
     @assert iseven(N2)
     N = N2 ÷ 2
     m = size(p)[end]
