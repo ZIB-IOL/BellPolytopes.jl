@@ -439,6 +439,60 @@ function alternating_minimisation!(
     return sc1
 end
 
+function alternating_minimisation!(
+    ax::Vector{Vector{Int}},
+    lmo::BellProbabilitiesLMO{T, 6, 0},
+    A::Array{T, 6},
+) where {T <: Number}
+    sc1 = zero(T)
+    sc2 = one(T)
+    @inbounds while sc1 < sc2
+        sc2 = sc1
+        for x3 in 1:length(ax[3])
+            for a3 in 1:lmo.d
+                s = zero(T)
+                for x1 in 1:length(ax[1]), x2 in 1:length(ax[2])
+                    s += A[ax[1][x1], ax[2][x2], a3, x1, x2, x3]
+                end
+                lmo.tmp[x3][a3] = s
+            end
+        end
+        for x3 in 1:length(ax[3])
+            ax[3][x3] = argmin(lmo.tmp[x3])[1]
+        end
+        for x2 in 1:length(ax[2])
+            for a2 in 1:lmo.d
+                s = zero(T)
+                for x1 in 1:length(ax[1]), x3 in 1:length(ax[3])
+                    s += A[ax[1][x1], a2, ax[3][x3], x1, x2, x3]
+                end
+                lmo.tmp[x2][a2] = s
+            end
+        end
+        for x2 in 1:length(ax[2])
+            ax[2][x2] = argmin(lmo.tmp[x2])[1]
+        end
+        for x1 in 1:length(ax[1])
+            for a1 in 1:lmo.d
+                s = zero(T)
+                for x2 in 1:length(ax[2]), x3 in 1:length(ax[3])
+                    s += A[a1, ax[2][x2], ax[3][x3], x1, x2, x3]
+                end
+                lmo.tmp[x1][a1] = s
+            end
+        end
+        for x1 in 1:length(ax[1])
+            ax[1][x1] = argmin(lmo.tmp[x1])[1]
+        end
+        # uses the precomputed sum of lines to compute the scalar product
+        sc1 = zero(T)
+        for x1 in 1:length(ax[1])
+            sc1 += lmo.tmp[x1][ax[1][x1]]
+        end
+    end
+    return sc1
+end
+
 ##############
 # ACTIVE SET #
 ##############

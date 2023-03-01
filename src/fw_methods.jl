@@ -360,10 +360,10 @@ function FrankWolfe.compute_extreme_point(
 end
 
 function FrankWolfe.compute_extreme_point(
-    lmo::BellProbabilitiesLMO{T, N, 0, IsSymmetric},
+    lmo::BellProbabilitiesLMO{T, N, 0},
     A::Array{T, N};
     kwargs...,
-) where {T <: Number} where {N} where {IsSymmetric}
+) where {T <: Number} where {N}
     N2 = N ÷ 2
     ax = [ones(Int, lmo.m) for n in 1:N2]
     sc = zero(T)
@@ -378,6 +378,102 @@ function FrankWolfe.compute_extreme_point(
             scm = sc
             for n in 1:N2
                 axm[n] .= ax[n]
+            end
+        end
+    end
+    dsm = BellProbabilitiesDS(axm, lmo)
+    lmo.cnt += 1
+    lmo.data[2] += 1
+    return dsm
+end
+
+function FrankWolfe.compute_extreme_point(
+    lmo::BellProbabilitiesLMO{T, 4, 1},
+    A::Array{T, 4};
+    verbose=false,
+    kwargs...,
+) where {T <: Number}
+    ax = [ones(Int, lmo.m) for n in 1:2]
+    sc = zero(T)
+    axm = [zeros(Int, lmo.m) for n in 1:2]
+    scm = typemax(T)
+    L = lmo.d^lmo.m
+    for λa2 = 0:L-1
+        digits!(ax[2], λa2, base=lmo.d)
+        ax[2] .+= 1
+        for x1 in 1:length(ax[1])
+            for a1 in 1:lmo.d
+                s = zero(T)
+                for x2 in 1:length(ax[2])
+                    s += A[a1, ax[2][x2], x1, x2]
+                end
+                lmo.tmp[x1][a1] = s
+            end
+        end
+        for x1 in 1:length(ax[1])
+            ax[1][x1] = argmin(lmo.tmp[x1])[1]
+        end
+        sc = zero(T)
+        for x1 in 1:length(ax[1])
+            sc += lmo.tmp[x1][ax[1][x1]]
+        end
+        if sc < scm
+            scm = sc
+            for n in 1:2
+                axm[n] .= ax[n]
+            end
+        end
+        if verbose && sc ≈ scm
+            println(rpad(string([λa2]), 2 + ndigits(L)), " ", string(-scm))
+        end
+    end
+    dsm = BellProbabilitiesDS(axm, lmo)
+    lmo.cnt += 1
+    lmo.data[2] += 1
+    return dsm
+end
+
+function FrankWolfe.compute_extreme_point(
+    lmo::BellProbabilitiesLMO{T, 6, 1},
+    A::Array{T, 6};
+    verbose=false,
+    kwargs...,
+) where {T <: Number} where {IsSymmetric}
+    ax = [ones(Int, lmo.m) for n in 1:3]
+    sc = zero(T)
+    axm = [zeros(Int, lmo.m) for n in 1:3]
+    scm = typemax(T)
+    L = lmo.d^lmo.m
+    for λa3 = 0:L-1
+        digits!(ax[3], λa3, base=lmo.d)
+        ax[3] .+= 1
+        for λa2 = (IsSymmetric ? λa3 : 0):L-1
+            digits!(ax[2], λa2, base=lmo.d)
+            ax[2] .+= 1
+            for x1 in 1:length(ax[1])
+                for a1 in 1:lmo.d
+                    s = zero(T)
+                    for x2 in 1:length(ax[2]), x3 in 1:length(ax[3])
+                        s += A[a1, ax[2][x2], ax[3][x3], x1, x2, x3]
+                    end
+                    lmo.tmp[x1][a1] = s
+                end
+            end
+            for x1 in 1:length(ax[1])
+                ax[1][x1] = argmin(lmo.tmp[x1])[1]
+            end
+            sc = zero(T)
+            for x1 in 1:length(ax[1])
+                sc += lmo.tmp[x1][ax[1][x1]]
+            end
+            if sc < scm
+                scm = sc
+                for n in 1:3
+                    axm[n] .= ax[n]
+                end
+            end
+            if verbose && sc ≈ scm
+                println(rpad(string([λa3, λa2]), 4 + 2ndigits(L)), " ", string(-scm))
             end
         end
     end
