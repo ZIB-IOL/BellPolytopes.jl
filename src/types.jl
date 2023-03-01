@@ -674,23 +674,12 @@ Base.@propagate_inbounds function Base.getindex(
     return @inbounds getindex(ds.array, x...)
 end
 
-Base.@propagate_inbounds function Base.getindex(
-    ds::BellProbabilitiesDS{T, N, false, false},
-    x::Vararg{Int, N},
-) where {T <: Number} where {N}
-    @boundscheck (checkbounds(ds, x...))
-    println(x)
-    println(ds.ax)
-    return all(n -> @inbounds ds.ax[n][x[n+N÷2-1]] == x[n], 1:N÷2) ? one(T) : zero(T)
-end
-
 function get_array(
     ds::BellProbabilitiesDS{T, N, IsSymmetric},
 ) where {T <: Number} where {N} where {IsSymmetric}
     res = zeros(T, size(ds))
-    aux = BellProbabilitiesDS(ds; sym=false, use_array=false)
-    @inbounds for x in ds.lmo.ci
-        res[x] = aux[x]
+    @inbounds for x in CartesianIndices(Tuple(length.(ds.ax)))
+        res[CartesianIndex(Tuple([ds.ax[n][x.I[n]] for n = 1:length(ds.ax)])), x] = one(T)
     end
     return IsSymmetric ? ds.lmo.reynolds(res; lmo=ds.lmo) : res
 end

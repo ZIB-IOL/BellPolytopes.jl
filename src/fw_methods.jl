@@ -392,7 +392,7 @@ end
 ##############
 
 # create an active set from x0
-function FrankWolfe.ActiveSet(atom::AT) where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+function FrankWolfe.ActiveSet(atom::AT) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     x = similar(atom)
     as = FrankWolfe.ActiveSet{AT, T, typeof(x)}([one(T)], [atom], x)
     FrankWolfe.compute_active_set_iterate!(as)
@@ -405,7 +405,7 @@ function FrankWolfe.active_set_argminmax(
     active_set::FrankWolfe.ActiveSet{AT, T, IT},
     direction::IT;
     Φ=0.5,
-) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     val = typemax(T)
     valM = typemin(T)
     idx = -1
@@ -482,7 +482,7 @@ function FrankWolfe.active_set_update!(
     atom::AT,
     renorm=true,
     idx=nothing,
-) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     # rescale active set
     active_set.weights .*= (1 - lambda)
     @inbounds for i in eachindex(active_set)
@@ -510,7 +510,7 @@ end
 
 function FrankWolfe.active_set_renormalize!(
     active_set::FrankWolfe.ActiveSet{AT, T, IT},
-) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     renorm = sum(active_set.weights)
     active_set.weights ./= renorm
     @inbounds for i in eachindex(active_set)
@@ -537,7 +537,7 @@ end
 function Base.push!(
     as::FrankWolfe.ActiveSet{AT, T, IT},
     (λ, a),
-) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     push!(as.weights, λ)
     push!(as.atoms, a)
     #  a.dotp = FrankWolfe.fast_dot(a.lmo.p, a)
@@ -555,7 +555,7 @@ end
 function Base.deleteat!(
     as::FrankWolfe.ActiveSet{AT, T, IT},
     idx::Int,
-) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+   ) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     @inbounds for j in eachindex(as)
         if j ≤ idx
             as.atoms[j].gap -= as.weights[idx] * as.atoms[idx].dot[as.atoms[j].hash]
@@ -579,7 +579,7 @@ function FrankWolfe.muladd_memory_mode(
     d::Array{T, N},
     a::AT,
     v::AT,
-) where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+   ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     d[1] = Inf
     if a.hash > v.hash
         @inbounds d[2] =
