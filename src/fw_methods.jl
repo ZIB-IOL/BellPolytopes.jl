@@ -69,7 +69,7 @@ function FrankWolfe.compute_extreme_point(
             axm[2] .= ax[2]
         end
         if verbose && sc ≈ scm
-            println(rpad(string([λa2, λa1]), 4 + 2ndigits(L)), " ", string(-scm))
+            println(rpad(string([λa2]), 2 + ndigits(L)), " ", string(-scm))
         end
     end
     dsm = BellCorrelationsDS(axm, lmo; initialise=initialise)
@@ -117,7 +117,7 @@ function FrankWolfe.compute_extreme_point(
                 end
             end
             if verbose && sc ≈ scm
-                println(rpad(string([λa3, λa2, λa1]), 6 + 3ndigits(L)), " ", string(-scm))
+                println(rpad(string([λa3, λa2]), 4 + 2ndigits(L)), " ", string(-scm))
             end
         end
     end
@@ -169,7 +169,7 @@ function FrankWolfe.compute_extreme_point(
                     end
                 end
                 if verbose && sc ≈ scm
-                    println(rpad(string([λa4, λa3, λa2, λa1]), 8 + 4ndigits(L)), " ", string(-scm))
+                    println(rpad(string([λa4, λa3, λa2]), 6 + 3ndigits(L)), " ", string(-scm))
                 end
             end
         end
@@ -225,7 +225,7 @@ function FrankWolfe.compute_extreme_point(
                         end
                     end
                     if verbose && sc ≈ scm
-                        println(rpad(string([λa5, λa4, λa3, λa2, λa1]), 10 + 5ndigits(L)), " ", string(-scm))
+                        println(rpad(string([λa5, λa4, λa3, λa2]), 8 + 4ndigits(L)), " ", string(-scm))
                     end
                 end
             end
@@ -292,7 +292,7 @@ function FrankWolfe.compute_extreme_point(
                         end
                         if verbose && sc ≈ scm
                             println(
-                                rpad(string([λa6, λa5, λa4, λa3, λa2, λa1]), 12 + 6ndigits(L)),
+                                rpad(string([λa6, λa5, λa4, λa3, λa2]), 10 + 5ndigits(L)),
                                 " ",
                                 string(-scm),
                             )
