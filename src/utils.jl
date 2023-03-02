@@ -584,6 +584,17 @@ function reynolds_permutedims(
     return res / lmo.fac
 end
 
+function reynolds_permutelastdims(
+    A::Array{T, N};
+    lmo::BellProbabilitiesLMO=BellProbabilitiesLMO(A),
+) where {T <: Number} where {N}
+    res = zeros(T, size(A))
+    for per in lmo.per
+        res .+= permutedims(A, per)
+    end
+    return res / lmo.fac
+end
+
 #############
 # POLYHEDRA #
 #############

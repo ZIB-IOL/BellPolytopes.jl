@@ -57,7 +57,7 @@ Optional arguments:
 function bell_frank_wolfe(
     p::Array{T, N};
     marg::Bool=N != 2,
-    prob::Bool=all(≥(0), p),
+    prob::Bool=false,
     v0=one(T),
     epsilon=1e-7,
     verbose=0,

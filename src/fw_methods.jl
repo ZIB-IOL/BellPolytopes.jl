@@ -434,7 +434,7 @@ function FrankWolfe.compute_extreme_point(
 end
 
 function FrankWolfe.compute_extreme_point(
-    lmo::BellProbabilitiesLMO{T, 6, 1},
+    lmo::BellProbabilitiesLMO{T, 6, 1, IsSymmetric},
     A::Array{T, 6};
     verbose=false,
     kwargs...,
