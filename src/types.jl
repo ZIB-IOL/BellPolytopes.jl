@@ -121,7 +121,7 @@ function BellProbabilitiesLMO(
         1,
         reynolds,
         T(factorial(N ÷ 2)),
-        collect(permutations(1:N÷2)),
+        broadcast(perm -> vcat(1:N÷2, perm .+ N÷2), collect(permutations(1:N÷2))),
         CartesianIndices(p),
         data,
     )

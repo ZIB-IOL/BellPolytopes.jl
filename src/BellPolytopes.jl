@@ -92,9 +92,19 @@ function bell_frank_wolfe(
         println(" Visibility: ", v0)
     end
     if prob
-        # TODO
-        sym = false
-        reynolds = nothing
+        # symmetry detection
+        if p ≈ reynolds_permutelastdims(p)
+            reynolds = reynolds_permutelastdims
+            if sym === nothing # respect the user choice if sym is false
+                sym = true
+            end
+        else
+            if sym == true
+                @warn "Input array seemingly inconsistant with sym being true"
+            else
+                reynolds = nothing
+            end
+        end
     else
         # symmetry detection
         if p ≈ reynolds_permutedims(p)
@@ -299,7 +309,7 @@ No symmetry detection is implemented yet, used mostly for pedagogy and tests.
 """
 function local_bound(
     M::Array{T, N};
-    marg::Bool=N != 2,
+    marg::Bool=false,
     mode::Int=1,
     sym::Bool=false,
     nb::Int=10^5,
