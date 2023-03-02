@@ -137,8 +137,7 @@ function bell_frank_wolfe(
             println("    #Inputs: ", marg ? m - 1 : m)
             println(
                 "  Dimension: ",
-                sym ? marg ? sum(binomial(m + n - 2, n) for n in 1:N) : binomial(m + N - 1, N) :
-                marg ? m^N - 1 : m^N,
+                sym ? marg ? sum(binomial(m + n - 2, n) for n in 1:N) : binomial(m + N - 1, N) : marg ? m^N - 1 : m^N,
             )
         end
     end
@@ -157,15 +156,7 @@ function bell_frank_wolfe(
     if prob
         lmo = BellProbabilitiesLMO(vp; mode=mode, nb=nb, sym=sym, use_array=use_array, reynolds=reynolds)
     else
-        lmo = BellCorrelationsLMO(
-            vp;
-            mode=mode,
-            nb=nb,
-            sym=sym,
-            marg=marg,
-            use_array=use_array,
-            reynolds=reynolds,
-        )
+        lmo = BellCorrelationsLMO(vp; mode=mode, nb=nb, sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
     end
     # useful to make f efficient
     normp2 = dot(vp, vp) / 2
@@ -186,14 +177,7 @@ function bell_frank_wolfe(
         active_set = FrankWolfe.ActiveSet(x0)
     else
         if active_set isa ActiveSetStorage
-            active_set = load_active_set(
-                active_set;
-                type=TD,
-                sym=sym,
-                marg=marg,
-                use_array=use_array,
-                reynolds=reynolds,
-            )
+            active_set = load_active_set(active_set; type=TD, sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
         end
         active_set_link_lmo!(active_set, lmo)
         active_set_reinitialise!(active_set)
@@ -315,11 +299,7 @@ function local_bound(
     nb::Int=10^5,
     verbose=false,
 ) where {T <: Number} where {N}
-    ds = FrankWolfe.compute_extreme_point(
-        BellCorrelationsLMO(M; marg=marg, mode=mode, sym=sym, nb=nb),
-        -M;
-        verbose=verbose,
-    )
+    ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M; marg=marg, mode=mode, sym=sym, nb=nb), -M; verbose=verbose)
     return FrankWolfe.fast_dot(M, ds), ds
 end
 

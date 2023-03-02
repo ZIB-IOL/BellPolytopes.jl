@@ -101,27 +101,16 @@ end
 # measurements from arXiv:1609.05011 (regular polyhedron in the XY plane)
 function polygonXY_vec(m::Int; type=Float64)
     if type <: AbstractFloat
-        return collect(
-            hcat([[cos((x - 1) * type(pi) / m), sin((x - 1) * type(pi) / m), zero(type)] for x in 1:m]...)',
-        )
+        return collect(hcat([[cos((x - 1) * type(pi) / m), sin((x - 1) * type(pi) / m), zero(type)] for x in 1:m]...)')
     elseif type <: Real
         return collect(
-            hcat(
-                [
-                    [type(cos((x - 1) * big(pi) / m)), type(sin((x - 1) * big(pi) / m)), zero(type)] for
-                    x in 1:m
-                ]...,
-            )',
+            hcat([[type(cos((x - 1) * big(pi) / m)), type(sin((x - 1) * big(pi) / m)), zero(type)] for x in 1:m]...)',
         )
     else
         return vertices = collect(
             hcat(
                 [
-                    [
-                        (type(E(2m, x - 1)) + type(E(2m, 1 - x))) // 2,
-                        -im * (type(E(2m, x - 1)) - type(E(2m, 1 - x))) // 2,
-                        0,
-                    ] for x in 1:m
+                    [(type(E(2m, x - 1)) + type(E(2m, 1 - x))) // 2, -im * (type(E(2m, x - 1)) - type(E(2m, 1 - x))) // 2, 0] for x in 1:m
                 ]...,
             )',
         )
@@ -212,12 +201,7 @@ function correlation_tensor(
 end
 
 # convert a mx3 Bloch matrix into a 2x...x2xmx...xm probability array
-function probability_tensor(
-    vec::AbstractMatrix{T},
-    N::Int;
-    rho=ketbra(multipartite_W(N)),
-    type=Complex{T},
-) where {T <: Number}
+function probability_tensor(vec::AbstractMatrix{T}, N::Int; rho=ketbra(multipartite_W(N)), type=Complex{T}) where {T <: Number}
     @assert size(rho) == (2^N, 2^N)
     m = size(vec, 1)
     Aax = qubit_mes(vec; type=type)

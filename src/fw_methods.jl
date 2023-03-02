@@ -274,12 +274,7 @@ function FrankWolfe.compute_extreme_point(
                         digits!(intax, λa2, base=2)
                         ax[2][1:m] .= 2intax .- 1
                         @tullio lmo.tmp[x1] =
-                            A[x1, x2, x3, x4, x5, x6] *
-                            ax[2][x2] *
-                            ax[3][x3] *
-                            ax[4][x4] *
-                            ax[5][x5] *
-                            ax[6][x6]
+                            A[x1, x2, x3, x4, x5, x6] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
                         for x1 in 1:length(ax[1])-HasMarginals
                             ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
                         end
@@ -291,11 +286,7 @@ function FrankWolfe.compute_extreme_point(
                             end
                         end
                         if verbose && sc ≈ scm
-                            println(
-                                rpad(string([λa6, λa5, λa4, λa3, λa2]), 10 + 5ndigits(L)),
-                                " ",
-                                string(-scm),
-                            )
+                            println(rpad(string([λa6, λa5, λa4, λa3, λa2]), 10 + 5ndigits(L)), " ", string(-scm))
                         end
                     end
                 end
@@ -398,7 +389,7 @@ function FrankWolfe.compute_extreme_point(
     axm = [zeros(Int, lmo.m) for n in 1:2]
     scm = typemax(T)
     L = lmo.d^lmo.m
-    for λa2 = 0:L-1
+    for λa2 in 0:L-1
         digits!(ax[2], λa2, base=lmo.d)
         ax[2] .+= 1
         for x1 in 1:length(ax[1])
@@ -444,10 +435,10 @@ function FrankWolfe.compute_extreme_point(
     axm = [zeros(Int, lmo.m) for n in 1:3]
     scm = typemax(T)
     L = lmo.d^lmo.m
-    for λa3 = 0:L-1
+    for λa3 in 0:L-1
         digits!(ax[3], λa3, base=lmo.d)
         ax[3] .+= 1
-        for λa2 = (IsSymmetric ? λa3 : 0):L-1
+        for λa2 in (IsSymmetric ? λa3 : 0):L-1
             digits!(ax[2], λa2, base=lmo.d)
             ax[2] .+= 1
             for x1 in 1:length(ax[1])
@@ -488,7 +479,9 @@ end
 ##############
 
 # create an active set from x0
-function FrankWolfe.ActiveSet(atom::AT) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+function FrankWolfe.ActiveSet(
+    atom::AT,
+) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     x = similar(atom)
     as = FrankWolfe.ActiveSet{AT, T, typeof(x)}([one(T)], [atom], x)
     FrankWolfe.compute_active_set_iterate!(as)
@@ -501,7 +494,9 @@ function FrankWolfe.active_set_argminmax(
     active_set::FrankWolfe.ActiveSet{AT, T, IT},
     direction::IT;
     Φ=0.5,
-) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+) where {
+    IT <: Array{T, N},
+} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     val = typemax(T)
     valM = typemin(T)
     idx = -1
@@ -516,12 +511,10 @@ function FrankWolfe.active_set_argminmax(
         for j in idx_modified
             if j ≤ i
                 active_set.atoms[i].gap +=
-                    (active_set.weights[j] - active_set.atoms[j].weight) *
-                    active_set.atoms[i].dot[active_set.atoms[j].hash]
+                    (active_set.weights[j] - active_set.atoms[j].weight) * active_set.atoms[i].dot[active_set.atoms[j].hash]
             else
                 active_set.atoms[i].gap +=
-                    (active_set.weights[j] - active_set.atoms[j].weight) *
-                    active_set.atoms[j].dot[active_set.atoms[i].hash]
+                    (active_set.weights[j] - active_set.atoms[j].weight) * active_set.atoms[j].dot[active_set.atoms[i].hash]
             end
         end
     end
@@ -550,7 +543,9 @@ end
 
 function FrankWolfe.compute_active_set_iterate!(
     active_set::FrankWolfe.ActiveSet{AT, T, IT},
-) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+) where {
+    IT <: Array{T, N},
+} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     active_set.x .= zero(T)
     for (λi, ai) in active_set
         @inbounds for x in active_set.atoms[1].lmo.ci
@@ -578,7 +573,9 @@ function FrankWolfe.active_set_update!(
     atom::AT,
     renorm=true,
     idx=nothing,
-) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+) where {
+    IT <: Array{T, N},
+} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     # rescale active set
     active_set.weights .*= (1 - lambda)
     @inbounds for i in eachindex(active_set)
@@ -606,7 +603,9 @@ end
 
 function FrankWolfe.active_set_renormalize!(
     active_set::FrankWolfe.ActiveSet{AT, T, IT},
-) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+) where {
+    IT <: Array{T, N},
+} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     renorm = sum(active_set.weights)
     active_set.weights ./= renorm
     @inbounds for i in eachindex(active_set)
@@ -621,7 +620,9 @@ function FrankWolfe.active_set_update_iterate_pairwise!(
     lambda::T,
     fw_atom::AT,
     away_atom::AT,
-) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+) where {
+    IT <: Array{T, N},
+} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     fw_atom.modified = true
     away_atom.modified = true
     @inbounds for x in fw_atom.lmo.ci
@@ -633,7 +634,9 @@ end
 function Base.push!(
     as::FrankWolfe.ActiveSet{AT, T, IT},
     (λ, a),
-) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+) where {
+    IT <: Array{T, N},
+} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     push!(as.weights, λ)
     push!(as.atoms, a)
     #  a.dotp = FrankWolfe.fast_dot(a.lmo.p, a)
@@ -651,7 +654,9 @@ end
 function Base.deleteat!(
     as::FrankWolfe.ActiveSet{AT, T, IT},
     idx::Int,
-   ) where {IT <: Array{T, N}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+) where {
+    IT <: Array{T, N},
+} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     @inbounds for j in eachindex(as)
         if j ≤ idx
             as.atoms[j].gap -= as.weights[idx] * as.atoms[idx].dot[as.atoms[j].hash]
@@ -678,11 +683,9 @@ function FrankWolfe.muladd_memory_mode(
 ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     d[1] = Inf
     if a.hash > v.hash
-        @inbounds d[2] =
-            ((a.gap - a.dotp) - (v.gap - v.dotp)) / (a.dot[a.hash] + v.dot[v.hash] - 2a.dot[v.hash])
+        @inbounds d[2] = ((a.gap - a.dotp) - (v.gap - v.dotp)) / (a.dot[a.hash] + v.dot[v.hash] - 2a.dot[v.hash])
     else
-        @inbounds d[2] =
-            ((a.gap - a.dotp) - (v.gap - v.dotp)) / (a.dot[a.hash] + v.dot[v.hash] - 2v.dot[a.hash])
+        @inbounds d[2] = ((a.gap - a.dotp) - (v.gap - v.dotp)) / (a.dot[a.hash] + v.dot[v.hash] - 2v.dot[a.hash])
     end
     return d
 end
@@ -715,9 +718,6 @@ function FrankWolfe.perform_line_search(
         return min(max(d[2], 0), gamma_max)
     else
         #  return min(max((FrankWolfe.fast_dot(gradient, x) - (d[1] - d[2])) * inv(FrankWolfe.fast_dot(x, x) + d[3]), 0), gamma_max)
-        return min(
-            max(FrankWolfe.fast_dot(gradient, d) * inv(line_search.L * FrankWolfe.fast_dot(d, d)), 0),
-            gamma_max,
-        )
+        return min(max(FrankWolfe.fast_dot(gradient, d) * inv(line_search.L * FrankWolfe.fast_dot(d, d)), 0), gamma_max)
     end
 end
