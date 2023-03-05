@@ -521,7 +521,10 @@ function reynolds_permutedims(A::Array{T, 2}; lmo::BellCorrelationsLMO=BellCorre
     return (A + A') / 2
 end
 
-function reynolds_permutedims(A::Array{T, N}; lmo::BellCorrelationsLMO=BellCorrelationsLMO(A)) where {T <: Number} where {N}
+function reynolds_permutedims(
+    A::Array{T, N};
+    lmo::BellCorrelationsLMO=BellCorrelationsLMO(A),
+) where {T <: Number} where {N}
     res = zeros(T, size(A))
     for per in lmo.per
         res .+= permutedims(A, per)
