@@ -69,6 +69,7 @@ function bell_frank_wolfe(
     mode_last::Int=0,
     nb_last::Int=10^5,
     sym::Union{Nothing, Bool}=nothing,
+    reynolds::Union{Nothing, Function}=nothing,
     use_array::Union{Nothing, Bool}=nothing,
     active_set=nothing, # warm start
     lazy::Bool=true, # default in FW package is false
@@ -91,40 +92,46 @@ function bell_frank_wolfe(
         println("\nProbability: ", prob)
         println(" Visibility: ", v0)
     end
-    if prob
-        # symmetry detection
-        if p ≈ reynolds_permutelastdims(p)
-            reynolds = reynolds_permutelastdims
-            if sym === nothing # respect the user choice if sym is false
-                sym = true
+    if use_array === nothing
+        use_array = N > 2 || reynolds !== nothing
+    end
+    # symmetry detection
+    if reynolds === nothing
+        if prob
+            if p ≈ reynolds_permutelastdims(p)
+                reynolds = reynolds_permutelastdims
+                if sym === nothing # respect the user choice if sym is false
+                    sym = true
+                end
+            else
+                if sym == true
+                    @warn "Input array seemingly inconsistant with sym being true"
+                end
             end
         else
-            if sym == true
-                @warn "Input array seemingly inconsistant with sym being true"
+            if p ≈ reynolds_permutedims(p)
+                reynolds = reynolds_permutedims
+                if sym === nothing # respect the user choice if sym is false
+                    sym = true
+                end
             else
-                reynolds = nothing
+                if sym == true
+                    @warn "Input array seemingly inconsistant with sym being true"
+                end
             end
         end
     else
-        # symmetry detection
-        if p ≈ reynolds_permutedims(p)
-            reynolds = reynolds_permutedims
-            if sym === nothing # respect the user choice if sym is false
-                sym = true
-            end
+        if p ≈ reynolds(p)
+            sym = true
         else
-            if sym == true
-                @warn "Input array seemingly inconsistant with sym being true"
-            else
-                reynolds = nothing
-            end
+            @warn "Input array seemingly inconsistant with the reynolds operator provided"
+        end
+        if use_array != true
+            @warn "For custom reynolds operators, use_array should be set to true"
         end
     end
     if verbose > 1
         println("  Symmetric: ", sym)
-    end
-    if use_array === nothing
-        use_array = N > 2
     end
     # nb of outputs
     d = prob ? size(p)[1] : 2
@@ -135,10 +142,12 @@ function bell_frank_wolfe(
             println("    #Inputs: ", m)
         else
             println("    #Inputs: ", marg ? m - 1 : m)
-            println(
-                "  Dimension: ",
-                sym ? marg ? sum(binomial(m + n - 2, n) for n in 1:N) : binomial(m + N - 1, N) : marg ? m^N - 1 : m^N,
-            )
+            if reynolds === nothing || reynolds === permutedims
+                println(
+                    "  Dimension: ",
+                    sym ? marg ? sum(binomial(m + n - 2, n) for n in 1:N) : binomial(m + N - 1, N) : marg ? m^N - 1 : m^N,
+                )
+            end
         end
     end
     # center of the polytope
