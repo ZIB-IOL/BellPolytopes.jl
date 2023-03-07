@@ -183,7 +183,7 @@ end
 function correlation_tensor(
     vec::AbstractMatrix{T},
     N::Int;
-    rho=ketbra(multipartite_W(N)),
+    rho=ketbra(rho_W(N; type=T)),
     marg::Bool=false,
     type=Complex{T},
 ) where {T <: Number}
@@ -193,7 +193,7 @@ end
 function correlation_tensor(
     vecs::Vector{TB},
     N::Int;
-    rho=ketbra(multipartite_W(N)),
+    rho=ketbra(rho_W(N; type=TB)),
     marg::Bool=false,
     type=Complex{T},
 ) where {TB <: AbstractMatrix{T}} where {T <: Number}
@@ -201,7 +201,7 @@ function correlation_tensor(
 end
 
 # convert a mx3 Bloch matrix into a 2x...x2xmx...xm probability array
-function probability_tensor(vec::AbstractMatrix{T}, N::Int; rho=ketbra(multipartite_W(N)), type=Complex{T}) where {T <: Number}
+function probability_tensor(vec::AbstractMatrix{T}, N::Int; rho=ketbra(rho_W(N; type=T)), type=Complex{T}) where {T <: Number}
     @assert size(rho) == (2^N, 2^N)
     m = size(vec, 1)
     Aax = qubit_mes(vec; type=type)
@@ -218,7 +218,7 @@ end
 function probability_tensor(
     vecs::Vector{TB},
     N::Int;
-    rho=ketbra(multipartite_W(N)),
+    rho=ketbra(rho_W(N; type=TB)),
     type=Complex{T},
 ) where {TB <: AbstractMatrix{T}} where {T <: Number}
     @assert length(vecs) == N
