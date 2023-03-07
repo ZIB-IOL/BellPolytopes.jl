@@ -215,7 +215,7 @@ end
 function correlation_tensor(
     vec::AbstractMatrix{T},
     N::Int;
-    rho=ketbra(multipartite_W(N)),
+    rho=multipartite_W(N),
     marg::Bool=false,
     type=Complex{T},
 ) where {T<:Number}
@@ -225,7 +225,7 @@ end
 function correlation_tensor(
     vecs::Vector{TB},
     N::Int;
-    rho=ketbra(multipartite_W(N)),
+    rho=multipartite_W(N),
     marg::Bool=false,
     type=Complex{T},
 ) where {TB<:AbstractMatrix{T}} where {T<:Number}
@@ -236,7 +236,7 @@ end
 function probability_tensor(
     vec::AbstractMatrix{T},
     N::Int;
-    rho=ketbra(multipartite_W(N)),
+    rho=multipartite_W(N),
     type=Complex{T},
 ) where {T<:Number}
     @assert size(rho) == (2^N, 2^N)
@@ -255,7 +255,7 @@ end
 function probability_tensor(
     vecs::Vector{TB},
     N::Int;
-    rho=ketbra(multipartite_W(N)),
+    rho=multipartite_W(N),
     type=Complex{T},
 ) where {TB<:AbstractMatrix{T}} where {T<:Number}
     @assert length(vecs) == N
