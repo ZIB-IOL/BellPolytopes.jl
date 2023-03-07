@@ -1,7 +1,19 @@
-using Test
-using LinearAlgebra
-using FrankWolfe
 using BellPolytopes
+using FrankWolfe
+using LinearAlgebra
+using Random
+using Test
+
+@testset "Testing the local bound exact computation for various scenarios " begin
+    Random.seed!(0)
+    @test local_bound(rand(-10:10, (10, 10)))[1] == 251
+    Random.seed!(0)
+    @test local_bound(rand(-10:10, (6, 6, 6)))[1] == 379
+    Random.seed!(0)
+    @test local_bound(rand(-10:10, (4, 4, 4, 4)))[1] == 354
+    Random.seed!(0)
+    @test local_bound(rand(-10:10, (3, 3, 3, 3, 3)))[1] == 303
+end
 
 @testset "Testing Bell-Frank-Wolfe with d=2, N=2, and correlation matrices" begin
     # HQVNB17 without symmetry
