@@ -517,13 +517,13 @@ end
 # REYNOLDS #
 ############
 
-function reynolds_permutedims(A::Array{T, 2}; lmo::BellCorrelationsLMO=BellCorrelationsLMO(A)) where {T <: Number}
+function reynolds_permutedims(A::Array{T, 2}, lmo::BellCorrelationsLMO{T, 2}) where {T <: Number}
     return (A + A') / 2
 end
 
 function reynolds_permutedims(
-    A::Array{T, N};
-    lmo::BellCorrelationsLMO=BellCorrelationsLMO(A),
+    A::Array{T, N},
+    lmo::BellCorrelationsLMO{T, N},
 ) where {T <: Number} where {N}
     res = zeros(T, size(A))
     for per in lmo.per
@@ -533,8 +533,8 @@ function reynolds_permutedims(
 end
 
 function reynolds_permutelastdims(
-    A::Array{T, N};
-    lmo::BellProbabilitiesLMO=BellProbabilitiesLMO(A),
+    A::Array{T, N},
+    lmo::BellProbabilitiesLMO{T, N},
 ) where {T <: Number} where {N}
     res = zeros(T, size(A))
     for per in lmo.per

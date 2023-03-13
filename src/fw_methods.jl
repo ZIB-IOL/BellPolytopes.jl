@@ -38,13 +38,9 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 2, 1, IsSymmetric, HasMarginals},
     A::Array{T, 2};
     verbose=false,
-    last=false,
     initialise=true,
     kwargs...,
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
-    if IsSymmetric && last
-        A .= lmo.reynolds(A; lmo=lmo)
-    end
     ax = [ones(T, lmo.m) for n in 1:2]
     sc = zero(T)
     axm = [zeros(T, lmo.m) for n in 1:2]
@@ -82,13 +78,9 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 3, 1, IsSymmetric, HasMarginals},
     A::Array{T, 3};
     verbose=false,
-    last=false,
     initialise=true,
     kwargs...,
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
-    if IsSymmetric && last
-        A .= lmo.reynolds(A; lmo=lmo)
-    end
     ax = [ones(T, lmo.m) for n in 1:3]
     sc = zero(T)
     axm = [zeros(T, lmo.m) for n in 1:3]
@@ -131,13 +123,9 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 4, 1, IsSymmetric, HasMarginals},
     A::Array{T, 4};
     verbose=false,
-    last=false,
     initialise=true,
     kwargs...,
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
-    if IsSymmetric && last
-        A .= lmo.reynolds(A; lmo=lmo)
-    end
     ax = [ones(T, lmo.m) for n in 1:4]
     sc = zero(T)
     axm = [zeros(T, lmo.m) for n in 1:4]
@@ -184,13 +172,9 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 5, 1, IsSymmetric, HasMarginals},
     A::Array{T, 5};
     verbose=false,
-    last=false,
     initialise=true,
     kwargs...,
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
-    if IsSymmetric && last
-        A .= lmo.reynolds(A; lmo=lmo)
-    end
     ax = [ones(T, lmo.m) for n in 1:5]
     sc = zero(T)
     axm = [zeros(T, lmo.m) for n in 1:5]
@@ -241,13 +225,9 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 6, 1, IsSymmetric, HasMarginals},
     A::Array{T, 6};
     verbose=false,
-    last=false,
     initialise=true,
     kwargs...,
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
-    if IsSymmetric && last
-        A .= lmo.reynolds(A; lmo=lmo)
-    end
     ax = [ones(T, lmo.m) for n in 1:6]
     sc = zero(T)
     axm = [zeros(T, lmo.m) for n in 1:6]
@@ -303,14 +283,10 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, N, 1, IsSymmetric, HasMarginals},
     A::Array{T, N};
     verbose=false,
-    last=false,
     initialise=true,
     kwargs...,
 ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
     @warn("This function is naive and should not be used for actual computations.")
-    if IsSymmetric && last
-        A .= lmo.reynolds(A; lmo=lmo)
-    end
     # the approach with the λa here is very naive and only allows pedagogical support for very small cases
     ds = BellCorrelationsDS([ones(T, lmo.m) for n in 1:N], lmo; initialise=false)
     sc = zero(T)

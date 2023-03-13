@@ -15,6 +15,16 @@ mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArr
     const per::Vector{Vector{Int}} # permutations used in the symmetric case
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     data::Vector{Any} # store information about the computation
+    lmofalse::BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}
+    function BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray}(m::Int, p::Array{T, N}, tmp::Vector{T}, nb::Int, cnt::Int, reynolds::Union{Nothing, Function}, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
+        lmo = new(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
+        if IsSymmetric || UseArray
+            lmo.lmofalse = BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
+        else
+            lmo.lmofalse = lmo
+        end
+        return lmo
+    end
 end
 
 # constructor with predefined values
@@ -173,10 +183,9 @@ Base.size(ds::BellCorrelationsDS) = Tuple(length.(ds.ax))
 function BellCorrelationsDS(
     ax::Vector{Vector{T}},
     lmo::BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray};
-    use_array=UseArray,
     initialise=true,
 ) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
-    res = BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, use_array}(
+    res = BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}(
         ax,
         lmo,
         zero(T),
@@ -341,19 +350,19 @@ Base.@propagate_inbounds function Base.getindex(
     return prd
 end
 
-function get_array(ds::BellCorrelationsDS{T, N, IsSymmetric}) where {T <: Number} where {N} where {IsSymmetric}
-    res = zeros(T, size(ds))
-    aux = BellCorrelationsDS(ds; sym=false, use_array=false)
-    @inbounds for x in eachindex(res)
+function get_array(ds::BellCorrelationsDS{T, N, IsSymmetric}, lmo::BellCorrelationsLMO{T, N, Mode, IsSymmetric}) where {T <: Number} where {N} where {Mode} where {IsSymmetric}
+    aux = BellCorrelationsDS(ds.ax, lmo.lmofalse)
+    res = zeros(T, size(aux))
+    @inbounds for x in lmo.ci
         res[x] = aux[x]
     end
-    return IsSymmetric ? ds.lmo.reynolds(res; lmo=ds.lmo) : res
+    return IsSymmetric ? lmo.reynolds(res, lmo) : res
 end
 
 function set_array!(
     ds::BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, true},
 ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
-    ds.array = get_array(ds)
+    ds.array = get_array(ds, ds.lmo)
 end
 
 function set_array!(
@@ -715,28 +724,28 @@ function ActiveSetStorage(
 end
 
 function load_active_set(
-    ass::ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray};
-    type=T,
+    ass::ActiveSetStorage{T1, N, IsSymmetric, HasMarginals, UseArray},
+    ::Type{T2};
     sym=IsSymmetric,
     marg=HasMarginals,
     use_array=UseArray,
     reynolds=(IsSymmetric ? reynolds_permutedims : nothing),
-) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray}
+) where {T1 <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray} where {T2 <: Number}
     m = size(ass.ax[1], 2)
-    p = zeros(type, (marg ? m + 1 : m) * ones(Int, N)...)
+    p = zeros(T2, (marg ? m + 1 : m) * ones(Int, N)...)
     lmo = BellCorrelationsLMO(p; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds, data=ass.data)
-    atoms = BellCorrelationsDS{type, N, sym, marg, use_array}[]
-    for i in 1:length(ass.weights)
-        ax = [ones(type, marg ? m + 1 : m) for n in 1:N]
+    atoms = BellCorrelationsDS{T2, N, sym, marg, use_array}[]
+    @inbounds for i in 1:length(ass.weights)
+        ax = [ones(T2, marg ? m + 1 : m) for n in 1:N]
         for n in 1:N
-            @view(ax[n][1:m]) .= type.(2 * ass.ax[n][i, :] .- 1)
+            @view(ax[n][1:m]) .= T2.(2 * ass.ax[n][i, :] .- 1)
         end
         atom = BellCorrelationsDS(ax, lmo)
         push!(atoms, atom)
     end
-    weights = type.(ass.weights)
+    weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSet{eltype(atoms), type, Array{type, N}}(weights, atoms, zeros(type, size(atoms[1])))
+    res = FrankWolfe.ActiveSet{eltype(atoms), T2, Array{T2, N}}(weights, atoms, zeros(T2, size(atoms[1])))
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
@@ -765,18 +774,18 @@ function ActiveSetStorage(
 end
 
 function load_active_set(
-    ass::ActiveSetStorageMulti{T, N, IsSymmetric, UseArray};
-    type=T,
+    ass::ActiveSetStorageMulti{T1, N, IsSymmetric, UseArray},
+    ::Type{T2};
     sym=IsSymmetric,
     use_array=UseArray,
     reynolds=(IsSymmetric ? reynolds_permutelastdims : nothing),
-) where {T <: Number} where {N} where {IsSymmetric} where {UseArray}
+) where {T1 <: Number} where {N} where {IsSymmetric} where {UseArray} where {T2 <: Number}
     d = ass.d
     m = size(ass.ax[1], 2)
-    p = zeros(type, vcat(d * ones(Int, N ÷ 2), m * ones(Int, N ÷ 2))...)
+    p = zeros(T2, vcat(d * ones(Int, N ÷ 2), m * ones(Int, N ÷ 2))...)
     lmo = BellProbabilitiesLMO(p; sym=sym, use_array=use_array, reynolds=reynolds, data=ass.data)
-    atoms = BellProbabilitiesDS{type, N, sym, use_array}[]
-    for i in 1:length(ass.weights)
+    atoms = BellProbabilitiesDS{T2, N, sym, use_array}[]
+    @inbounds for i in 1:length(ass.weights)
         ax = [ones(Int, m) for n in 1:N]
         for n in 1:N
             ax[n] .= Int.(ass.ax[n][i, :])
@@ -784,9 +793,9 @@ function load_active_set(
         atom = BellProbabilitiesDS(ax, lmo)
         push!(atoms, atom)
     end
-    weights = type.(ass.weights)
+    weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSet{eltype(atoms), type, Array{type, N}}(weights, atoms, zeros(type, size(atoms[1])))
+    res = FrankWolfe.ActiveSet{eltype(atoms), T2, Array{T2, N}}(weights, atoms, zeros(T2, size(atoms[1])))
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end

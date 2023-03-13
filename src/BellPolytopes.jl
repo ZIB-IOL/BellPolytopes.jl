@@ -98,7 +98,7 @@ function bell_frank_wolfe(
     # symmetry detection
     if reynolds === nothing
         if prob
-            if p ≈ reynolds_permutelastdims(p)
+            if p ≈ reynolds_permutelastdims(p, BellProbabilitiesLMO(p))
                 reynolds = reynolds_permutelastdims
                 if sym === nothing # respect the user choice if sym is false
                     sym = true
@@ -109,7 +109,7 @@ function bell_frank_wolfe(
                 end
             end
         else
-            if p ≈ reynolds_permutedims(p)
+            if p ≈ reynolds_permutedims(p, BellCorrelationsLMO(p))
                 reynolds = reynolds_permutedims
                 if sym === nothing # respect the user choice if sym is false
                     sym = true
@@ -121,7 +121,7 @@ function bell_frank_wolfe(
             end
         end
     else
-        if p ≈ reynolds(p)
+        if p ≈ reynolds(p, BellCorrelationsLMO(p))
             sym = true
         else
             @warn "Input array seemingly inconsistant with the reynolds operator provided"
@@ -186,7 +186,7 @@ function bell_frank_wolfe(
         active_set = FrankWolfe.ActiveSet(x0)
     else
         if active_set isa ActiveSetStorage
-            active_set = load_active_set(active_set; type=TD, sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
+            active_set = load_active_set(active_set, TD; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
         end
         active_set_link_lmo!(active_set, lmo)
         active_set_reinitialise!(active_set)
@@ -253,7 +253,6 @@ function bell_frank_wolfe(
                 BellProbabilitiesLMO(lmo; mode=mode_last, type=TL, nb=nb_last),
                 -M;
                 verbose=verbose > 0,
-                last=true,
             )
             time = time_ns() - time_start
         else
@@ -271,7 +270,6 @@ function bell_frank_wolfe(
                 BellCorrelationsLMO(lmo; mode=mode_last, type=TL, nb=nb_last),
                 -M;
                 verbose=verbose > 0,
-                last=true,
             )
             time = time_ns() - time_start
         else
