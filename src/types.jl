@@ -268,7 +268,8 @@ function BellCorrelationsDS(
     return res
 end
 
-function FrankWolfe._unsafe_equal(ds1::BellCorrelationsDS{T, N}, ds2::BellCorrelationsDS{T, N}) where {T <: Number} where {N}
+# if IsSymmetric or !HasMarginals, then this criterion is not valid, although is it faster
+function FrankWolfe._unsafe_equal(ds1::BellCorrelationsDS{T, N, false, true}, ds2::BellCorrelationsDS{T, N, false, true}) where {T <: Number} where {N}
     if ds1 === ds2
         return true
     end

@@ -55,7 +55,7 @@ function FrankWolfe.compute_extreme_point(
         println(L)
     end
     intax = zeros(Int, m)
-    for λa2 in 0:L-1
+    for λa2 in 0:(HasMarginals ? L : L ÷ 2)-1
         digits!(intax, λa2, base=2)
         ax[2][1:m] .= 2intax .- 1
         mul!(lmo.tmp, A, ax[2])
@@ -99,7 +99,7 @@ function FrankWolfe.compute_extreme_point(
         println(L)
     end
     intax = zeros(Int, m)
-    for λa3 in 0:L-1
+    for λa3 in 0:(HasMarginals ? L : L ÷ 2)-1
         digits!(intax, λa3, base=2)
         ax[3][1:m] .= 2intax .- 1
         for λa2 in (IsSymmetric ? λa3 : 0):L-1
@@ -148,7 +148,7 @@ function FrankWolfe.compute_extreme_point(
         println(L)
     end
     intax = zeros(Int, m)
-    for λa4 in 0:L-1
+    for λa4 in 0:(HasMarginals ? L : L ÷ 2)-1
         digits!(intax, λa4, base=2)
         ax[4][1:m] .= 2intax .- 1
         for λa3 in (IsSymmetric ? λa4 : 0):L-1
@@ -201,7 +201,7 @@ function FrankWolfe.compute_extreme_point(
         println(L)
     end
     intax = zeros(Int, m)
-    for λa5 in 0:L-1
+    for λa5 in 0:(HasMarginals ? L : L ÷ 2)-1
         digits!(intax, λa5, base=2)
         ax[5][1:m] .= 2intax .- 1
         for λa4 in (IsSymmetric ? λa5 : 0):L-1
@@ -258,7 +258,7 @@ function FrankWolfe.compute_extreme_point(
         println(L)
     end
     intax = zeros(Int, m)
-    for λa6 in 0:L-1
+    for λa6 in 0:(HasMarginals ? L : L ÷ 2)-1
         digits!(intax, λa6, base=2)
         ax[6][1:m] .= 2intax .- 1
         for λa5 in (IsSymmetric ? λa6 : 0):L-1
