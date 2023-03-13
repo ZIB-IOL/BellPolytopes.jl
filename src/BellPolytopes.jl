@@ -243,14 +243,17 @@ function bell_frank_wolfe(
         if verbose ≥ 2 && mode_last ≥ 0
             @printf("  Dual gap: %.2e\n", dual_gap)
             @printf("      Time: %.2e\n", time / 1e9)
-            println()
         end
+        println()
         if primal > dual_gap
             @printf("v_c ≤ %f\n", β)
         else
             ν = 1 / (1 + norm(v0 * p + (1 - v0) * o - as.x, 2))
             @printf("v_c ≥ %f (%f)\n", shr2^(N / 2) * ν * v0, shr2^(N / 2) * v0)
         end
+    end
+    if save
+        serialize(file * ".dat", ActiveSetStorage(as))
     end
     return x, ds, primal, dual_gap, traj_data, as, M, β
 end
