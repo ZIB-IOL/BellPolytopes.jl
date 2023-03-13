@@ -79,6 +79,7 @@ julia> local_bound(bell_inequality)[1] / dot(bell_inequality, p) # checking the 
 
 The computation relies on an efficient variant of the Frank-Wolfe algorithm to iteratively find the local point closest to the input correlation tensor.
 See this recent [review](https://arxiv.org/abs/2211.14103) for an introduction to the method.
+
 In a nutshell, each step gets closer to the objective point:
 * either by moving towards a *good* vertex of the local polytope,
 * or by astutely combining the vertices (or atoms) already found and stored in the *active set*.
@@ -117,4 +118,4 @@ v_c ≤ 0.778392
 ## Going further
 
 More examples can be found in the corresponding folder of the package.
-They include the construction of a Bell inequality with a higher tolerance to noise as CHSH and multipartite instances.
+They include the construction of a Bell inequality with a higher tolerance to noise as CHSH as well as multipartite instances.
