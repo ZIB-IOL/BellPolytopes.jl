@@ -496,7 +496,7 @@ function FrankWolfe.active_set_update_iterate_pairwise!(
     lambda::T,
     fw_atom::AT,
     away_atom::AT,
-) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+) where {IT <: Array{T, N}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Real} where {N}
     fw_atom.modified = true
     away_atom.modified = true
     @inbounds for x in fw_atom.lmo.ci
