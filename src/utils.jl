@@ -241,7 +241,7 @@ function alternating_minimisation!(
         for x8 in 1:length(ax[8])-HasMarginals
             ax[8][x8] = lmo.tmp[x8] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x6] =
+        @tullio lmo.tmp[x7] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
