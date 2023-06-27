@@ -36,11 +36,13 @@ function rho_singlet(; type=Float64)
     return psi * psi' / type(2)
 end
 
-function rho_GHZ(N::Int; type=Float64)
-    psi = zeros(type, 2^N)
-    psi[1] = one(type)
-    psi[2^N] = one(type)
-    return psi * psi' / type(2)
+function rho_GHZ(N::Int; d=2, type=Float64)
+    aux = zeros(type, d*ones(Int, N)...)
+    for i in 1:d
+        aux[i*ones(Int, N)...] = one(type)
+    end
+    psi = reshape(aux, d^N, 1)
+    return psi * psi' / type(d)
 end
 
 function rho_W(N::Int; type=Float64)
@@ -147,6 +149,27 @@ function HQVNB17_vec(n::Int; type=Float64)
     return res
 end
 
+#  create a set of (projective) POVMs out of a set of bases
+function povm(B::Array{T, 3}) where {T <: Number}
+    d = size(B, 1)
+    n = size(B, 2)
+    k = size(B, 3)
+    res = zeros(ComplexF64, d, d, n, k)
+    for a = 1:n, x = 1:k
+        res[:, :, a, x] = B[:, a, x]*B[:, a, x]'
+    end
+    return res
+end
+
+# construction of the measurements from Eqs. (5) and (6) from quant-ph/0605182
+# Barrett Kent Pironio
+function BKP_mes(d::Int, N::Int)
+    omega = exp(2*im*pi/d)
+    rA = [omega^(q*(r-(k-1/2)/N))/sqrt(d) for q = 0:d-1, r = 0:d-1, k = 1:N]
+    rB = [omega^(-q*(r-l/N))/sqrt(d) for q = 0:d-1, r = 0:d-1, l = 1:N]
+    return povm(rA), povm(rB)
+end
+
 ##############
 # CONVERSION #
 ##############
@@ -227,6 +250,24 @@ function probability_tensor(
     Aax = [qubit_mes(vec; type=type) for vec in vecs]
     p = zeros(T, 2 * ones(Int, N)..., m * ones(Int, N)...)
     cia = CartesianIndices(Tuple(2 * ones(Int, N)))
+    cix = CartesianIndices(Tuple(m * ones(Int, N)))
+    for a in cia, x in cix
+        p[a, x] = real(tr(kron([Aax[n][:, :, a[n], x[n]] for n in 1:N]...) * rho))
+    end
+    return p
+end
+
+# convert a N sets of m d-outcome POVMs acting on C^e into a ex...xexmx...xm probability array
+function probability_tensor(
+    Aax::Vector{TB},
+    N::Int;
+    rho=rho_GHZ(N; d=size(Aax[1], 1), type=T),
+) where {TB <: AbstractArray{Complex{T}, 4}} where {T <: Number}
+    e, _, d, m = size(Aax[1])
+    @assert length(Aax) == N
+    @assert size(rho) == (d^N, d^N)
+    p = zeros(T, e * ones(Int, N)..., m * ones(Int, N)...)
+    cia = CartesianIndices(Tuple(e * ones(Int, N)))
     cix = CartesianIndices(Tuple(m * ones(Int, N)))
     for a in cia, x in cix
         p[a, x] = real(tr(kron([Aax[n][:, :, a[n], x[n]] for n in 1:N]...) * rho))

@@ -12,7 +12,7 @@ using Tullio
 
 export bell_frank_wolfe, local_bound, nonlocality_threshold
 include("quantum_utils.jl")
-export ketbra, qubit_mes, polygonXY_vec, HQVNB17_vec, rho_singlet, rho_GHZ, rho_W
+export ketbra, qubit_mes, povm, polygonXY_vec, HQVNB17_vec, rho_singlet, rho_GHZ, rho_W
 export cube_vec, octahedron_vec, icosahedron_vec, dodecahedron_vec
 include("types.jl")
 export correlation_matrix, correlation_tensor, probability_tensor
