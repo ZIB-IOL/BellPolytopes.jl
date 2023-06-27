@@ -265,7 +265,7 @@ function probability_tensor(
 ) where {TB <: AbstractArray{Complex{T}, 4}} where {T <: Number}
     e, _, d, m = size(Aax[1])
     @assert length(Aax) == N
-    @assert size(rho) == (d^N, d^N)
+    @assert size(rho) == (e^N, e^N)
     p = zeros(T, e * ones(Int, N)..., m * ones(Int, N)...)
     cia = CartesianIndices(Tuple(e * ones(Int, N)))
     cix = CartesianIndices(Tuple(m * ones(Int, N)))

@@ -106,6 +106,8 @@ function bell_frank_wolfe(
             else
                 if sym == true
                     @warn "Input array seemingly inconsistant with sym being true"
+                else
+                    sym = false
                 end
             end
         else
@@ -117,6 +119,8 @@ function bell_frank_wolfe(
             else
                 if sym == true
                     @warn "Input array seemingly inconsistant with sym being true"
+                else
+                    sym = false
                 end
             end
         end
