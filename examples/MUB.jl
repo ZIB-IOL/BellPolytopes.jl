@@ -14,7 +14,7 @@ Random.seed!(0)
 # Contact sebastien.designolle@gmail.com for questions
 function mub(d)
     # Auxiliary function to compute the trace in finite fields
-    function tr_int(a::fq_nmod)
+    function tr_int(a)
         parse(Int, string(tr(a)))
     end
     f = collect(Primes.factor(d))
@@ -32,7 +32,7 @@ function mub(d)
         B = zeros(Complex{Float64}, d, d, d+1)
         B[:, :, 1] = Matrix(I, d, d)
         gamma = exp(2*im*pi/p)
-        f, x = FiniteField(p, r, "x")
+        f, x = finite_field(p, r, "x")
         pow = [x^i for i = 0:r-1]
         el = [sum(digits(i, base=p, pad=r).*pow) for i = 0:d-1]
         if p == 2
