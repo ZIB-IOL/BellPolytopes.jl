@@ -43,7 +43,7 @@ function FrankWolfe.compute_extreme_point(
     kwargs...,
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     if IsSymmetric && last
-        A .= lmo.reynolds(A; lmo=lmo)
+        A .= lmo.reynolds(A, lmo)
     end
     ax = [ones(T, lmo.m) for n in 1:2]
     sc = zero(T)
@@ -87,7 +87,7 @@ function FrankWolfe.compute_extreme_point(
     kwargs...,
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     if IsSymmetric && last
-        A .= lmo.reynolds(A; lmo=lmo)
+        A .= lmo.reynolds(A, lmo)
     end
     ax = [ones(T, lmo.m) for n in 1:3]
     sc = zero(T)
@@ -136,7 +136,7 @@ function FrankWolfe.compute_extreme_point(
     kwargs...,
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     if IsSymmetric && last
-        A .= lmo.reynolds(A; lmo=lmo)
+        A .= lmo.reynolds(A, lmo)
     end
     ax = [ones(T, lmo.m) for n in 1:4]
     sc = zero(T)
@@ -189,7 +189,7 @@ function FrankWolfe.compute_extreme_point(
     kwargs...,
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     if IsSymmetric && last
-        A .= lmo.reynolds(A; lmo=lmo)
+        A .= lmo.reynolds(A, lmo)
     end
     ax = [ones(T, lmo.m) for n in 1:5]
     sc = zero(T)
@@ -246,7 +246,7 @@ function FrankWolfe.compute_extreme_point(
     kwargs...,
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     if IsSymmetric && last
-        A .= lmo.reynolds(A; lmo=lmo)
+        A .= lmo.reynolds(A, lmo)
     end
     ax = [ones(T, lmo.m) for n in 1:6]
     sc = zero(T)
@@ -309,7 +309,7 @@ function FrankWolfe.compute_extreme_point(
 ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
     @warn("This function is naive and should not be used for actual computations.")
     if IsSymmetric && last
-        A .= lmo.reynolds(A; lmo=lmo)
+        A .= lmo.reynolds(A, lmo)
     end
     # the approach with the λa here is very naive and only allows pedagogical support for very small cases
     ds = BellCorrelationsDS([ones(T, lmo.m) for n in 1:N], lmo; initialise=false)

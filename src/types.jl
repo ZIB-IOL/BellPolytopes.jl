@@ -671,7 +671,7 @@ function get_array(ds::BellProbabilitiesDS{T, N, IsSymmetric}) where {T <: Numbe
     @inbounds for x in CartesianIndices(Tuple(length.(ds.ax)))
         res[CartesianIndex(Tuple([ds.ax[n][x.I[n]] for n in 1:length(ds.ax)])), x] = one(T)
     end
-    return IsSymmetric ? ds.lmo.reynolds(res; lmo=ds.lmo) : res
+    return IsSymmetric ? lmo.reynolds(res, lmo) : res
 end
 
 function set_array!(ds::BellProbabilitiesDS{T, N, IsSymmetric, true}) where {T <: Number} where {N} where {IsSymmetric}
