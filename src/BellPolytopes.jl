@@ -245,6 +245,9 @@ function bell_frank_wolfe(
             @printf("v_c ≥ %f (%f)\n", shr2^(N / 2) * ν * v0, shr2^(N / 2) * v0)
         end
     end
+    if save
+        serialize(file * ".dat", ActiveSetStorage(as))
+    end
     return x, ds, primal, dual_gap, traj_data, as, M, β
 end
 
