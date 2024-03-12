@@ -12,24 +12,11 @@
 function qubit_proj(v::Vector{T}; mes::Bool=false, type=Complex{T}) where {T <: Number}
     if mes
         return [
-            (
-                σI(; type=type) - v[1] * σX(; type=type) - v[2] * σY(; type=type) -
-                v[3] * σZ(; type=type)
-            ) / 2;;;
-            (
-                σI(; type=type) +
-                v[1] * σX(; type=type) +
-                v[2] * σY(; type=type) +
-                v[3] * σZ(; type=type)
-            ) / 2
+            (σI(; type=type) - v[1] * σX(; type=type) - v[2] * σY(; type=type) - v[3] * σZ(; type=type)) / 2;;;
+            (σI(; type=type) + v[1] * σX(; type=type) + v[2] * σY(; type=type) + v[3] * σZ(; type=type)) / 2
         ]
     else
-        return (
-            σI(; type=type) +
-            v[1] * σX(; type=type) +
-            v[2] * σY(; type=type) +
-            v[3] * σZ(; type=type)
-        ) / 2
+        return (σI(; type=type) + v[1] * σX(; type=type) + v[2] * σY(; type=type) + v[3] * σZ(; type=type)) / 2
     end
 end
 
@@ -49,11 +36,13 @@ function rho_singlet(; type=Float64)
     return psi * psi' / type(2)
 end
 
-function rho_GHZ(N::Int; type=Float64)
-    psi = zeros(type, 2^N)
-    psi[1] = one(type)
-    psi[2^N] = one(type)
-    return psi * psi' / type(2)
+function rho_GHZ(N::Int; d=2, type=Float64)
+    aux = zeros(type, d*ones(Int, N)...)
+    for i in 1:d
+        aux[i*ones(Int, N)...] = one(type)
+    end
+    psi = reshape(aux, d^N, 1)
+    return psi * psi' / type(d)
 end
 
 function rho_W(N::Int; type=Float64)
@@ -114,35 +103,16 @@ end
 # measurements from arXiv:1609.05011 (regular polyhedron in the XY plane)
 function polygonXY_vec(m::Int; type=Float64)
     if type <: AbstractFloat
-        return collect(
-            hcat(
-                [
-                    [cos((x - 1) * type(pi) / m), sin((x - 1) * type(pi) / m), zero(type)] for
-                    x in 1:m
-                ]...,
-            )',
-        )
+        return collect(hcat([[cos((x - 1) * type(pi) / m), sin((x - 1) * type(pi) / m), zero(type)] for x in 1:m]...)')
     elseif type <: Real
         return collect(
-            hcat(
-                [
-                    [
-                        type(cos((x - 1) * big(pi) / m)),
-                        type(sin((x - 1) * big(pi) / m)),
-                        zero(type),
-                    ] for x in 1:m
-                ]...,
-            )',
+            hcat([[type(cos((x - 1) * big(pi) / m)), type(sin((x - 1) * big(pi) / m)), zero(type)] for x in 1:m]...)',
         )
     else
         return vertices = collect(
             hcat(
                 [
-                    [
-                        (type(E(2m, x - 1)) + type(E(2m, 1 - x))) // 2,
-                        -im * (type(E(2m, x - 1)) - type(E(2m, 1 - x))) // 2,
-                        0,
-                    ] for x in 1:m
+                    [(type(E(2m, x - 1)) + type(E(2m, 1 - x))) // 2, -im * (type(E(2m, x - 1)) - type(E(2m, 1 - x))) // 2, 0] for x in 1:m
                 ]...,
             )',
         )
@@ -179,6 +149,27 @@ function HQVNB17_vec(n::Int; type=Float64)
     return res
 end
 
+#  create a set of (projective) POVMs out of a set of bases
+function povm(B::Array{T, 3}) where {T <: Number}
+    d = size(B, 1)
+    n = size(B, 2)
+    k = size(B, 3)
+    res = zeros(ComplexF64, d, d, n, k)
+    for a = 1:n, x = 1:k
+        res[:, :, a, x] = B[:, a, x]*B[:, a, x]'
+    end
+    return res
+end
+
+# construction of the measurements from Eqs. (5) and (6) from quant-ph/0605182
+# Barrett Kent Pironio
+function BKP_mes(d::Int, N::Int)
+    omega = exp(2*im*pi/d)
+    rA = [omega^(q*(r-(k-1/2)/N))/sqrt(d) for q = 0:d-1, r = 0:d-1, k = 1:N]
+    rB = [omega^(-q*(r-l/N))/sqrt(d) for q = 0:d-1, r = 0:d-1, l = 1:N]
+    return povm(rA), povm(rB)
+end
+
 ##############
 # CONVERSION #
 ##############
@@ -191,10 +182,7 @@ end
 
 # convert a 2x...x2xmx...xm probability array into a mx...xm correlation array if marg = false (no marginals)
 # convert a 2x...x2xmx...xm probability array into a (m+1)x...x(m+1) correlation array if marg = true (marginals)
-function correlation_tensor(
-    p::AbstractArray{T, N2};
-    marg::Bool=false,
-) where {T <: Number} where {N2}
+function correlation_tensor(p::AbstractArray{T, N2}; marg::Bool=false) where {T <: Number} where {N2}
     @assert iseven(N2)
     N = N2 ÷ 2
     m = size(p)[end]
@@ -262,6 +250,24 @@ function probability_tensor(
     Aax = [qubit_mes(vec; type=type) for vec in vecs]
     p = zeros(T, 2 * ones(Int, N)..., m * ones(Int, N)...)
     cia = CartesianIndices(Tuple(2 * ones(Int, N)))
+    cix = CartesianIndices(Tuple(m * ones(Int, N)))
+    for a in cia, x in cix
+        p[a, x] = real(tr(kron([Aax[n][:, :, a[n], x[n]] for n in 1:N]...) * rho))
+    end
+    return p
+end
+
+# convert a N sets of m d-outcome POVMs acting on C^e into a ex...xexmx...xm probability array
+function probability_tensor(
+    Aax::Vector{TB},
+    N::Int;
+    rho=rho_GHZ(N; d=size(Aax[1], 1), type=T),
+) where {TB <: AbstractArray{Complex{T}, 4}} where {T <: Number}
+    e, _, d, m = size(Aax[1])
+    @assert length(Aax) == N
+    @assert size(rho) == (e^N, e^N)
+    p = zeros(T, e * ones(Int, N)..., m * ones(Int, N)...)
+    cia = CartesianIndices(Tuple(e * ones(Int, N)))
     cix = CartesianIndices(Tuple(m * ones(Int, N)))
     for a in cia, x in cix
         p[a, x] = real(tr(kron([Aax[n][:, :, a[n], x[n]] for n in 1:N]...) * rho))
