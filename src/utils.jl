@@ -9,10 +9,7 @@ function arguments_alternating_minimisation(
     return (A, IsSymmetric ? A : collect(A'))
 end
 
-function arguments_alternating_minimisation(
-    lmo::BellCorrelationsLMO{T, N, 0},
-    A::Array{T, N},
-) where {T <: Number} where {N}
+function arguments_alternating_minimisation(lmo::BellCorrelationsLMO{T, N, 0}, A::Array{T, N}) where {T <: Number} where {N}
     return (A,)
 end
 
@@ -145,33 +142,27 @@ function alternating_minimisation!(
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
-        @tullio lmo.tmp[x6] =
-            A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
+        @tullio lmo.tmp[x6] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
         for x6 in 1:length(ax[6])-HasMarginals
             ax[6][x6] = lmo.tmp[x6] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x5] =
-            A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[6][x6]
+        @tullio lmo.tmp[x5] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[6][x6]
         for x5 in 1:length(ax[5])-HasMarginals
             ax[5][x5] = lmo.tmp[x5] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x4] =
-            A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5] * ax[6][x6]
+        @tullio lmo.tmp[x4] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5] * ax[6][x6]
         for x4 in 1:length(ax[4])-HasMarginals
             ax[4][x4] = lmo.tmp[x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x3] =
-            A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+        @tullio lmo.tmp[x3] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5] * ax[6][x6]
         for x3 in 1:length(ax[3])-HasMarginals
             ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x2] =
-            A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+        @tullio lmo.tmp[x2] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
         for x2 in 1:length(ax[2])-HasMarginals
             ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x1] =
-            A[x1, x2, x3, x4, x5, x6] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+        @tullio lmo.tmp[x1] = A[x1, x2, x3, x4, x5, x6] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
         for x1 in 1:length(ax[1])-HasMarginals
             ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
         end
@@ -190,79 +181,37 @@ function alternating_minimisation!(
     @inbounds while sc1 < sc2
         sc2 = sc1
         @tullio lmo.tmp[x7] =
-            A[x1, x2, x3, x4, x5, x6, x7] *
-            ax[1][x1] *
-            ax[2][x2] *
-            ax[3][x3] *
-            ax[4][x4] *
-            ax[5][x5] *
-            ax[6][x6]
+            A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
         for x7 in 1:length(ax[7])-HasMarginals
             ax[7][x7] = lmo.tmp[x7] > zero(T) ? -one(T) : one(T)
         end
         @tullio lmo.tmp[x6] =
-            A[x1, x2, x3, x4, x5, x6, x7] *
-            ax[1][x1] *
-            ax[2][x2] *
-            ax[3][x3] *
-            ax[4][x4] *
-            ax[5][x5] *
-            ax[7][x7]
+            A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[7][x7]
         for x6 in 1:length(ax[6])-HasMarginals
             ax[6][x6] = lmo.tmp[x6] > zero(T) ? -one(T) : one(T)
         end
         @tullio lmo.tmp[x5] =
-            A[x1, x2, x3, x4, x5, x6, x7] *
-            ax[1][x1] *
-            ax[2][x2] *
-            ax[3][x3] *
-            ax[4][x4] *
-            ax[6][x6] *
-            ax[7][x7]
+            A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[6][x6] * ax[7][x7]
         for x5 in 1:length(ax[5])-HasMarginals
             ax[5][x5] = lmo.tmp[x5] > zero(T) ? -one(T) : one(T)
         end
         @tullio lmo.tmp[x4] =
-            A[x1, x2, x3, x4, x5, x6, x7] *
-            ax[1][x1] *
-            ax[2][x2] *
-            ax[3][x3] *
-            ax[5][x5] *
-            ax[6][x6] *
-            ax[7][x7]
+            A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5] * ax[6][x6] * ax[7][x7]
         for x4 in 1:length(ax[4])-HasMarginals
             ax[4][x4] = lmo.tmp[x4] > zero(T) ? -one(T) : one(T)
         end
         @tullio lmo.tmp[x3] =
-            A[x1, x2, x3, x4, x5, x6, x7] *
-            ax[1][x1] *
-            ax[2][x2] *
-            ax[4][x4] *
-            ax[5][x5] *
-            ax[6][x6] *
-            ax[7][x7]
+            A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5] * ax[6][x6] * ax[7][x7]
         for x3 in 1:length(ax[3])-HasMarginals
             ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
         end
         @tullio lmo.tmp[x2] =
-            A[x1, x2, x3, x4, x5, x6, x7] *
-            ax[1][x1] *
-            ax[3][x3] *
-            ax[4][x4] *
-            ax[5][x5] *
-            ax[6][x6] *
-            ax[7][x7]
+            A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6] * ax[7][x7]
         for x2 in 1:length(ax[2])-HasMarginals
             ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
         end
         @tullio lmo.tmp[x1] =
-            A[x1, x2, x3, x4, x5, x6, x7] *
-            ax[2][x2] *
-            ax[3][x3] *
-            ax[4][x4] *
-            ax[5][x5] *
-            ax[6][x6] *
-            ax[7][x7]
+            A[x1, x2, x3, x4, x5, x6, x7] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6] * ax[7][x7]
         for x1 in 1:length(ax[1])-HasMarginals
             ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
         end
@@ -292,7 +241,7 @@ function alternating_minimisation!(
         for x8 in 1:length(ax[8])-HasMarginals
             ax[8][x8] = lmo.tmp[x8] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x6] =
+        @tullio lmo.tmp[x7] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
@@ -466,10 +415,7 @@ end
 # REYNOLDS #
 ############
 
-function reynolds_permutedims(
-    A::Array{T, 2};
-    lmo::BellCorrelationsLMO=BellCorrelationsLMO(A),
-) where {T <: Number}
+function reynolds_permutedims(A::Array{T, 2}, lmo::BellCorrelationsLMO{T, 2}) where {T <: Number}
     return (A + A') / 2
 end
 
@@ -567,10 +513,7 @@ function shrinking_squared(vec::AbstractMatrix{T}; verbose=true) where {T <: Num
     return eta2
 end
 
-function shrinking_squared(
-    vecs::Vector{TB};
-    verbose=true,
-) where {TB <: AbstractMatrix{T}} where {T <: Number}
+function shrinking_squared(vecs::Vector{TB}; verbose=true) where {TB <: AbstractMatrix{T}} where {T <: Number}
     eta2 = typemax(T)
     for i in 1:length(vecs)
         eta2 = min(eta2, shrinking_squared(vecs[i]; verbose=false))
