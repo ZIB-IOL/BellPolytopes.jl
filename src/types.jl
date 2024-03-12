@@ -355,6 +355,11 @@ function get_array(ds::BellCorrelationsDS{T, N, IsSymmetric}, lmo::BellCorrelati
     res = zeros(T, size(aux))
     @inbounds for x in lmo.ci
         res[x] = aux[x]
+        if T <: AbstractFloat
+            if abs(res[x]) < Base.rtoldefault(T)
+                res[x] = zero(T)
+            end
+        end
     end
     return IsSymmetric ? lmo.reynolds(res, lmo) : res
 end
@@ -714,7 +719,7 @@ function ActiveSetStorage(
     as::FrankWolfe.ActiveSet{BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}, T, Array{T, N}},
 ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray}
     m = HasMarginals ? as.atoms[1].lmo.m - 1 : as.atoms[1].lmo.m
-    ax = [BitArray(undef, length(as), m) for n in 1:N]
+    ax = [BitArray(undef, length(as), m) for _ in 1:N]
     for i in eachindex(as)
         for n in 1:N
             @view(ax[n][i, :]) .= as.atoms[i].ax[n][1:m] .> zero(T)
