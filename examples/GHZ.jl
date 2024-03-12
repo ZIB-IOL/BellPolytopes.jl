@@ -22,18 +22,15 @@ println(lower_bound_infinite) # 0.46515...
 println()
 
 println("Lower bound")
-println(lower_bound) # 0.4931
+println(lower_bound) # 0.49315
 println("Local model")
 display(local_model.x[:, :, 1])
-println(
-    local_model.x ==
-    sum(local_model.weights[i] * local_model.atoms[i] for i in 1:length(local_model)),
-) # true
+println(local_model.x == sum(local_model.weights[i] * local_model.atoms[i] for i in 1:length(local_model))) # true
 
 println()
 
 println("Upper bound")
-println(upper_bound) # 0.49317...
+println(upper_bound) # 0.4932
 println("Bell inequality")
 display(bell_inequality[:, :, 1])
 

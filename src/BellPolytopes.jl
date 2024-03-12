@@ -12,10 +12,10 @@ using Tullio
 
 export bell_frank_wolfe, local_bound, nonlocality_threshold
 include("quantum_utils.jl")
-export ketbra, qubit_mes, polygonXY_vec, HQVNB17_vec, rho_singlet, rho_GHZ, rho_W
+export ketbra, qubit_mes, povm, polygonXY_vec, HQVNB17_vec, rho_singlet, rho_GHZ, rho_W
 export cube_vec, octahedron_vec, icosahedron_vec, dodecahedron_vec
 include("types.jl")
-export correlation_matrix, correlation_tensor
+export correlation_matrix, correlation_tensor, probability_tensor
 include("fw_methods.jl")
 include("utils.jl")
 export polyhedronisme, shrinking_squared
@@ -56,7 +56,7 @@ Optional arguments:
 """
 function bell_frank_wolfe(
     p::Array{T, N};
-    marg::Bool=N == 2 ? false : true,
+    marg::Bool=N != 2,
     v0=one(T),
     epsilon=1e-7,
     verbose=0,
@@ -90,7 +90,7 @@ function bell_frank_wolfe(
         println("\nVisibility: ", v0)
     end
     # symmetry detection
-    if p ≈ reynolds_permutedims(p)
+    if p ≈ reynolds_permutedims(p, BellCorrelationsLMO(p))
         reynolds = reynolds_permutedims
         if sym === nothing # respect the user choice if sym is false
             sym = true
@@ -154,14 +154,7 @@ function bell_frank_wolfe(
         active_set = FrankWolfe.ActiveSet(x0)
     else
         if active_set isa ActiveSetStorage
-            active_set = load_active_set(
-                active_set;
-                type=TD,
-                sym=sym,
-                marg=marg,
-                use_array=use_array,
-                reynolds=reynolds,
-            )
+            active_set = load_active_set(active_set, TD; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
         end
         active_set_link_lmo!(active_set, lmo)
         active_set_reinitialise!(active_set)
@@ -243,8 +236,8 @@ function bell_frank_wolfe(
         if verbose ≥ 2 && mode_last ≥ 0
             @printf("  Dual gap: %.2e\n", dual_gap)
             @printf("      Time: %.2e\n", time / 1e9)
+            println()
         end
-        println()
         if primal > dual_gap
             @printf("v_c ≤ %f\n", β)
         else
@@ -264,15 +257,13 @@ No symmetry detection is implemented yet, used mostly for pedagogy and tests.
 """
 function local_bound(
     M::Array{T, N};
+    marg::Bool=false,
     mode::Int=1,
+    sym::Bool=false,
     nb::Int=10^5,
     verbose=false,
 ) where {T <: Number} where {N}
-    ds = FrankWolfe.compute_extreme_point(
-        BellCorrelationsLMO(M; mode=mode, nb=nb),
-        -M;
-        verbose=verbose,
-    )
+    ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M; marg=marg, mode=mode, sym=sym, nb=nb), -M; verbose=verbose)
     return FrankWolfe.fast_dot(M, ds), ds
 end
 
