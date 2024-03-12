@@ -90,7 +90,7 @@ function bell_frank_wolfe(
         println("\nVisibility: ", v0)
     end
     # symmetry detection
-    if p ≈ reynolds_permutedims(p)
+    if p ≈ reynolds_permutedims(p, BellCorrelationsLMO(p))
         reynolds = reynolds_permutedims
         if sym === nothing # respect the user choice if sym is false
             sym = true
