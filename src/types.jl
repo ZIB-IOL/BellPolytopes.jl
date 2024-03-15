@@ -4,10 +4,10 @@
 
 mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray} <: FrankWolfe.LinearMinimizationOracle
     # scenario fields
-    const m::Int # number of inputs
+    const m::Vector{Int} # number of inputs
     const p::Array{T, N} # point of interest
     # general fields
-    tmp::Vector{T} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
+    tmp::Vector{Vector{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
     const reynolds::Union{Nothing, Function}
@@ -16,7 +16,7 @@ mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArr
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     data::Vector{Any} # store information about the computation
     lmofalse::BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}
-    function BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray}(m::Int, p::Array{T, N}, tmp::Vector{T}, nb::Int, cnt::Int, reynolds::Union{Nothing, Function}, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
+    function BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, reynolds::Union{Nothing, Function}, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
         lmo = new(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
         if IsSymmetric || UseArray
             lmo.lmofalse = BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
@@ -39,9 +39,9 @@ function BellCorrelationsLMO(
     data=[0, 0],
 ) where {T <: Number} where {N}
     return BellCorrelationsLMO{T, N, mode, sym, marg, use_array}(
-        size(p, 1),
+        collect(size(p)),
         p,
-        zeros(T, size(p, 1)),
+        [zeros(T, size(p, n)) for n in 1:N],
         nb,
         1,
         reynolds,
@@ -66,18 +66,18 @@ function BellCorrelationsLMO(
     if marg == HasMarginals
         m = lmo.m
         p = type.(lmo.p)
-        tmp = type.(lmo.tmp)
+        tmp = broadcast.(type, lmo.tmp)
         ci = lmo.ci
     elseif HasMarginals
-        m = lmo.m - 1
+        m = lmo.m .- 1
         ci = CartesianIndices(size(p) .- 1)
         p = type.(lmo.p[ci])
         tmp = zeros(type, m)
     else
-        m = lmo.m + 1
+        m = lmo.m .+ 1
         p = zeros(type, size(lmo.p) .+ 1)
         p[lmo.ci] .= lmo.p
-        tmp = zeros(type, m)
+        tmp = [zeros(type, size(p, n)) for n in 1:N]
         ci = CartesianIndices(p)
     end
     return BellCorrelationsLMO{type, N, mode, sym, marg, use_array}(
@@ -97,11 +97,11 @@ end
 # warning: N is twice the number of parties in this case
 mutable struct BellProbabilitiesLMO{T, N, Mode, IsSymmetric, UseArray} <: FrankWolfe.LinearMinimizationOracle
     # scenario fields
-    const d::Int # number of outputs
-    const m::Int # number of inputs
+    const d::Vector{Int} # number of outputs
+    const m::Vector{Int} # number of inputs
     const p::Array{T, N} # point of interest
     # general fields
-    tmp::Vector{Vector{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
+    tmp::Vector{Matrix{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
     const reynolds::Union{Nothing, Function}
@@ -121,11 +121,12 @@ function BellProbabilitiesLMO(
     reynolds=nothing,
     data=[0, 0],
 ) where {T <: Number} where {N}
+    N2 = N ÷ 2
     return BellProbabilitiesLMO{T, N, mode, sym, use_array}(
-        size(p)[1],
-        size(p)[end],
+        collect(size(p)[1:N2]),
+        collect(size(p)[N2+1:end]),
         p,
-        [zeros(T, size(p)[1]) for n in 1:size(p)[end]],
+        [zeros(T, size(p, N2+n), size(p, n)) for n in 1:N2],
         nb,
         1,
         reynolds,
@@ -397,8 +398,8 @@ function FrankWolfe.fast_dot(
     ds::BellCorrelationsDS{T, 2, IsSymmetric, true, false},
     A::Array{T, 2},
 ) where {T <: Number} where {IsSymmetric}
-    mul!(ds.lmo.tmp, A, ds.ax[2])
-    return dot(ds.ax[1], ds.lmo.tmp) - A[end]
+    mul!(ds.lmo.tmp[1], A, ds.ax[2])
+    return dot(ds.ax[1], ds.lmo.tmp[1]) - A[end]
 end
 
 # assume the array A is symmetric when IsSymmetric is true
@@ -406,8 +407,8 @@ function FrankWolfe.fast_dot(
     ds::BellCorrelationsDS{T, 2, IsSymmetric, false, false},
     A::Array{T, 2},
 ) where {T <: Number} where {IsSymmetric}
-    mul!(ds.lmo.tmp, A, ds.ax[2])
-    return dot(ds.ax[1], ds.lmo.tmp)
+    mul!(ds.lmo.tmp[1], A, ds.ax[2])
+    return dot(ds.ax[1], ds.lmo.tmp[1])
 end
 
 # assume the array A is symmetric when IsSymmetric is true
@@ -564,7 +565,7 @@ mutable struct BellProbabilitiesDS{T, N, IsSymmetric, UseArray} <: AbstractArray
     array::Array{T, N} # if UseArray, full storage to trade speed for memory
 end
 
-Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.d * ones(Int, length(ds.ax)), length.(ds.ax)))
+Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.d, length.(ds.ax)))
 
 function BellProbabilitiesDS(
     ax::Vector{Vector{Int}},
@@ -718,11 +719,11 @@ end
 function ActiveSetStorage(
     as::FrankWolfe.ActiveSet{BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}, T, Array{T, N}},
 ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray}
-    m = HasMarginals ? as.atoms[1].lmo.m - 1 : as.atoms[1].lmo.m
-    ax = [BitArray(undef, length(as), m) for _ in 1:N]
+    m = HasMarginals ? as.atoms[1].lmo.m .- 1 : as.atoms[1].lmo.m
+    ax = [BitArray(undef, length(as), m[n]) for n in 1:N]
     for i in eachindex(as)
         for n in 1:N
-            @view(ax[n][i, :]) .= as.atoms[i].ax[n][1:m] .> zero(T)
+            @view(ax[n][i, :]) .= as.atoms[i].ax[n][1:m[n]] .> zero(T)
         end
     end
     return ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray}(as.weights, ax, as.atoms[1].lmo.data)
@@ -743,7 +744,7 @@ function load_active_set(
     @inbounds for i in 1:length(ass.weights)
         ax = [ones(T2, marg ? m + 1 : m) for n in 1:N]
         for n in 1:N
-            @view(ax[n][1:m]) .= T2.(2 * ass.ax[n][i, :] .- 1)
+            @view(ax[n][1:m[n]]) .= T2.(2 * ass.ax[n][i, :] .- 1)
         end
         atom = BellCorrelationsDS(ax, lmo)
         push!(atoms, atom)
@@ -769,9 +770,9 @@ function ActiveSetStorage(
     d = as.atoms[1].lmo.d
     m = as.atoms[1].lmo.m
     IntK = d < typemax(Int8) ? Int8 : d < typemax(Int16) ? Int16 : d < typemax(Int32) ? Int32 : Int
-    ax = [ones(IntK, length(as), m) for n in 1:length(as.atoms[1].ax)]
+    ax = [ones(IntK, length(as), m[n]) for n in 1:N]
     for i in eachindex(as)
-        for n in 1:length(as.atoms[1].ax)
+        for n in 1:N
             @view(ax[n][i, :]) .= as.atoms[i].ax[n]
         end
     end

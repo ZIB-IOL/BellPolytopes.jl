@@ -26,16 +26,16 @@ function alternating_minimisation!(
     @inbounds while sc1 < sc2
         sc2 = sc1
         # given a_x, min_b ∑_y b_y (∑_x A_xy a_x) so that b_y is the opposite sign of ∑_x A_xy a_x
-        mul!(lmo.tmp, At, ax[1])
+        mul!(lmo.tmp[2], At, ax[1])
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
         # given b_y, min_a ∑_x a_x (∑_y A_xy b_y) so that a_x is the opposite sign of ∑_y A_xy b_y
-        mul!(lmo.tmp, A, ax[2])
+        mul!(lmo.tmp[1], A, ax[2])
         for x2 in 1:length(ax[1])-HasMarginals
-            ax[1][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[1][x2] = lmo.tmp[1][x2] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
@@ -50,21 +50,21 @@ function alternating_minimisation!(
     @inbounds while sc1 < sc2
         sc2 = sc1
         # given a_x and b_y, min_c ∑_z c_z (∑_xy A_xyz a_x b_y) so that c_z is the opposite sign of ∑_xy A_xyz a_x b_y
-        @tullio lmo.tmp[x3] = A[x1, x2, x3] * ax[1][x1] * ax[2][x2]
+        @tullio lmo.tmp[3][x3] = A[x1, x2, x3] * ax[1][x1] * ax[2][x2]
         for x3 in 1:length(ax[3])-HasMarginals
-            ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
+            ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
         # given a_x and c_z, min_b ∑_y b_y (∑_xz A_xyz a_x c_z) so that b_y is the opposite sign of ∑_xz A_xyz a_x c_z
-        @tullio lmo.tmp[x2] = A[x1, x2, x3] * ax[1][x1] * ax[3][x3]
+        @tullio lmo.tmp[2][x2] = A[x1, x2, x3] * ax[1][x1] * ax[3][x3]
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
         # given b_y and c_z, min_a ∑_x a_x (∑_yz A_xyz b_y c_z) so that a_x is the opposite sign of ∑_yz A_xyz b_y c_z
-        @tullio lmo.tmp[x1] = A[x1, x2, x3] * ax[2][x2] * ax[3][x3]
+        @tullio lmo.tmp[1][x1] = A[x1, x2, x3] * ax[2][x2] * ax[3][x3]
         for x1 in 1:length(ax[1])-HasMarginals
-            ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+            ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
@@ -78,23 +78,23 @@ function alternating_minimisation!(
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
-        @tullio lmo.tmp[x4] = A[x1, x2, x3, x4] * ax[1][x1] * ax[2][x2] * ax[3][x3]
+        @tullio lmo.tmp[4][x4] = A[x1, x2, x3, x4] * ax[1][x1] * ax[2][x2] * ax[3][x3]
         for x4 in 1:length(ax[4])-HasMarginals
-            ax[4][x4] = lmo.tmp[x4] > zero(T) ? -one(T) : one(T)
+            ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x3] = A[x1, x2, x3, x4] * ax[1][x1] * ax[2][x2] * ax[4][x4]
+        @tullio lmo.tmp[3][x3] = A[x1, x2, x3, x4] * ax[1][x1] * ax[2][x2] * ax[4][x4]
         for x3 in 1:length(ax[3])-HasMarginals
-            ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
+            ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x2] = A[x1, x2, x3, x4] * ax[1][x1] * ax[3][x3] * ax[4][x4]
+        @tullio lmo.tmp[2][x2] = A[x1, x2, x3, x4] * ax[1][x1] * ax[3][x3] * ax[4][x4]
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x1] = A[x1, x2, x3, x4] * ax[2][x2] * ax[3][x3] * ax[4][x4]
+        @tullio lmo.tmp[1][x1] = A[x1, x2, x3, x4] * ax[2][x2] * ax[3][x3] * ax[4][x4]
         for x1 in 1:length(ax[1])-HasMarginals
-            ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+            ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
@@ -108,27 +108,27 @@ function alternating_minimisation!(
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
-        @tullio lmo.tmp[x5] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4]
+        @tullio lmo.tmp[5][x5] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4]
         for x5 in 1:length(ax[5])-HasMarginals
-            ax[5][x5] = lmo.tmp[x5] > zero(T) ? -one(T) : one(T)
+            ax[5][x5] = lmo.tmp[5][x5] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x4] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5]
+        @tullio lmo.tmp[4][x4] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5]
         for x4 in 1:length(ax[4])-HasMarginals
-            ax[4][x4] = lmo.tmp[x4] > zero(T) ? -one(T) : one(T)
+            ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x3] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5]
+        @tullio lmo.tmp[3][x3] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5]
         for x3 in 1:length(ax[3])-HasMarginals
-            ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
+            ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x2] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5]
+        @tullio lmo.tmp[2][x2] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5]
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x1] = A[x1, x2, x3, x4, x5] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
+        @tullio lmo.tmp[1][x1] = A[x1, x2, x3, x4, x5] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
         for x1 in 1:length(ax[1])-HasMarginals
-            ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+            ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
@@ -142,31 +142,31 @@ function alternating_minimisation!(
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
-        @tullio lmo.tmp[x6] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
+        @tullio lmo.tmp[6][x6] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
         for x6 in 1:length(ax[6])-HasMarginals
-            ax[6][x6] = lmo.tmp[x6] > zero(T) ? -one(T) : one(T)
+            ax[6][x6] = lmo.tmp[6][x6] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x5] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[6][x6]
+        @tullio lmo.tmp[5][x5] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[6][x6]
         for x5 in 1:length(ax[5])-HasMarginals
-            ax[5][x5] = lmo.tmp[x5] > zero(T) ? -one(T) : one(T)
+            ax[5][x5] = lmo.tmp[5][x5] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x4] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5] * ax[6][x6]
+        @tullio lmo.tmp[4][x4] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5] * ax[6][x6]
         for x4 in 1:length(ax[4])-HasMarginals
-            ax[4][x4] = lmo.tmp[x4] > zero(T) ? -one(T) : one(T)
+            ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x3] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+        @tullio lmo.tmp[3][x3] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5] * ax[6][x6]
         for x3 in 1:length(ax[3])-HasMarginals
-            ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
+            ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x2] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+        @tullio lmo.tmp[2][x2] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x1] = A[x1, x2, x3, x4, x5, x6] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+        @tullio lmo.tmp[1][x1] = A[x1, x2, x3, x4, x5, x6] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
         for x1 in 1:length(ax[1])-HasMarginals
-            ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+            ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
@@ -180,42 +180,42 @@ function alternating_minimisation!(
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
-        @tullio lmo.tmp[x7] =
+        @tullio lmo.tmp[7][x7] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
         for x7 in 1:length(ax[7])-HasMarginals
-            ax[7][x7] = lmo.tmp[x7] > zero(T) ? -one(T) : one(T)
+            ax[7][x7] = lmo.tmp[7][x7] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x6] =
+        @tullio lmo.tmp[6][x6] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[7][x7]
         for x6 in 1:length(ax[6])-HasMarginals
-            ax[6][x6] = lmo.tmp[x6] > zero(T) ? -one(T) : one(T)
+            ax[6][x6] = lmo.tmp[6][x6] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x5] =
+        @tullio lmo.tmp[5][x5] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[6][x6] * ax[7][x7]
         for x5 in 1:length(ax[5])-HasMarginals
-            ax[5][x5] = lmo.tmp[x5] > zero(T) ? -one(T) : one(T)
+            ax[5][x5] = lmo.tmp[5][x5] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x4] =
+        @tullio lmo.tmp[4][x4] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5] * ax[6][x6] * ax[7][x7]
         for x4 in 1:length(ax[4])-HasMarginals
-            ax[4][x4] = lmo.tmp[x4] > zero(T) ? -one(T) : one(T)
+            ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x3] =
+        @tullio lmo.tmp[3][x3] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5] * ax[6][x6] * ax[7][x7]
         for x3 in 1:length(ax[3])-HasMarginals
-            ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
+            ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x2] =
+        @tullio lmo.tmp[2][x2] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6] * ax[7][x7]
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x1] =
+        @tullio lmo.tmp[1][x1] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6] * ax[7][x7]
         for x1 in 1:length(ax[1])-HasMarginals
-            ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+            ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
@@ -229,7 +229,7 @@ function alternating_minimisation!(
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
-        @tullio lmo.tmp[x8] =
+        @tullio lmo.tmp[8][x8] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
@@ -239,9 +239,9 @@ function alternating_minimisation!(
             ax[6][x6] *
             ax[7][x7]
         for x8 in 1:length(ax[8])-HasMarginals
-            ax[8][x8] = lmo.tmp[x8] > zero(T) ? -one(T) : one(T)
+            ax[8][x8] = lmo.tmp[8][x8] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x7] =
+        @tullio lmo.tmp[7][x7] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
@@ -251,9 +251,9 @@ function alternating_minimisation!(
             ax[6][x6] *
             ax[8][x8]
         for x7 in 1:length(ax[7])-HasMarginals
-            ax[7][x7] = lmo.tmp[x7] > zero(T) ? -one(T) : one(T)
+            ax[7][x7] = lmo.tmp[7][x7] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x6] =
+        @tullio lmo.tmp[6][x6] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
@@ -263,9 +263,9 @@ function alternating_minimisation!(
             ax[7][x7] *
             ax[8][x8]
         for x6 in 1:length(ax[6])-HasMarginals
-            ax[6][x6] = lmo.tmp[x6] > zero(T) ? -one(T) : one(T)
+            ax[6][x6] = lmo.tmp[6][x6] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x5] =
+        @tullio lmo.tmp[5][x5] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
@@ -275,9 +275,9 @@ function alternating_minimisation!(
             ax[7][x7] *
             ax[8][x8]
         for x5 in 1:length(ax[5])-HasMarginals
-            ax[5][x5] = lmo.tmp[x5] > zero(T) ? -one(T) : one(T)
+            ax[5][x5] = lmo.tmp[5][x5] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x4] =
+        @tullio lmo.tmp[4][x4] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
@@ -287,9 +287,9 @@ function alternating_minimisation!(
             ax[7][x7] *
             ax[8][x8]
         for x4 in 1:length(ax[4])-HasMarginals
-            ax[4][x4] = lmo.tmp[x4] > zero(T) ? -one(T) : one(T)
+            ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x3] =
+        @tullio lmo.tmp[3][x3] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
@@ -299,9 +299,9 @@ function alternating_minimisation!(
             ax[7][x7] *
             ax[8][x8]
         for x3 in 1:length(ax[3])-HasMarginals
-            ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
+            ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x2] =
+        @tullio lmo.tmp[2][x2] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[3][x3] *
@@ -311,9 +311,9 @@ function alternating_minimisation!(
             ax[7][x7] *
             ax[8][x8]
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x1] =
+        @tullio lmo.tmp[1][x1] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[2][x2] *
             ax[3][x3] *
@@ -323,9 +323,9 @@ function alternating_minimisation!(
             ax[7][x7] *
             ax[8][x8]
         for x1 in 1:length(ax[1])-HasMarginals
-            ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+            ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
@@ -335,11 +335,7 @@ function alternating_minimisation!(
     lmo::BellCorrelationsLMO{T, N, 0},
     A::Array{T, N},
 ) where {T <: Number} where {N}
-    error(
-        "Number of parties (" *
-        string(N) *
-        ") not supported yet, please copy, paste, and trivially adapt alternating_minimisation! in utils.jl",
-    )
+    error("Number of parties (" * string(N) * ") not supported, please trivially adapt alternating_minimisation! in utils.jl")
 end
 
 # Algorithm 2 from arXiv:1609.06269 for probability array
@@ -355,34 +351,34 @@ function alternating_minimisation!(
         sc2 = sc1
         # given a_x, b_y is argmin_b ∑_x A[a_x, b, x, y]
         for x2 in 1:length(ax[2])
-            for a2 in 1:lmo.d
+            for a2 in 1:lmo.d[2]
                 s = zero(T)
                 for x1 in 1:length(ax[1])
                     s += A[ax[1][x1], a2, x1, x2]
                 end
-                lmo.tmp[x2][a2] = s
+                lmo.tmp[2][x2, a2] = s
             end
         end
         for x2 in 1:length(ax[2])
-            ax[2][x2] = argmin(lmo.tmp[x2])[1]
+            ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
         end
         # given b_y, a_x is argmin_a ∑_x A[a, b_y, x, y]
         for x1 in 1:length(ax[1])
-            for a1 in 1:lmo.d
+            for a1 in 1:lmo.d[1]
                 s = zero(T)
                 for x2 in 1:length(ax[2])
                     s += A[a1, ax[2][x2], x1, x2]
                 end
-                lmo.tmp[x1][a1] = s
+                lmo.tmp[1][x1, a1] = s
             end
         end
         for x1 in 1:length(ax[1])
-            ax[1][x1] = argmin(lmo.tmp[x1])[1]
+            ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
         end
         # uses the precomputed sum of lines to compute the scalar product
         sc1 = zero(T)
         for x1 in 1:length(ax[1])
-            sc1 += lmo.tmp[x1][ax[1][x1]]
+            sc1 += lmo.tmp[1][x1, ax[1][x1]]
         end
     end
     return sc1
@@ -398,45 +394,45 @@ function alternating_minimisation!(
     @inbounds while sc1 < sc2
         sc2 = sc1
         for x3 in 1:length(ax[3])
-            for a3 in 1:lmo.d
+            for a3 in 1:lmo.d[3]
                 s = zero(T)
                 for x1 in 1:length(ax[1]), x2 in 1:length(ax[2])
                     s += A[ax[1][x1], ax[2][x2], a3, x1, x2, x3]
                 end
-                lmo.tmp[x3][a3] = s
+                lmo.tmp[3][x3, a3] = s
             end
         end
         for x3 in 1:length(ax[3])
-            ax[3][x3] = argmin(lmo.tmp[x3])[1]
+            ax[3][x3] = argmin(lmo.tmp[3][x3, :])[1]
         end
         for x2 in 1:length(ax[2])
-            for a2 in 1:lmo.d
+            for a2 in 1:lmo.d[2]
                 s = zero(T)
                 for x1 in 1:length(ax[1]), x3 in 1:length(ax[3])
                     s += A[ax[1][x1], a2, ax[3][x3], x1, x2, x3]
                 end
-                lmo.tmp[x2][a2] = s
+                lmo.tmp[2][x2, a2] = s
             end
         end
         for x2 in 1:length(ax[2])
-            ax[2][x2] = argmin(lmo.tmp[x2])[1]
+            ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
         end
         for x1 in 1:length(ax[1])
-            for a1 in 1:lmo.d
+            for a1 in 1:lmo.d[1]
                 s = zero(T)
                 for x2 in 1:length(ax[2]), x3 in 1:length(ax[3])
                     s += A[a1, ax[2][x2], ax[3][x3], x1, x2, x3]
                 end
-                lmo.tmp[x1][a1] = s
+                lmo.tmp[1][x1, a1] = s
             end
         end
         for x1 in 1:length(ax[1])
-            ax[1][x1] = argmin(lmo.tmp[x1])[1]
+            ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
         end
         # uses the precomputed sum of lines to compute the scalar product
         sc1 = zero(T)
         for x1 in 1:length(ax[1])
-            sc1 += lmo.tmp[x1][ax[1][x1]]
+            sc1 += lmo.tmp[1][x1, ax[1][x1]]
         end
     end
     return sc1

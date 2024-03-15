@@ -307,14 +307,20 @@ No symmetry detection is implemented yet, used mostly for pedagogy and tests.
 """
 function local_bound(
     M::Array{T, N};
+    prob::Bool=false,
     marg::Bool=false,
     mode::Int=1,
     sym::Bool=false,
     nb::Int=10^5,
     verbose=false,
 ) where {T <: Number} where {N}
-    ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M; marg=marg, mode=mode, sym=sym, nb=nb), -M; verbose=verbose)
-    return FrankWolfe.fast_dot(M, ds), ds
+    if prob
+        ds = FrankWolfe.compute_extreme_point(BellProbabilitiesLMO(M; mode=mode, sym=sym, nb=nb), -M; verbose=verbose)
+        return FrankWolfe.fast_dot(M, ds), ds
+    else
+        ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M; marg=marg, mode=mode, sym=sym, nb=nb), -M; verbose=verbose)
+        return FrankWolfe.fast_dot(M, ds), ds
+    end
 end
 
 """
