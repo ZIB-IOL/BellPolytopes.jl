@@ -97,7 +97,7 @@ end
 # warning: N is twice the number of parties in this case
 mutable struct BellProbabilitiesLMO{T, N, Mode, IsSymmetric, UseArray} <: FrankWolfe.LinearMinimizationOracle
     # scenario fields
-    const d::Vector{Int} # number of outputs
+    const o::Vector{Int} # number of outputs
     const m::Vector{Int} # number of inputs
     const p::Array{T, N} # point of interest
     # general fields
@@ -148,7 +148,7 @@ function BellProbabilitiesLMO(
     data=lmo.data,
 ) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {UseArray}
     return BellProbabilitiesLMO{type, N, mode, sym, use_array}(
-        lmo.d,
+        lmo.o,
         lmo.m,
         type.(lmo.p),
         broadcast.(type, lmo.tmp),
@@ -565,7 +565,7 @@ mutable struct BellProbabilitiesDS{T, N, IsSymmetric, UseArray} <: AbstractArray
     array::Array{T, N} # if UseArray, full storage to trade speed for memory
 end
 
-Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.d, length.(ds.ax)))
+Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.o, length.(ds.ax)))
 
 function BellProbabilitiesDS(
     ax::Vector{Vector{Int}},
@@ -758,7 +758,7 @@ end
 
 # for multi-outcome scenarios
 struct ActiveSetStorageMulti{T, N, IsSymmetric, UseArray}
-    d::Int
+    o::Vector{Int}
     weights::Vector{T}
     ax::Vector{Matrix{IntK}} where {IntK <: Integer}
     data::Vector{Any}
@@ -767,7 +767,7 @@ end
 function ActiveSetStorage(
     as::FrankWolfe.ActiveSet{BellProbabilitiesDS{T, N, IsSymmetric, UseArray}, T, Array{T, N}},
 ) where {T <: Number} where {N} where {IsSymmetric} where {UseArray}
-    d = as.atoms[1].lmo.d
+    d = as.atoms[1].lmo.o
     m = as.atoms[1].lmo.m
     IntK = d < typemax(Int8) ? Int8 : d < typemax(Int16) ? Int16 : d < typemax(Int32) ? Int32 : Int
     ax = [ones(IntK, length(as), m[n]) for n in 1:N]

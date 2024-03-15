@@ -351,7 +351,7 @@ function alternating_minimisation!(
         sc2 = sc1
         # given a_x, b_y is argmin_b ∑_x A[a_x, b, x, y]
         for x2 in 1:length(ax[2])
-            for a2 in 1:lmo.d[2]
+            for a2 in 1:lmo.o[2]
                 s = zero(T)
                 for x1 in 1:length(ax[1])
                     s += A[ax[1][x1], a2, x1, x2]
@@ -364,7 +364,7 @@ function alternating_minimisation!(
         end
         # given b_y, a_x is argmin_a ∑_x A[a, b_y, x, y]
         for x1 in 1:length(ax[1])
-            for a1 in 1:lmo.d[1]
+            for a1 in 1:lmo.o[1]
                 s = zero(T)
                 for x2 in 1:length(ax[2])
                     s += A[a1, ax[2][x2], x1, x2]
@@ -394,7 +394,7 @@ function alternating_minimisation!(
     @inbounds while sc1 < sc2
         sc2 = sc1
         for x3 in 1:length(ax[3])
-            for a3 in 1:lmo.d[3]
+            for a3 in 1:lmo.o[3]
                 s = zero(T)
                 for x1 in 1:length(ax[1]), x2 in 1:length(ax[2])
                     s += A[ax[1][x1], ax[2][x2], a3, x1, x2, x3]
@@ -406,7 +406,7 @@ function alternating_minimisation!(
             ax[3][x3] = argmin(lmo.tmp[3][x3, :])[1]
         end
         for x2 in 1:length(ax[2])
-            for a2 in 1:lmo.d[2]
+            for a2 in 1:lmo.o[2]
                 s = zero(T)
                 for x1 in 1:length(ax[1]), x3 in 1:length(ax[3])
                     s += A[ax[1][x1], a2, ax[3][x3], x1, x2, x3]
@@ -418,7 +418,7 @@ function alternating_minimisation!(
             ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
         end
         for x1 in 1:length(ax[1])
-            for a1 in 1:lmo.d[1]
+            for a1 in 1:lmo.o[1]
                 s = zero(T)
                 for x2 in 1:length(ax[2]), x3 in 1:length(ax[3])
                     s += A[a1, ax[2][x2], ax[3][x3], x1, x2, x3]
