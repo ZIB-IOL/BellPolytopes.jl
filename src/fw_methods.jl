@@ -419,6 +419,51 @@ function FrankWolfe.compute_extreme_point(
 end
 
 function FrankWolfe.compute_extreme_point(
+    lmo::BellProbabilitiesLMO{T, 4, 2},
+    A::Array{T, 4};
+    verbose=false,
+    kwargs...,
+) where {T <: Number}
+    ax = [ones(Int, lmo.m[n]) for n in 1:2]
+    sc = zero(T)
+    axm = [zeros(Int, lmo.m[n]) for n in 1:2]
+    scm = typemax(T)
+    for λa1 in 0:lmo.o[1]^lmo.m[1]-1
+        digits!(ax[1], λa1, base=lmo.o[1])
+        ax[1] .+= 1
+        for x2 in 1:length(ax[2])
+            for a2 in 1:lmo.o[2]
+                s = zero(T)
+                for x1 in 1:length(ax[1])
+                    s += A[ax[1][x1], a2, x1, x2]
+                end
+                lmo.tmp[2][x2, a2] = s
+            end
+        end
+        for x2 in 1:length(ax[2])
+            ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
+        end
+        sc = zero(T)
+        for x2 in 1:length(ax[2])
+            sc += lmo.tmp[2][x2, ax[2][x2]]
+        end
+        if sc < scm
+            scm = sc
+            for n in 1:2
+                axm[n] .= ax[n]
+            end
+        end
+        if verbose && sc ≈ scm
+            println(rpad(string([λa2]), 2 + ndigits(2^(sum(m)/N))), " ", string(-scm))
+        end
+    end
+    dsm = BellProbabilitiesDS(axm, lmo)
+    lmo.cnt += 1
+    lmo.data[2] += 1
+    return dsm
+end
+
+function FrankWolfe.compute_extreme_point(
     lmo::BellProbabilitiesLMO{T, 6, 1, IsSymmetric},
     A::Array{T, 6};
     verbose=false,
