@@ -65,9 +65,10 @@ function bell_frank_wolfe(
     TD::DataType=T,
     mode::Int=0,
     nb::Int=10^2,
-    TL::DataType=T,
+    TL::DataType=TD,
     mode_last::Int=0,
     nb_last::Int=10^5,
+    epsilon_last=0,
     sym::Union{Nothing, Bool}=nothing,
     reynolds::Union{Nothing, Function}=nothing,
     use_array::Union{Nothing, Bool}=nothing,
@@ -280,7 +281,12 @@ function bell_frank_wolfe(
             ds = BellCorrelationsDS(ds; type=TL)
         end
     end
-    β = FrankWolfe.fast_dot(M, ds) # local/global max found by the LMO
+    # renormalise the inequality by its smalles element, neglecting entries smaller than epsilon_last
+    if epsilon_last > 0
+        M[abs.(M) .< epsilon_last] .= zero(TL)
+        M ./= minimum(abs.(M[abs.(M) .> zero(TL)]))
+    end
+    β = FrankWolfe.fast_dot(M, ds) / FrankWolfe.fast_dot(M, p) # local/global max found by the LMO
     dual_gap = FrankWolfe.fast_dot(x - vp, x) - FrankWolfe.fast_dot(x - vp, ds)
     if verbose > 0
         if verbose ≥ 2 && mode_last ≥ 0
