@@ -190,7 +190,7 @@ function bell_frank_wolfe(
         x0 = FrankWolfe.compute_extreme_point(lmo, o - vp)
         active_set = FrankWolfe.ActiveSet(x0)
     else
-        if active_set isa ActiveSetStorage
+        if active_set isa Union{ActiveSetStorage, ActiveSetStorageMulti}
             active_set = load_active_set(active_set, TD; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
         end
         active_set_link_lmo!(active_set, lmo)

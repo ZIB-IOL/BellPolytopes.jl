@@ -767,16 +767,17 @@ end
 function ActiveSetStorage(
     as::FrankWolfe.ActiveSet{BellProbabilitiesDS{T, N, IsSymmetric, UseArray}, T, Array{T, N}},
 ) where {T <: Number} where {N} where {IsSymmetric} where {UseArray}
-    d = as.atoms[1].lmo.o
+    N2 = N ÷ 2
+    omax = maximum(as.atoms[1].lmo.o)
     m = as.atoms[1].lmo.m
-    IntK = d < typemax(Int8) ? Int8 : d < typemax(Int16) ? Int16 : d < typemax(Int32) ? Int32 : Int
-    ax = [ones(IntK, length(as), m[n]) for n in 1:N]
+    IntK = omax < typemax(Int8) ? Int8 : omax < typemax(Int16) ? Int16 : omax < typemax(Int32) ? Int32 : Int
+    ax = [ones(IntK, length(as), m[n]) for n in 1:N2]
     for i in eachindex(as)
-        for n in 1:N
+        for n in 1:N2
             @view(ax[n][i, :]) .= as.atoms[i].ax[n]
         end
     end
-    return ActiveSetStorageMulti{T, N, IsSymmetric, UseArray}(d, as.weights, ax, as.atoms[1].lmo.data)
+    return ActiveSetStorageMulti{T, N, IsSymmetric, UseArray}(as.atoms[1].lmo.o, as.weights, ax, as.atoms[1].lmo.data)
 end
 
 function load_active_set(
@@ -785,15 +786,17 @@ function load_active_set(
     sym=IsSymmetric,
     use_array=UseArray,
     reynolds=(IsSymmetric ? reynolds_permutelastdims : nothing),
+    marg=nothing,
 ) where {T1 <: Number} where {N} where {IsSymmetric} where {UseArray} where {T2 <: Number}
-    d = ass.d
-    m = size(ass.ax[1], 2)
-    p = zeros(T2, vcat(d * ones(Int, N ÷ 2), m * ones(Int, N ÷ 2))...)
+    N2 = N ÷ 2
+    o = ass.o
+    m = [size(ass.ax[n], 2) for n in 1:N2]
+    p = zeros(T2, vcat(o, m)...)
     lmo = BellProbabilitiesLMO(p; sym=sym, use_array=use_array, reynolds=reynolds, data=ass.data)
     atoms = BellProbabilitiesDS{T2, N, sym, use_array}[]
     @inbounds for i in 1:length(ass.weights)
-        ax = [ones(Int, m) for n in 1:N]
-        for n in 1:N
+        ax = [ones(Int, m[n]) for n in 1:N2]
+        for n in 1:N2
             ax[n] .= Int.(ass.ax[n][i, :])
         end
         atom = BellProbabilitiesDS(ax, lmo)
