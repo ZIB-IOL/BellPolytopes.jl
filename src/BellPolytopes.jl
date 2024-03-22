@@ -98,7 +98,7 @@ function bell_frank_wolfe(
     # symmetry detection
     if reynolds === nothing
         if prob
-            if p ≈ reynolds_permutelastdims(p, BellProbabilitiesLMO(p))
+            if all(diff(size(p)[N÷2+1:end]) .== 0) && p ≈ reynolds_permutelastdims(p, BellProbabilitiesLMO(p))
                 reynolds = reynolds_permutelastdims
                 if sym === nothing # respect the user choice if sym is false
                     sym = true
@@ -111,7 +111,7 @@ function bell_frank_wolfe(
                 end
             end
         else
-            if p ≈ reynolds_permutedims(p, BellCorrelationsLMO(p))
+            if all(diff(size(p)) .== 0) && p ≈ reynolds_permutedims(p, BellCorrelationsLMO(p))
                 reynolds = reynolds_permutedims
                 if sym === nothing # respect the user choice if sym is false
                     sym = true
