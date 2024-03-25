@@ -138,26 +138,22 @@ function bell_frank_wolfe(
     if verbose > 1
         println("  Symmetric: ", sym)
     end
-    # nb of outputs
-    d = prob ? size(p)[1] : 2
     # nb of inputs
-    m = size(p)[end]
     if verbose > 1
         if prob
+            m = all(diff(collect(size(p)[N÷2+1:end])) .== 0) ? size(p)[end] : size(p)[N÷2+1:end]
             println("    #Inputs: ", m)
         else
-            println("    #Inputs: ", marg ? m - 1 : m)
-            if reynolds === nothing || reynolds === permutedims
-                println(
-                    "  Dimension: ",
-                    sym ? marg ? sum(binomial(m + n - 2, n) for n in 1:N) : binomial(m + N - 1, N) : marg ? m^N - 1 : m^N,
-                )
+            m = all(diff(collect(size(p))) .== 0) ? size(p)[end] : size(p)
+            println("    #Inputs: ", marg ? m .- 1 : m)
+            if all(diff(collect(size(p))) .== 0) && (reynolds === nothing || reynolds === permutedims)
+                println("  Dimension: ", sym ? marg ? sum(binomial(m+n-2, n) for n in 1:N) : binomial(m+N-1, N) : marg ? m^N-1 : m^N)
             end
         end
     end
     # center of the polytope
     if prob
-        o = ones(TD, size(p)) / d^2
+        o = ones(TD, size(p)) / prod(size(p)[1:N÷2])
     else
         o = zeros(TD, size(p))
         if marg
