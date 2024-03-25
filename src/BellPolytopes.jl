@@ -86,6 +86,10 @@ function bell_frank_wolfe(
     save::Bool=false,
     file=nothing,
     seed::Int=0,
+<<<<<<< HEAD
+=======
+    d::Int=1+(mode>2), # communication from Alice to Bob
+>>>>>>> 52f6e16 (Fix more typos)
     kwargs...,
 ) where {T <: Number} where {N}
     Random.seed!(seed)
