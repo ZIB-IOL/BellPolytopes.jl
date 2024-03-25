@@ -409,7 +409,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
         if verbose && sc ≈ scm
-            println(rpad(string([λa2]), 2 + ndigits(2^(sum(m)/N))), " ", string(-scm))
+            println(rpad(string([λa2]), 2 + ndigits(2^(sum(lmo.m)/N))), " ", string(-scm))
         end
     end
     dsm = BellProbabilitiesDS(axm, lmo)
@@ -454,7 +454,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
         if verbose && sc ≈ scm
-            println(rpad(string([λa2]), 2 + ndigits(2^(sum(m)/N))), " ", string(-scm))
+            println(rpad(string([λa2]), 2 + ndigits(2^(sum(lmo.m)/N))), " ", string(-scm))
         end
     end
     dsm = BellProbabilitiesDS(axm, lmo)
