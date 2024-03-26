@@ -92,7 +92,7 @@ function FrankWolfe.compute_extreme_point(
     sc = zero(T)
     axm = [zeros(T, lmo.m[n]) for n in 1:3]
     scm = typemax(T)
-    m = HasMarginals ? lmo.m - 1 : lmo.m
+    m = HasMarginals ? lmo.m .- 1 : lmo.m
     if verbose
         println(2^(sum(m)/N))
     end
