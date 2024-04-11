@@ -55,7 +55,7 @@ function FrankWolfe.compute_extreme_point(
     end
     intax = [zeros(Int, m[n]) for n in 1:2]
     for λa2 in 0:(HasMarginals ? 2^m[2] : 2^m[2] ÷ 2)-1
-        digits!(intax[2], λa2, base=2)
+        digits!(intax[2], λa2; base=2)
         ax[2][1:m[2]] .= 2intax[2] .- 1
         mul!(lmo.tmp[1], A, ax[2])
         for x1 in 1:length(ax[1])-HasMarginals
@@ -98,10 +98,10 @@ function FrankWolfe.compute_extreme_point(
     end
     intax = [zeros(Int, m[n]) for n in 1:3]
     for λa3 in 0:(HasMarginals ? 2^m[3] : 2^m[3] ÷ 2)-1
-        digits!(intax[3], λa3, base=2)
+        digits!(intax[3], λa3; base=2)
         ax[3][1:m[3]] .= 2intax[3] .- 1
         for λa2 in (IsSymmetric ? λa3 : 0):2^m[2]-1
-            digits!(intax[2], λa2, base=2)
+            digits!(intax[2], λa2; base=2)
             ax[2][1:m[2]] .= 2intax[2] .- 1
             @tullio lmo.tmp[1][x1] = A[x1, x2, x3] * ax[2][x2] * ax[3][x3]
             for x1 in 1:length(ax[1])-HasMarginals
@@ -146,13 +146,13 @@ function FrankWolfe.compute_extreme_point(
     end
     intax = [zeros(Int, m[n]) for n in 1:4]
     for λa4 in 0:(HasMarginals ? 2^m[4] : 2^m[4] ÷ 2)-1
-        digits!(intax[4], λa4, base=2)
+        digits!(intax[4], λa4; base=2)
         ax[4][1:m[4]] .= 2intax[4] .- 1
         for λa3 in (IsSymmetric ? λa4 : 0):2^m[3]-1
-            digits!(intax[3], λa3, base=2)
+            digits!(intax[3], λa3; base=2)
             ax[3][1:m[3]] .= 2intax[3] .- 1
             for λa2 in (IsSymmetric ? λa3 : 0):2^m[2]-1
-                digits!(intax[2], λa2, base=2)
+                digits!(intax[2], λa2; base=2)
                 ax[2][1:m[2]] .= 2intax[2] .- 1
                 @tullio lmo.tmp[1][x1] = A[x1, x2, x3, x4] * ax[2][x2] * ax[3][x3] * ax[4][x4]
                 for x1 in 1:length(ax[1])-HasMarginals
@@ -198,16 +198,16 @@ function FrankWolfe.compute_extreme_point(
     end
     intax = [zeros(Int, m[n]) for n in 1:5]
     for λa5 in 0:(HasMarginals ? 2^m[5] : 2^m[5] ÷ 2)-1
-        digits!(intax[5], λa5, base=2)
+        digits!(intax[5], λa5; base=2)
         ax[5][1:m[5]] .= 2intax[5] .- 1
         for λa4 in (IsSymmetric ? λa5 : 0):2^m[4]-1
-            digits!(intax[4], λa4, base=2)
+            digits!(intax[4], λa4; base=2)
             ax[4][1:m[4]] .= 2intax[4] .- 1
             for λa3 in (IsSymmetric ? λa4 : 0):2^m[3]-1
-                digits!(intax[3], λa3, base=2)
+                digits!(intax[3], λa3; base=2)
                 ax[3][1:m[3]] .= 2intax[3] .- 1
                 for λa2 in (IsSymmetric ? λa3 : 0):2^m[2]-1
-                    digits!(intax[2], λa2, base=2)
+                    digits!(intax[2], λa2; base=2)
                     ax[2][1:m[2]] .= 2intax[2] .- 1
                     @tullio lmo.tmp[1][x1] = A[x1, x2, x3, x4, x5] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
                     for x1 in 1:length(ax[1])-HasMarginals
@@ -254,19 +254,19 @@ function FrankWolfe.compute_extreme_point(
     end
     intax = [zeros(Int, m[n]) for n in 1:6]
     for λa6 in 0:(HasMarginals ? 2^m[6] : 2^m[6] ÷ 2)-1
-        digits!(intax[6], λa6, base=2)
+        digits!(intax[6], λa6; base=2)
         ax[6][1:m[6]] .= 2intax[6] .- 1
         for λa5 in (IsSymmetric ? λa6 : 0):2^m[5]-1
-            digits!(intax[5], λa5, base=2)
+            digits!(intax[5], λa5; base=2)
             ax[5][1:m[5]] .= 2intax[5] .- 1
             for λa4 in (IsSymmetric ? λa5 : 0):2^m[4]-1
-                digits!(intax[4], λa4, base=2)
+                digits!(intax[4], λa4; base=2)
                 ax[4][1:m[4]] .= 2intax[4] .- 1
                 for λa3 in (IsSymmetric ? λa4 : 0):2^m[3]-1
-                    digits!(intax[3], λa3, base=2)
+                    digits!(intax[3], λa3; base=2)
                     ax[3][1:m[3]] .= 2intax[3] .- 1
                     for λa2 in (IsSymmetric ? λa3 : 0):2^m[2]-1
-                        digits!(intax[2], λa2, base=2)
+                        digits!(intax[2], λa2; base=2)
                         ax[2][1:m[2]] .= 2intax[2] .- 1
                         @tullio lmo.tmp[1][x1] =
                             A[x1, x2, x3, x4, x5, x6] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
@@ -319,12 +319,12 @@ function FrankWolfe.compute_extreme_point(
     intax = [zeros(Int, m[n]) for n in 1:N]
     λa = zeros(Int, N)
     for λ in 0:(2^sum(m))-1
-        digits!(λa, λ, base=2^(sum(m)÷N))
+        digits!(λa, λ; base=2^(sum(m)÷N))
         if IsSymmetric && !issorted(λa; rev=true)
             continue
         end
         for n in 1:N
-            digits!(intax[n], λa[n], base=2)
+            digits!(intax[n], λa[n]; base=2)
             ds.ax[n][1:m[n]] .= 2intax[n] .- 1
         end
         set_array!(ds)
@@ -384,7 +384,7 @@ function FrankWolfe.compute_extreme_point(
     axm = [zeros(Int, lmo.m[n]) for n in 1:2]
     scm = typemax(T)
     for λa2 in 0:lmo.o[2]^lmo.m[2]-1
-        digits!(ax[2], λa2, base=lmo.o[2])
+        digits!(ax[2], λa2; base=lmo.o[2])
         ax[2] .+= 1
         for x1 in 1:length(ax[1])
             for a1 in 1:lmo.o[1]
@@ -429,7 +429,7 @@ function FrankWolfe.compute_extreme_point(
     axm = [zeros(Int, lmo.m[n]) for n in 1:2]
     scm = typemax(T)
     for λa1 in 0:lmo.o[1]^lmo.m[1]-1
-        digits!(ax[1], λa1, base=lmo.o[1])
+        digits!(ax[1], λa1; base=lmo.o[1])
         ax[1] .+= 1
         for x2 in 1:length(ax[2])
             for a2 in 1:lmo.o[2]
@@ -474,10 +474,10 @@ function FrankWolfe.compute_extreme_point(
     axm = [zeros(Int, lmo.m[n]) for n in 1:3]
     scm = typemax(T)
     for λa3 in 0:lmo.o[3]^lmo.m[3]-1
-        digits!(ax[3], λa3, base=lmo.o[3])
+        digits!(ax[3], λa3; base=lmo.o[3])
         ax[3] .+= 1
         for λa2 in (IsSymmetric ? λa3 : 0):lmo.o[2]^lmo.m[2]-1
-            digits!(ax[2], λa2, base=lmo.o[2])
+            digits!(ax[2], λa2; base=lmo.o[2])
             ax[2] .+= 1
             for x1 in 1:length(ax[1])
                 for a1 in 1:lmo.o[1]
