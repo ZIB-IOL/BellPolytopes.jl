@@ -51,7 +51,7 @@ function FrankWolfe.compute_extreme_point(
     scm = typemax(T)
     m = HasMarginals ? lmo.m .- 1 : lmo.m
     if verbose
-        println(2^(sum(m)/N))
+        println(2^(sum(m)÷2))
     end
     intax = [zeros(Int, m[n]) for n in 1:2]
     for λa2 in 0:(HasMarginals ? 2^m[2] : 2^m[2] ÷ 2)-1
@@ -68,7 +68,7 @@ function FrankWolfe.compute_extreme_point(
             axm[2] .= ax[2]
         end
         if verbose && sc ≈ scm
-            println(rpad(string([λa2]), 2 + ndigits(2^(sum(m)/N))), " ", string(-scm))
+            println(rpad(string([λa2]), 2 + ndigits(2^(sum(m)÷2))), " ", string(-scm))
         end
     end
     dsm = BellCorrelationsDS(axm, lmo; initialise=initialise)
@@ -94,7 +94,7 @@ function FrankWolfe.compute_extreme_point(
     scm = typemax(T)
     m = HasMarginals ? lmo.m .- 1 : lmo.m
     if verbose
-        println(2^(sum(m)/N))
+        println(2^(sum(m)÷3))
     end
     intax = [zeros(Int, m[n]) for n in 1:3]
     for λa3 in 0:(HasMarginals ? 2^m[3] : 2^m[3] ÷ 2)-1
@@ -115,7 +115,7 @@ function FrankWolfe.compute_extreme_point(
                 end
             end
             if verbose && sc ≈ scm
-                println(rpad(string([λa3, λa2]), 4 + 2ndigits(2^(sum(m)/N))), " ", string(-scm))
+                println(rpad(string([λa3, λa2]), 4 + 2ndigits(2^(sum(m)÷3))), " ", string(-scm))
             end
         end
     end
@@ -142,7 +142,7 @@ function FrankWolfe.compute_extreme_point(
     scm = typemax(T)
     m = HasMarginals ? lmo.m .- 1 : lmo.m
     if verbose
-        println(2^(sum(m)/N))
+        println(2^(sum(m)÷4))
     end
     intax = [zeros(Int, m[n]) for n in 1:4]
     for λa4 in 0:(HasMarginals ? 2^m[4] : 2^m[4] ÷ 2)-1
@@ -166,7 +166,7 @@ function FrankWolfe.compute_extreme_point(
                     end
                 end
                 if verbose && sc ≈ scm
-                    println(rpad(string([λa4, λa3, λa2]), 6 + 3ndigits(2^(sum(m)/N))), " ", string(-scm))
+                    println(rpad(string([λa4, λa3, λa2]), 6 + 3ndigits(2^(sum(m)÷4))), " ", string(-scm))
                 end
             end
         end
@@ -194,7 +194,7 @@ function FrankWolfe.compute_extreme_point(
     scm = typemax(T)
     m = HasMarginals ? lmo.m .- 1 : lmo.m
     if verbose
-        println(2^(sum(m)/N))
+        println(2^(sum(m)÷5))
     end
     intax = [zeros(Int, m[n]) for n in 1:5]
     for λa5 in 0:(HasMarginals ? 2^m[5] : 2^m[5] ÷ 2)-1
@@ -221,7 +221,7 @@ function FrankWolfe.compute_extreme_point(
                         end
                     end
                     if verbose && sc ≈ scm
-                        println(rpad(string([λa5, λa4, λa3, λa2]), 8 + 4ndigits(2^(sum(m)/N))), " ", string(-scm))
+                        println(rpad(string([λa5, λa4, λa3, λa2]), 8 + 4ndigits(2^(sum(m)÷5))), " ", string(-scm))
                     end
                 end
             end
@@ -250,7 +250,7 @@ function FrankWolfe.compute_extreme_point(
     scm = typemax(T)
     m = HasMarginals ? lmo.m .- 1 : lmo.m
     if verbose
-        println(2^(sum(m)/N))
+        println(2^(sum(m)÷6))
     end
     intax = [zeros(Int, m[n]) for n in 1:6]
     for λa6 in 0:(HasMarginals ? 2^m[6] : 2^m[6] ÷ 2)-1
@@ -281,7 +281,7 @@ function FrankWolfe.compute_extreme_point(
                             end
                         end
                         if verbose && sc ≈ scm
-                            println(rpad(string([λa6, λa5, λa4, λa3, λa2]), 10 + 5ndigits(2^(sum(m)/N))), " ", string(-scm))
+                            println(rpad(string([λa6, λa5, λa4, λa3, λa2]), 10 + 5ndigits(2^(sum(m)÷6))), " ", string(-scm))
                         end
                     end
                 end
@@ -314,12 +314,12 @@ function FrankWolfe.compute_extreme_point(
     scm = typemax(T)
     m = HasMarginals ? lmo.m .- 1 : lmo.m
     if verbose
-        println(2^(sum(m)/N))
+        println(2^(sum(m)÷N))
     end
     intax = [zeros(Int, m[n]) for n in 1:N]
     λa = zeros(Int, N)
     for λ in 0:(2^sum(m))-1
-        digits!(λa, λ, base=2^(sum(m)/N))
+        digits!(λa, λ, base=2^(sum(m)÷N))
         if IsSymmetric && !issorted(λa; rev=true)
             continue
         end
@@ -336,7 +336,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
         if verbose && sc ≈ scm
-            println(rpad(string(reverse(λa)), N * (2 + ndigits(2^(sum(m)/N)))), " ", string(-scm))
+            println(rpad(string(reverse(λa)), N * (2 + ndigits(2^(sum(m)÷N)))), " ", string(-scm))
         end
     end
     dsm = BellCorrelationsDS(axm, lmo; initialise=initialise)
@@ -409,7 +409,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
         if verbose && sc ≈ scm
-            println(rpad(string([λa2]), 2 + ndigits(2^(sum(lmo.m)/2))), " ", string(-scm))
+            println(rpad(string([λa2]), 2 + ndigits(2^(sum(lmo.m)÷2))), " ", string(-scm))
         end
     end
     dsm = BellProbabilitiesDS(axm, lmo)
@@ -454,7 +454,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
         if verbose && sc ≈ scm
-            println(rpad(string([λa2]), 2 + ndigits(2^(sum(lmo.m)/2))), " ", string(-scm))
+            println(rpad(string([λa2]), 2 + ndigits(2^(sum(lmo.m)÷2))), " ", string(-scm))
         end
     end
     dsm = BellProbabilitiesDS(axm, lmo)
@@ -502,7 +502,7 @@ function FrankWolfe.compute_extreme_point(
                 end
             end
             if verbose && sc ≈ scm
-                println(rpad(string([λa3, λa2]), 4 + 2ndigits(2^(sum(lmo.m)/3))), " ", string(-scm))
+                println(rpad(string([λa3, λa2]), 4 + 2ndigits(2^(sum(lmo.m)÷3))), " ", string(-scm))
             end
         end
     end

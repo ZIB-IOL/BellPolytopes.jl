@@ -66,7 +66,7 @@ function bell_frank_wolfe(
     mode::Int=0,
     nb::Int=10^2,
     TL::DataType=TD,
-    mode_last::Int=0,
+    mode_last::Int=mode,
     nb_last::Int=10^5,
     epsilon_last=0,
     sym::Union{Nothing, Bool}=nothing,
