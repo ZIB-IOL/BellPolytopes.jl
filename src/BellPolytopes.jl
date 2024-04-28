@@ -78,7 +78,6 @@ function bell_frank_wolfe(
     recompute_last_vertex=false, # default in FW package is true
     callback_interval::Int=verbose > 0 ? 10^4 : typemax(Int),
     renorm_interval::Int=verbose > 0 ? callback_interval : typemax(Int),
-    reduce_interval::Int=verbose > 0 ? 100callback_interval : typemax(Int),
     hyperplane_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     bound_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     nb_increment_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
@@ -184,7 +183,7 @@ function bell_frank_wolfe(
     if active_set === nothing
         # run the LMO once from the center o to get a vertex
         x0 = FrankWolfe.compute_extreme_point(lmo, o - vp)
-        active_set = FrankWolfe.ActiveSet(x0)
+        active_set = FrankWolfe.ActiveSetQuadratic(x0)
     else
         if active_set isa Union{ActiveSetStorage, ActiveSetStorageMulti}
             active_set = load_active_set(active_set, TD; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
@@ -209,7 +208,6 @@ function bell_frank_wolfe(
         epsilon,
         callback_interval,
         renorm_interval,
-        reduce_interval,
         hyperplane_interval,
         bound_interval,
         nb_increment_interval,
@@ -244,7 +242,7 @@ function bell_frank_wolfe(
     end
     if prob
         atoms = BellProbabilitiesDS.(as.atoms; type=TL)
-        as = FrankWolfe.ActiveSet{eltype(atoms), TL, Array{TL, N}}(TL.(as.weights), atoms, zeros(TL, size(vp)))
+        as = FrankWolfe.ActiveSetQuadratic{eltype(atoms), TL, Array{TL, N}}(TL.(as.weights), atoms, zeros(TL, size(vp)))
         FrankWolfe.compute_active_set_iterate!(as)
         x = as.x
         M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))
@@ -261,7 +259,7 @@ function bell_frank_wolfe(
         end
     else
         atoms = BellCorrelationsDS.(as.atoms; type=TL)
-        as = FrankWolfe.ActiveSet{eltype(atoms), TL, Array{TL, N}}(TL.(as.weights), atoms, zeros(TL, size(vp)))
+        as = FrankWolfe.ActiveSetQuadratic{eltype(atoms), TL, Array{TL, N}}(TL.(as.weights), atoms, zeros(TL, size(vp)))
         FrankWolfe.compute_active_set_iterate!(as)
         x = as.x
         M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))

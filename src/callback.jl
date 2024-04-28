@@ -8,7 +8,6 @@ function build_callback(
     epsilon,
     callback_interval,
     renorm_interval,
-    reduce_interval,
     hyperplane_interval,
     bound_interval,
     nb_increment_interval,
@@ -23,7 +22,6 @@ function build_callback(
         println("Intervals")
         println("    Print: ", callback_interval)
         println("   Renorm: ", renorm_interval)
-        println("   Reduce: ", reduce_interval)
         if hyperplane_interval != typemax(Int)
             println("    Upper: ", hyperplane_interval)
         end
@@ -72,9 +70,6 @@ function build_callback(
             if mod(state.t, renorm_interval) == 0
                 FrankWolfe.active_set_renormalize!(active_set)
                 FrankWolfe.compute_active_set_iterate!(active_set)
-            end
-            if mod(state.t, reduce_interval) == 0
-                active_set_reduce_dot!(active_set, state.v)
             end
             if mod(state.t, hyperplane_interval) == 0
                 a = -state.gradient # v*p+(1-v)*o-active_set.x

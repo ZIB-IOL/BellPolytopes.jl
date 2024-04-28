@@ -444,7 +444,7 @@ end
 
 # associate a new lmo with all atoms
 function active_set_link_lmo!(
-    as::FrankWolfe.ActiveSet{AT, T, IT},
+    as::FrankWolfe.ActiveSetQuadratic{AT, T, IT},
     lmo::LMO,
 ) where {
     AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}},
@@ -460,52 +460,13 @@ end
 
 # initialise an active set from a previously computed active set
 function active_set_reinitialise!(
-    as::FrankWolfe.ActiveSet{AT, T, IT},
+    as::FrankWolfe.ActiveSetQuadratic{AT, T, IT},
 ) where {IT <: Array{T}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     FrankWolfe.active_set_renormalize!(as)
     @inbounds for i in eachindex(as)
         set_array!(as.atoms[i])
-        as.atoms[i].dotp = FrankWolfe.fast_dot(as.atoms[i].lmo.p, as.atoms[i])
-        as.atoms[i].dot = zeros(T, i)
-        for j in 1:i
-            as.atoms[i].dot[j] = FrankWolfe.fast_dot(as.atoms[j], as.atoms[i])
-        end
-        as.atoms[i].hash = i
-        as.atoms[i].modified = false
-        as.atoms[i].weight = as.weights[i]
-        as.atoms[i].gap = as.weights[i] * as.atoms[i].dot[i]
-        for j in 1:i-1
-            as.atoms[j].gap += as.weights[i] * as.atoms[i].dot[j]
-            as.atoms[i].gap += as.weights[j] * as.atoms[i].dot[j]
-        end
     end
-    as.atoms[end].lmo.cnt = as.atoms[end].hash + 1
     FrankWolfe.compute_active_set_iterate!(as)
-    return nothing
-end
-
-# reduce the hash to reduce the size of the dot vector
-function active_set_reduce_dot!(
-    as::FrankWolfe.ActiveSet{AT, T, IT},
-    v::AT,
-) where {IT <: Array{T}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    @inbounds for i in eachindex(as)
-        new_dot = zeros(T, i)
-        for j in 1:i
-            new_dot[j] = as.atoms[i].dot[as.atoms[j].hash]
-        end
-        as.atoms[i].dot = new_dot
-    end
-    @inbounds for i in eachindex(as)
-        as.atoms[i].hash = i
-    end
-    if FrankWolfe.find_atom(as, v) == -1
-        new_dot = zeros(T, length(as) + 1)
-        new_dot[length(as)+1] = v.dot[v.hash]
-        v.dot = new_dot
-        v.hash = length(as) + 1
-    end
-    as.atoms[1].lmo.cnt = length(as) + 2
     return nothing
 end
 

@@ -170,12 +170,6 @@ end
 mutable struct BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray} <: AbstractArray{T, N}
     const ax::Vector{Vector{T}} # strategies, ±1 vector
     lmo::BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals} where {Mode} # sym, correlation tensor of interest, tmp
-    dotp::T # dot product with the point p, stored to improve performance in argminmax
-    dot::Vector{T} # dot product with the other atoms, stored to improve performance in argminmax
-    hash::Int # unique number associated to each new atom from lmo.cnt
-    modified::Bool # whether the atom has been modified by FW, to update accordingly in argminmax
-    weight::T # the previous weight of the atom, to be updated in argminmax
-    gap::T # the current gap of the atom <x,a> where x is the current iterate, stored to improve performance in argminmax
     array::Array{T, N} # if UseArray, full storage to trade speed for memory
 end
 
@@ -189,19 +183,10 @@ function BellCorrelationsDS(
     res = BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}(
         ax,
         lmo,
-        zero(T),
-        zeros(T, lmo.cnt),
-        lmo.cnt,
-        true,
-        zero(T),
-        zero(T),
         zeros(T, zeros(Int, N)...),
     )
     if initialise
         set_array!(res)
-        # initialise the fields later used in argminmax
-        res.dotp = FrankWolfe.fast_dot(lmo.p, res)
-        res.dot[res.hash] = FrankWolfe.fast_dot(res, res)
     end
     return res
 end
@@ -223,12 +208,6 @@ function BellCorrelationsDS(
     res = BellCorrelationsDS{type, N, sym, marg, use_array}(
         broadcast.(type, ax),
         BellCorrelationsLMO(ds.lmo; type=type, sym=sym, marg=marg),
-        type(ds.dotp),
-        type.(ds.dot),
-        ds.hash,
-        ds.modified,
-        type(ds.weight),
-        type(ds.gap),
         zeros(type, zeros(Int, N)...),
     )
     set_array!(res)
@@ -246,12 +225,6 @@ function BellCorrelationsDS(
 ) where {T1 <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray} where {T2 <: Number}
     array = zeros(T2, size(vds[1]))
     lmo = BellCorrelationsLMO(array; sym=sym, marg=marg)
-    dotp = zero(T2)
-    dot = T2[]
-    hash = 0
-    modified = true
-    weight = zero(T2)
-    gap = zero(T2)
     res = BellCorrelationsDS{T2, N, sym, marg, use_array}[]
     for ds in vds
         if marg == HasMarginals
@@ -264,12 +237,6 @@ function BellCorrelationsDS(
         atom = BellCorrelationsDS{T2, N, sym, marg, use_array}(
             broadcast.(T2, ax),
             lmo,
-            dotp,
-            dot,
-            hash,
-            modified,
-            weight,
-            gap,
             array,
         )
         set_array!(atom)
@@ -556,12 +523,6 @@ end
 mutable struct BellProbabilitiesDS{T, N, IsSymmetric, UseArray} <: AbstractArray{T, N}
     const ax::Vector{Vector{Int}} # strategies, 1..d vector
     lmo::BellProbabilitiesLMO{T, N, Mode, IsSymmetric} where {Mode} # sym, probability tensor of interest, tmp
-    dotp::T # dot product with the point p, stored to improve performance in argminmax
-    dot::Vector{T} # dot product with the other atoms, stored to improve performance in argminmax
-    hash::Int # unique number associated to each new atom from lmo.cnt
-    modified::Bool # whether the atom has been modified by FW, to update accordingly in argminmax
-    weight::T # the previous weight of the atom, to be updated in argminmax
-    gap::T # the current gap of the atom <x,a> where x is the current iterate, stored to improve performance in argminmax
     array::Array{T, N} # if UseArray, full storage to trade speed for memory
 end
 
@@ -576,19 +537,10 @@ function BellProbabilitiesDS(
     res = BellProbabilitiesDS{T, N, IsSymmetric, use_array}(
         ax,
         lmo,
-        zero(T),
-        zeros(T, lmo.cnt),
-        lmo.cnt,
-        true,
-        zero(T),
-        zero(T),
         zeros(T, zeros(Int, N)...),
     )
     if initialise
         set_array!(res)
-        # initialise the fields later used in argminmax
-        res.dotp = FrankWolfe.fast_dot(lmo.p, res)
-        res.dot[res.hash] = FrankWolfe.fast_dot(res, res)
     end
     return res
 end
@@ -603,12 +555,6 @@ function BellProbabilitiesDS(
     res = BellProbabilitiesDS{type, N, sym, use_array}(
         ax,
         BellProbabilitiesLMO(ds.lmo; type=type, sym=sym),
-        type(ds.dotp),
-        type.(ds.dot),
-        ds.hash,
-        ds.modified,
-        type(ds.weight),
-        type(ds.gap),
         zeros(type, zeros(Int, N)...),
     )
     set_array!(res)
@@ -625,16 +571,10 @@ function BellProbabilitiesDS(
 ) where {T1 <: Number} where {N} where {IsSymmetric} where {UseArray} where {T2 <: Number}
     array = zeros(T2, size(vds[1]))
     lmo = BellProbabilitiesLMO(array; sym=sym)
-    dotp = zero(T2)
-    dot = T2[]
-    hash = 0
-    modified = true
-    weight = zero(T2)
-    gap = zero(T2)
     res = BellProbabilitiesDS{T2, N, sym, use_array}[]
     for ds in vds
         ax = ds.ax
-        atom = BellProbabilitiesDS{T2, N, sym, use_array}(ax, lmo, dotp, dot, hash, modified, weight, gap, array)
+        atom = BellProbabilitiesDS{T2, N, sym, use_array}(ax, lmo, array)
         set_array!(atom)
         push!(res, atom)
     end
@@ -717,7 +657,7 @@ struct ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray}
 end
 
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSet{BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}, T, Array{T, N}},
+    as::FrankWolfe.ActiveSetQuadratic{BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}, T, Array{T, N}},
 ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray}
     m = HasMarginals ? as.atoms[1].lmo.m .- 1 : as.atoms[1].lmo.m
     ax = [BitArray(undef, length(as), m[n]) for n in 1:N]
@@ -751,7 +691,7 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSet{eltype(atoms), T2, Array{T2, N}}(weights, atoms, zeros(T2, size(atoms[1])))
+    res = FrankWolfe.ActiveSetQuadratic{eltype(atoms), T2, Array{T2, N}}(weights, atoms, zeros(T2, size(atoms[1])))
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
@@ -765,7 +705,7 @@ struct ActiveSetStorageMulti{T, N, IsSymmetric, UseArray}
 end
 
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSet{BellProbabilitiesDS{T, N, IsSymmetric, UseArray}, T, Array{T, N}},
+    as::FrankWolfe.ActiveSetQuadratic{BellProbabilitiesDS{T, N, IsSymmetric, UseArray}, T, Array{T, N}},
 ) where {T <: Number} where {N} where {IsSymmetric} where {UseArray}
     N2 = N ÷ 2
     omax = maximum(as.atoms[1].lmo.o)
@@ -804,7 +744,7 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSet{eltype(atoms), T2, Array{T2, N}}(weights, atoms, zeros(T2, size(atoms[1])))
+    res = FrankWolfe.ActiveSetQuadratic{eltype(atoms), T2, Array{T2, N}}(weights, atoms, zeros(T2, size(atoms[1])))
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
