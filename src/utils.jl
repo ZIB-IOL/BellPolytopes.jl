@@ -455,6 +455,7 @@ function active_set_link_lmo!(
     @inbounds for i in eachindex(as)
         as.atoms[i].lmo = lmo
     end
+    lmo.active_set = as
     return as
 end
 

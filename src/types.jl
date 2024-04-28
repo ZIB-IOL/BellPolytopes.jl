@@ -15,9 +15,10 @@ mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArr
     const per::Vector{Vector{Int}} # permutations used in the symmetric case
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     data::Vector{Any} # store information about the computation
+    active_set::Union{Nothing, FrankWolfe.ActiveSetQuadratic} #{BellCorrelationsLMO{T, N, IsSymmetric, HasMarginals, UseArray}, T, Array{T, N}, UniformScaling{Bool}}}
     lmofalse::BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}
     function BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, reynolds::Union{Nothing, Function}, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
-        lmo = new(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
+        lmo = new(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data, nothing)
         if IsSymmetric || UseArray
             lmo.lmofalse = BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
         else

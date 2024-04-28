@@ -184,6 +184,7 @@ function bell_frank_wolfe(
         # run the LMO once from the center o to get a vertex
         x0 = FrankWolfe.compute_extreme_point(lmo, o - vp)
         active_set = FrankWolfe.ActiveSetQuadratic(x0)
+        lmo.active_set = active_set
     else
         if active_set isa Union{ActiveSetStorage, ActiveSetStorageMulti}
             active_set = load_active_set(active_set, TD; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)

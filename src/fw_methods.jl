@@ -556,8 +556,6 @@ function FrankWolfe.active_set_update_iterate_pairwise!(
 ) where {
     IT <: Array{T, N},
 } where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Real} where {N}
-    fw_atom.modified = true
-    away_atom.modified = true
     @inbounds for x in fw_atom.lmo.ci
         xit[x] += lambda * (fw_atom[x] - away_atom[x])
     end
@@ -571,20 +569,23 @@ end
 # TODO avoid the broadcasting again, and check in FW whether one should go for a similar trick
 # avoid broadcast by using the stored data
 # quite an ugly hack...
-#  function FrankWolfe.muladd_memory_mode(
-    #  memory_mode::FrankWolfe.InplaceEmphasis,
-    #  d::Array{T, N},
-    #  a::AT,
-    #  v::AT,
-#  ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    #  d[1] = Inf
-    #  if a.hash > v.hash
-        #  @inbounds d[2] = ((a.gap - a.dotp) - (v.gap - v.dotp)) / (a.dot[a.hash] + v.dot[v.hash] - 2a.dot[v.hash])
-    #  else
-        #  @inbounds d[2] = ((a.gap - a.dotp) - (v.gap - v.dotp)) / (a.dot[a.hash] + v.dot[v.hash] - 2v.dot[a.hash])
-    #  end
-    #  return d
-#  end
+function FrankWolfe.muladd_memory_mode(
+    memory_mode::FrankWolfe.InplaceEmphasis,
+    d::Array{T, N},
+    a::AT,
+    v::AT,
+) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+    as = a.lmo.active_set
+    idx_a = FrankWolfe.find_atom(as, a)
+    idx_v = FrankWolfe.find_atom(as, v)
+    d[1] = Inf
+    if idx_v > idx_a
+        @inbounds d[2] = ((as.dots_x[idx_a] + as.dots_b[idx_a]) - (as.dots_x[idx_v] + as.dots_b[idx_v])) / (as.dots_A[idx_a][idx_a] + as.dots_A[idx_v][idx_v] - 2as.dots_A[idx_v][idx_a])
+    else
+        @inbounds d[2] = ((as.dots_x[idx_a] + as.dots_b[idx_a]) - (as.dots_x[idx_v] + as.dots_b[idx_v])) / (as.dots_A[idx_a][idx_a] + as.dots_A[idx_v][idx_v] - 2as.dots_A[idx_a][idx_v])
+    end
+    return d
+end
 
 function FrankWolfe.muladd_memory_mode(
     memory_mode::FrankWolfe.InplaceEmphasis,
