@@ -260,7 +260,7 @@ function bell_frank_wolfe(
         end
     else
         atoms = BellCorrelationsDS.(as.atoms; type=TL)
-        as = FrankWolfe.ActiveSetQuadratic{eltype(atoms), TL, Array{TL, N}}(TL.(as.weights), atoms, zeros(TL, size(vp)))
+        as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], e(), -TL.(vp))
         FrankWolfe.compute_active_set_iterate!(as)
         x = as.x
         M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))

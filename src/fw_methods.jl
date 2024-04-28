@@ -520,7 +520,7 @@ end
 function FrankWolfe.ActiveSetQuadratic(
     atom::AT,
 ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    return FrankWolfe.ActiveSetQuadratic([(one(T), atom)], I, -atom.lmo.p) # TODO case N > 2
+    return FrankWolfe.ActiveSetQuadratic([(one(T), atom)], e(), -atom.lmo.p)
 end
 
 function FrankWolfe.compute_active_set_iterate!(
@@ -566,7 +566,6 @@ end
 # MULADD #
 ##########
 
-# TODO avoid the broadcasting again, and check in FW whether one should go for a similar trick
 # avoid broadcast by using the stored data
 # quite an ugly hack...
 function FrankWolfe.muladd_memory_mode(

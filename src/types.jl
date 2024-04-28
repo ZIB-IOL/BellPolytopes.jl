@@ -1,8 +1,11 @@
+struct e end
+Base.:*(e::e, B) = B
+
 #######
 # LMO #
 #######
 
-mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray} <: FrankWolfe.LinearMinimizationOracle
+mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray, DS} <: FrankWolfe.LinearMinimizationOracle
     # scenario fields
     const m::Vector{Int} # number of inputs
     const p::Array{T, N} # point of interest
@@ -15,12 +18,12 @@ mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArr
     const per::Vector{Vector{Int}} # permutations used in the symmetric case
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     data::Vector{Any} # store information about the computation
-    active_set::Union{Nothing, FrankWolfe.ActiveSetQuadratic} #{BellCorrelationsLMO{T, N, IsSymmetric, HasMarginals, UseArray}, T, Array{T, N}, UniformScaling{Bool}}}
+    active_set::Union{Nothing, FrankWolfe.ActiveSetQuadratic{DS, T, Array{T, N}, e}}
     lmofalse::BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}
-    function BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, reynolds::Union{Nothing, Function}, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
+    function BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray, DS}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, reynolds::Union{Nothing, Function}, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray} where {DS}
         lmo = new(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data, nothing)
         if IsSymmetric || UseArray
-            lmo.lmofalse = BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
+            lmo.lmofalse = BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false, DS}(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
         else
             lmo.lmofalse = lmo
         end
@@ -39,7 +42,7 @@ function BellCorrelationsLMO(
     reynolds=reynolds_permutedims,
     data=[0, 0],
 ) where {T <: Number} where {N}
-    return BellCorrelationsLMO{T, N, mode, sym, marg, use_array}(
+    return BellCorrelationsLMO{T, N, mode, sym, marg, use_array, BellCorrelationsDS{T, N, sym, marg, use_array}}(
         collect(size(p)),
         p,
         [zeros(T, size(p, n)) for n in 1:N],
@@ -81,7 +84,7 @@ function BellCorrelationsLMO(
         tmp = [zeros(type, size(p, n)) for n in 1:N]
         ci = CartesianIndices(p)
     end
-    return BellCorrelationsLMO{type, N, mode, sym, marg, use_array}(
+    return BellCorrelationsLMO{type, N, mode, sym, marg, use_array, BellCorrelationsDS{type, N, sym, marg, use_array}}(
         m,
         p,
         tmp,
@@ -247,7 +250,7 @@ function BellCorrelationsDS(
 end
 
 # if IsSymmetric or !HasMarginals, then this criterion is not valid, although is it faster
-function FrankWolfe._unsafe_equal(ds1::BellCorrelationsDS{T, N, false, true}, ds2::BellCorrelationsDS{T, N, false, true}) where {T <: Number} where {N}
+function FrankWolfe._unsafe_equal(ds1::BellCorrelationsDS{T, N}, ds2::BellCorrelationsDS{T, N}) where {T <: Number} where {N}
     if ds1 === ds2
         return true
     end
