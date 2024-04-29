@@ -1,5 +1,5 @@
 struct e end
-Base.:*(e::e, B) = B
+Base.:*(A::e, B) = B
 
 #######
 # LMO #
