@@ -3,13 +3,13 @@
 #############
 
 function arguments_alternating_minimisation(
-    lmo::BellCorrelationsLMO{T, 2, 0, IsSymmetric},
+    lmo::BellCorrelationsLMO{T, 2, D, 0, IsSymmetric},
     A::Array{T, 2},
-) where {T <: Number} where {IsSymmetric}
+) where {T <: Number} where {D} where {IsSymmetric}
     return (A, IsSymmetric ? A : collect(A'))
 end
 
-function arguments_alternating_minimisation(lmo::BellCorrelationsLMO{T, N, 0}, A::Array{T, N}) where {T <: Number} where {N}
+function arguments_alternating_minimisation(lmo::BellCorrelationsLMO{T, N, D, 0}, A::Array{T, N}) where {T <: Number} where {N} where {D}
     return (A,)
 end
 
@@ -17,7 +17,7 @@ end
 # min_ab ∑_xy M_xy a_x b_y with a_x and b_y being ±1
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 2, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 2, 1, 0, IsSymmetric, HasMarginals},
     A::Array{T, 2},
     At::Array{T, 2},
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
@@ -42,7 +42,7 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 3, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 3, 1, 0, IsSymmetric, HasMarginals},
     A::Array{T, 3},
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     sc1 = zero(T)
@@ -71,7 +71,7 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 4, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 4, 1, 0, IsSymmetric, HasMarginals},
     A::Array{T, 4},
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     sc1 = zero(T)
@@ -101,7 +101,7 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 5, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 5, 1, 0, IsSymmetric, HasMarginals},
     A::Array{T, 5},
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     sc1 = zero(T)
@@ -135,7 +135,7 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 6, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 6, 1, 0, IsSymmetric, HasMarginals},
     A::Array{T, 6},
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     sc1 = zero(T)
@@ -173,7 +173,7 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 7, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 7, 1, 0, IsSymmetric, HasMarginals},
     A::Array{T, 7},
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     sc1 = zero(T)
@@ -222,7 +222,7 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 8, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 8, 1, 0, IsSymmetric, HasMarginals},
     A::Array{T, 8},
 ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
     sc1 = zero(T)
@@ -332,7 +332,7 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, N, 0},
+    lmo::BellCorrelationsLMO{T, N, 1, 0},
     A::Array{T, N},
 ) where {T <: Number} where {N}
     error("Number of parties (" * string(N) * ") not supported, please trivially adapt alternating_minimisation! in utils.jl")

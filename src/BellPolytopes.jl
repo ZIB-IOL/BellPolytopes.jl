@@ -63,6 +63,7 @@ function bell_frank_wolfe(
     verbose=0,
     shr2=NaN,
     TD::DataType=T,
+    d::Int=1,
     mode::Int=0,
     nb::Int=10^2,
     TL::DataType=TD,
@@ -166,7 +167,7 @@ function bell_frank_wolfe(
     if prob
         lmo = BellProbabilitiesLMO(vp; mode=mode, nb=nb, sym=sym, use_array=use_array, reynolds=reynolds)
     else
-        lmo = BellCorrelationsLMO(vp; mode=mode, nb=nb, sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
+        lmo = BellCorrelationsLMO(vp; d=d, mode=mode, nb=nb, sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
     end
     # useful to make f efficient
     normp2 = dot(vp, vp) / 2
@@ -320,7 +321,7 @@ function local_bound(
         ds = FrankWolfe.compute_extreme_point(BellProbabilitiesLMO(M; mode=mode, sym=sym, nb=nb), -M; verbose=verbose)
         return FrankWolfe.fast_dot(M, ds), ds
     else
-        ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M; marg=marg, mode=mode, sym=sym, nb=nb), -M; verbose=verbose)
+        ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M; d=d, marg=marg, mode=mode, sym=sym, nb=nb), -M; verbose=verbose)
         return FrankWolfe.fast_dot(M, ds), ds
     end
 end

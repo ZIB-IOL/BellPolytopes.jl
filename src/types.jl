@@ -2,7 +2,7 @@
 # LMO #
 #######
 
-mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray} <: FrankWolfe.LinearMinimizationOracle
+mutable struct BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals, UseArray} <: FrankWolfe.LinearMinimizationOracle
     # scenario fields
     const m::Vector{Int} # number of inputs
     const p::Array{T, N} # point of interest
@@ -15,11 +15,11 @@ mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArr
     const per::Vector{Vector{Int}} # permutations used in the symmetric case
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     data::Vector{Any} # store information about the computation
-    lmofalse::BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}
-    function BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, reynolds::Union{Nothing, Function}, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
+    lmofalse::BellCorrelationsLMO{T, N, D, Mode, false, HasMarginals, false}
+    function BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals, UseArray}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, reynolds::Union{Nothing, Function}, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {D} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
         lmo = new(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
         if IsSymmetric || UseArray
-            lmo.lmofalse = BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
+            lmo.lmofalse = BellCorrelationsLMO{T, N, D, Mode, false, HasMarginals, false}(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
         else
             lmo.lmofalse = lmo
         end
@@ -32,13 +32,14 @@ function BellCorrelationsLMO(
     p::Array{T, N};
     mode::Int=0,
     nb::Int=100,
+    d::Int=1,
     sym::Bool=false,
     marg::Bool=false,
     use_array::Bool=true,
     reynolds=reynolds_permutedims,
     data=[0, 0],
 ) where {T <: Number} where {N}
-    return BellCorrelationsLMO{T, N, mode, sym, marg, use_array}(
+    return BellCorrelationsLMO{T, N, d, mode, sym, marg, use_array}(
         collect(size(p)),
         p,
         [zeros(T, size(p, n)) for n in 1:N],
@@ -53,7 +54,7 @@ function BellCorrelationsLMO(
 end
 
 function BellCorrelationsLMO(
-    lmo::BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray};
+    lmo::BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals, UseArray};
     type=T,
     mode=Mode,
     sym=IsSymmetric,
@@ -62,7 +63,7 @@ function BellCorrelationsLMO(
     nb=lmo.nb,
     reynolds=lmo.reynolds,
     data=lmo.data,
-) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
+   ) where {T <: Number} where {N} where {D} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
     if marg == HasMarginals
         m = lmo.m
         p = type.(lmo.p)
@@ -80,7 +81,7 @@ function BellCorrelationsLMO(
         tmp = [zeros(type, size(p, n)) for n in 1:N]
         ci = CartesianIndices(p)
     end
-    return BellCorrelationsLMO{type, N, mode, sym, marg, use_array}(
+    return BellCorrelationsLMO{type, N, D, mode, sym, marg, use_array}(
         m,
         p,
         tmp,
@@ -167,9 +168,9 @@ end
 ######################
 
 # deterministic strategy structure for multipartite correlation tensor
-mutable struct BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray} <: AbstractArray{T, N}
+mutable struct BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, UseArray} <: AbstractArray{T, N}
     const ax::Vector{Vector{T}} # strategies, ±1 vector
-    lmo::BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals} where {Mode} # sym, correlation tensor of interest, tmp
+    lmo::BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals} where {Mode} # sym, correlation tensor of interest, tmp
     dotp::T # dot product with the point p, stored to improve performance in argminmax
     dot::Vector{T} # dot product with the other atoms, stored to improve performance in argminmax
     hash::Int # unique number associated to each new atom from lmo.cnt
@@ -183,10 +184,10 @@ Base.size(ds::BellCorrelationsDS) = Tuple(length.(ds.ax))
 
 function BellCorrelationsDS(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray};
+    lmo::BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals, UseArray};
     initialise=true,
-) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
-    res = BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}(
+) where {T <: Number} where {N} where {D} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
+    res = BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, UseArray}(
         ax,
         lmo,
         zero(T),
@@ -207,12 +208,12 @@ function BellCorrelationsDS(
 end
 
 function BellCorrelationsDS(
-    ds::BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray};
+    ds::BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, UseArray};
     type=T,
     sym=IsSymmetric,
     marg=HasMarginals,
     use_array=UseArray,
-) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray}
+) where {T <: Number} where {N} where {D} where {IsSymmetric} where {HasMarginals} where {UseArray}
     if marg == HasMarginals
         ax = ds.ax
     elseif HasMarginals
@@ -220,7 +221,7 @@ function BellCorrelationsDS(
     else
         ax = [vcat(axn, one(T)) for axn in ax]
     end
-    res = BellCorrelationsDS{type, N, sym, marg, use_array}(
+    res = BellCorrelationsDS{type, N, D, sym, marg, use_array}(
         broadcast.(type, ax),
         BellCorrelationsLMO(ds.lmo; type=type, sym=sym, marg=marg),
         type(ds.dotp),
@@ -238,12 +239,12 @@ end
 # method used to convert active_set.atoms into a desired type (intended Rational{BigInt})
 # to recompute the last iterate
 function BellCorrelationsDS(
-    vds::Vector{BellCorrelationsDS{T1, N, IsSymmetric, HasMarginals, UseArray}},
+    vds::Vector{BellCorrelationsDS{T1, N, D, IsSymmetric, HasMarginals, UseArray}},
     ::Type{T2};
     sym=IsSymmetric,
     marg=HasMarginals,
     use_array=false,
-) where {T1 <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray} where {T2 <: Number}
+) where {T1 <: Number} where {N} where {D} where {IsSymmetric} where {HasMarginals} where {UseArray} where {T2 <: Number}
     array = zeros(T2, size(vds[1]))
     lmo = BellCorrelationsLMO(array; sym=sym, marg=marg)
     dotp = zero(T2)
@@ -252,7 +253,7 @@ function BellCorrelationsDS(
     modified = true
     weight = zero(T2)
     gap = zero(T2)
-    res = BellCorrelationsDS{T2, N, sym, marg, use_array}[]
+    res = BellCorrelationsDS{T2, N, D, sym, marg, use_array}[]
     for ds in vds
         if marg == HasMarginals
             ax = ds.ax
@@ -261,7 +262,7 @@ function BellCorrelationsDS(
         else
             ax = [vcat(axn, one(T)) for axn in ax]
         end
-        atom = BellCorrelationsDS{T2, N, sym, marg, use_array}(
+        atom = BellCorrelationsDS{T2, N, D, sym, marg, use_array}(
             broadcast.(T2, ax),
             lmo,
             dotp,
@@ -279,7 +280,7 @@ function BellCorrelationsDS(
 end
 
 # if IsSymmetric or !HasMarginals, then this criterion is not valid, although is it faster
-function FrankWolfe._unsafe_equal(ds1::BellCorrelationsDS{T, N, false, true}, ds2::BellCorrelationsDS{T, N, false, true}) where {T <: Number} where {N}
+function FrankWolfe._unsafe_equal(ds1::BellCorrelationsDS{T, N, D, false, true}, ds2::BellCorrelationsDS{T, N, D, false, true}) where {T <: Number} where {N} where {D}
     if ds1 === ds2
         return true
     end
@@ -298,16 +299,16 @@ Base.@propagate_inbounds function Base.getindex(ds::BellCorrelationsDS{T, N}, x:
 end
 
 Base.@propagate_inbounds function Base.getindex(
-    ds::BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, true},
+    ds::BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, true},
     x::Vararg{Int, N},
-) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {N} where {D} where {IsSymmetric} where {HasMarginals}
     @boundscheck (checkbounds(ds, x...))
     return @inbounds getindex(ds.array, x...)
 end
 
 # specialised method for performance
 Base.@propagate_inbounds function Base.getindex(
-    ds::BellCorrelationsDS{T, 2, true, HasMarginals, false},
+    ds::BellCorrelationsDS{T, 2, 1, true, HasMarginals, false},
     x::Vararg{Int, 2},
 ) where {T <: Number} where {HasMarginals}
     @boundscheck (checkbounds(ds, x...))
@@ -316,7 +317,7 @@ end
 
 # specialised method for performance
 Base.@propagate_inbounds function Base.getindex(
-    ds::BellCorrelationsDS{T, 2, false, HasMarginals, false},
+    ds::BellCorrelationsDS{T, 2, 1, false, HasMarginals, false},
     x::Vararg{Int, 2},
 ) where {T <: Number} where {HasMarginals}
     @boundscheck (checkbounds(ds, x...))
@@ -324,7 +325,7 @@ Base.@propagate_inbounds function Base.getindex(
 end
 
 Base.@propagate_inbounds function Base.getindex(
-    ds::BellCorrelationsDS{T, N, true, HasMarginals, false},
+    ds::BellCorrelationsDS{T, N, 1, true, HasMarginals, false},
     x::Vararg{Int, N},
 ) where {T <: Number} where {N} where {HasMarginals}
     @boundscheck (checkbounds(ds, x...))
@@ -340,7 +341,7 @@ Base.@propagate_inbounds function Base.getindex(
 end
 
 Base.@propagate_inbounds function Base.getindex(
-    ds::BellCorrelationsDS{T, N, false, HasMarginals, false},
+    ds::BellCorrelationsDS{T, N, 1, false, HasMarginals, false},
     x::Vararg{Int, N},
 ) where {T <: Number} where {N} where {HasMarginals}
     @boundscheck (checkbounds(ds, x...))
@@ -351,7 +352,7 @@ Base.@propagate_inbounds function Base.getindex(
     return prd
 end
 
-function get_array(ds::BellCorrelationsDS{T, N, IsSymmetric}, lmo::BellCorrelationsLMO{T, N, Mode, IsSymmetric}) where {T <: Number} where {N} where {Mode} where {IsSymmetric}
+function get_array(ds::BellCorrelationsDS{T, N, D, IsSymmetric}, lmo::BellCorrelationsLMO{T, N, D, Mode, IsSymmetric}) where {T <: Number} where {N} where {D} where {Mode} where {IsSymmetric}
     aux = BellCorrelationsDS(ds.ax, lmo.lmofalse)
     res = zeros(T, size(aux))
     @inbounds for x in lmo.ci
@@ -366,56 +367,56 @@ function get_array(ds::BellCorrelationsDS{T, N, IsSymmetric}, lmo::BellCorrelati
 end
 
 function set_array!(
-    ds::BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, true},
-) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
+    ds::BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, true},
+) where {T <: Number} where {N} where {D} where {IsSymmetric} where {HasMarginals}
     ds.array = get_array(ds, ds.lmo)
 end
 
 function set_array!(
-    ds::BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, false},
-) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} end
+    ds::BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, false},
+) where {T <: Number} where {N} where {D} where {IsSymmetric} where {HasMarginals} end
 
 FrankWolfe.fast_dot(A::Array, ds::BellCorrelationsDS) = conj(FrankWolfe.fast_dot(ds, A))
 
 # assume the array A is symmetric when IsSymmetric is true
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, N, IsSymmetric, true, true},
+    ds::BellCorrelationsDS{T, N, D, IsSymmetric, true, true},
     A::Array{T, N},
-) where {T <: Number} where {N} where {IsSymmetric}
+) where {T <: Number} where {N} where {D} where {IsSymmetric}
     return dot(ds.array, A) - A[end]
 end
 
 # assume the array A is symmetric when IsSymmetric is true
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, N, IsSymmetric, false, true},
+    ds::BellCorrelationsDS{T, N, D, IsSymmetric, false, true},
     A::Array{T, N},
-) where {T <: Number} where {N} where {IsSymmetric}
+) where {T <: Number} where {N} where {D} where {IsSymmetric}
     return dot(ds.array, A)
 end
 
 # assume the array A is symmetric when IsSymmetric is true
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 2, IsSymmetric, true, false},
+    ds::BellCorrelationsDS{T, 2, D, IsSymmetric, true, false},
     A::Array{T, 2},
-) where {T <: Number} where {IsSymmetric}
+) where {T <: Number} where {D} where {IsSymmetric}
     mul!(ds.lmo.tmp[1], A, ds.ax[2])
     return dot(ds.ax[1], ds.lmo.tmp[1]) - A[end]
 end
 
 # assume the array A is symmetric when IsSymmetric is true
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 2, IsSymmetric, false, false},
+    ds::BellCorrelationsDS{T, 2, D, IsSymmetric, false, false},
     A::Array{T, 2},
-) where {T <: Number} where {IsSymmetric}
+) where {T <: Number} where {D} where {IsSymmetric}
     mul!(ds.lmo.tmp[1], A, ds.ax[2])
     return dot(ds.ax[1], ds.lmo.tmp[1])
 end
 
 # assume the array A is symmetric when IsSymmetric is true
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 3, IsSymmetric, HasMarginals, false},
+    ds::BellCorrelationsDS{T, 3, D, IsSymmetric, HasMarginals, false},
     A::Array{T, 3},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {D} where {IsSymmetric} where {HasMarginals}
     res = zero(T)
     @tullio res = A[x1, x2, x3] * ds.ax[1][x1] * ds.ax[2][x2] * ds.ax[3][x3]
     return res
@@ -423,9 +424,9 @@ end
 
 # assume the array A is symmetric when IsSymmetric is true
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 4, IsSymmetric, HasMarginals, false},
+    ds::BellCorrelationsDS{T, 4, D, IsSymmetric, HasMarginals, false},
     A::Array{T, 4},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {D} where {IsSymmetric} where {HasMarginals}
     res = zero(T)
     @tullio res = A[x1, x2, x3, x4] * ds.ax[1][x1] * ds.ax[2][x2] * ds.ax[3][x3] * ds.ax[4][x4]
     return res
@@ -433,9 +434,9 @@ end
 
 # assume the array A is symmetric when IsSymmetric is true
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 5, IsSymmetric, HasMarginals, false},
+    ds::BellCorrelationsDS{T, 5, D, IsSymmetric, HasMarginals, false},
     A::Array{T, 5},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {D} where {IsSymmetric} where {HasMarginals}
     res = zero(T)
     @tullio res = A[x1, x2, x3, x4, x5] * ds.ax[1][x1] * ds.ax[2][x2] * ds.ax[3][x3] * ds.ax[4][x4] * ds.ax[5][x5]
     return res
@@ -443,9 +444,9 @@ end
 
 # assume the array A is symmetric when IsSymmetric is true
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 6, IsSymmetric, HasMarginals, false},
+    ds::BellCorrelationsDS{T, 6, D, IsSymmetric, HasMarginals, false},
     A::Array{T, 6},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {D} where {IsSymmetric} where {HasMarginals}
     res = zero(T)
     @tullio res =
         A[x1, x2, x3, x4, x5, x6] * ds.ax[1][x1] * ds.ax[2][x2] * ds.ax[3][x3] * ds.ax[4][x4] * ds.ax[5][x5] * ds.ax[6][x6]
@@ -454,9 +455,9 @@ end
 
 # assume the array A is symmetric when IsSymmetric is true
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 7, IsSymmetric, HasMarginals, false},
+    ds::BellCorrelationsDS{T, 7, D, IsSymmetric, HasMarginals, false},
     A::Array{T, 7},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {D} where {IsSymmetric} where {HasMarginals}
     res = zero(T)
     @tullio res =
         A[x1, x2, x3, x4, x5, x6, x7] *
@@ -472,9 +473,9 @@ end
 
 # assume the array A is symmetric when IsSymmetric is true
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 8, IsSymmetric, HasMarginals, false},
+    ds::BellCorrelationsDS{T, 8, D, IsSymmetric, HasMarginals, false},
     A::Array{T, 8},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {D} where {IsSymmetric} where {HasMarginals}
     res = zero(T)
     @tullio res =
         A[x1, x2, x3, x4, x5, x6, x7, x8] *
@@ -490,42 +491,42 @@ function FrankWolfe.fast_dot(
 end
 
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, false},
+    ds::BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, false},
     A::Array{T, N},
-) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {D} where {N} where {IsSymmetric} where {HasMarginals}
     error(
         "Combination of parameters not supported yet, please set use_array to true or copy, paste, and trivially adapt fast_dot in types.jl",
     )
 end
 
 function FrankWolfe.fast_dot(
-    ds1::BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, true},
-    ds2::BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, true},
-) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
+    ds1::BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, true},
+    ds2::BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, true},
+) where {T <: Number} where {N} where {D} where {IsSymmetric} where {HasMarginals}
     return dot(ds1.array, ds2.array) - (HasMarginals ? one(T) : zero(T))
 end
 
 # specialised method for performance
 function FrankWolfe.fast_dot(
-    ds1::BellCorrelationsDS{T, 2, true, HasMarginals, false},
-    ds2::BellCorrelationsDS{T, 2, true, HasMarginals, false},
-) where {T <: Number} where {HasMarginals}
+    ds1::BellCorrelationsDS{T, 2, D, true, HasMarginals, false},
+    ds2::BellCorrelationsDS{T, 2, D, true, HasMarginals, false},
+) where {T <: Number} where {D} where {HasMarginals}
     return (dot(ds1.ax[1], ds2.ax[1]) * dot(ds1.ax[2], ds2.ax[2]) + dot(ds1.ax[1], ds2.ax[2]) * dot(ds1.ax[2], ds2.ax[1])) /
            T(2) - (HasMarginals ? one(T) : zero(T))
 end
 
 # specialised method for performance
 function FrankWolfe.fast_dot(
-    ds1::BellCorrelationsDS{T, 2, false, HasMarginals, false},
-    ds2::BellCorrelationsDS{T, 2, false, HasMarginals, false},
-) where {T <: Number} where {HasMarginals}
+    ds1::BellCorrelationsDS{T, 2, D, false, HasMarginals, false},
+    ds2::BellCorrelationsDS{T, 2, D, false, HasMarginals, false},
+) where {T <: Number} where {D} where {HasMarginals}
     return dot(ds1.ax[1], ds2.ax[1]) * dot(ds1.ax[2], ds2.ax[2]) - (HasMarginals ? one(T) : zero(T))
 end
 
 function FrankWolfe.fast_dot(
-    ds1::BellCorrelationsDS{T, N, true, HasMarginals, false},
-    ds2::BellCorrelationsDS{T, N, true, HasMarginals, false},
-) where {T <: Number} where {N} where {HasMarginals}
+    ds1::BellCorrelationsDS{T, N, D, true, HasMarginals, false},
+    ds2::BellCorrelationsDS{T, N, D, true, HasMarginals, false},
+) where {T <: Number} where {N} where {D} where {HasMarginals}
     res = zero(T)
     @inbounds for per in ds1.lmo.per
         prd = one(T)
@@ -538,9 +539,9 @@ function FrankWolfe.fast_dot(
 end
 
 function FrankWolfe.fast_dot(
-    ds1::BellCorrelationsDS{T, N, false, HasMarginals, false},
-    ds2::BellCorrelationsDS{T, N, false, HasMarginals, false},
-) where {T <: Number} where {N} where {HasMarginals}
+    ds1::BellCorrelationsDS{T, N, D, false, HasMarginals, false},
+    ds2::BellCorrelationsDS{T, N, D, false, HasMarginals, false},
+) where {T <: Number} where {N} where {D} where {HasMarginals}
     prd = one(T)
     @inbounds for n in 1:N
         prd *= dot(ds1.ax[n], ds2.ax[n])
