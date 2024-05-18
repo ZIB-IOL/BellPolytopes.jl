@@ -2,43 +2,43 @@
 # LMO #
 #######
 
-#  function FrankWolfe.compute_extreme_point(
-    #  lmo::BellCorrelationsLMO{T, N, 1, 0, IsSymmetric, HasMarginals},
-    #  A::Array{T, N};
-    #  kwargs...,
-#  ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
-    #  ax = [ones(T, lmo.m[n]) for n in 1:N]
-    #  sc = zero(T)
-    #  axm = [zeros(T, lmo.m[n], 1) for n in 1:N]
-    #  scm = typemax(T)
-    #  # precompute arguments for speed
-    #  args_alternating_minimisation = arguments_alternating_minimisation(lmo, A)
-    #  for i in 1:lmo.nb
-        #  for n in 1:N-1
-            #  rand!(ax[n], [-one(T), one(T)])
-            #  if HasMarginals
-                #  ax[n][end] = one(T)
-            #  end
-        #  end
-        #  sc = alternating_minimisation!(ax, lmo, args_alternating_minimisation...)
-        #  if sc < scm
-            #  scm = sc
-            #  for n in 1:N
-                #  axm[n] .= ax[n]
-            #  end
-        #  end
-    #  end
-    #  dsm = BellCorrelationsDS(axm, lmo)
-    #  lmo.cnt += 1
-    #  lmo.data[2] += 1
-    #  return dsm
-#  end
-
 function FrankWolfe.compute_extreme_point(
-    lmo::BellCorrelationsLMO{T, N, D, 0, IsSymmetric, false},
+    lmo::BellCorrelationsLMO{T, N, 1, 0, IsSymmetric, HasMarginals},
     A::Array{T, N};
     kwargs...,
-) where {T <: Number} where {N} where {D} where {IsSymmetric}
+) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
+    ax = [ones(T, lmo.m[n]) for n in 1:N]
+    sc = zero(T)
+    axm = [zeros(T, lmo.m[n], 1) for n in 1:N]
+    scm = typemax(T)
+    # precompute arguments for speed
+    args_alternating_minimisation = arguments_alternating_minimisation(lmo, A)
+    for i in 1:lmo.nb
+        for n in 1:N-1
+            rand!(ax[n], [-one(T), one(T)])
+            if HasMarginals
+                ax[n][end] = one(T)
+            end
+        end
+        sc = alternating_minimisation!(ax, lmo, args_alternating_minimisation...)
+        if sc < scm
+            scm = sc
+            for n in 1:N
+                axm[n] .= ax[n]
+            end
+        end
+    end
+    dsm = BellCorrelationsDS(axm, lmo)
+    lmo.cnt += 1
+    lmo.data[2] += 1
+    return dsm
+end
+
+function FrankWolfe.compute_extreme_point(
+    lmo::BellCorrelationsLMO{T, N, D, 0},
+    A::Array{T, N};
+    kwargs...,
+) where {T <: Number} where {N} where {D}
     ax = [ones(T, lmo.m[n], D) for n in 1:N]
     sc = zero(T)
     axm = [zeros(T, lmo.m[n], D) for n in 1:N]
