@@ -180,7 +180,7 @@ mutable struct BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, UseArray} 
     array::Array{T, N} # if UseArray, full storage to trade speed for memory
 end
 
-Base.size(ds::BellCorrelationsDS) = Tuple(length.(ds.ax))
+Base.size(ds::BellCorrelationsDS) = Tuple(size.(ds.ax, (1,)))
 
 function BellCorrelationsDS(
     ax::Vector{Matrix{T}},
@@ -317,9 +317,9 @@ end
 
 # specialised method for performance
 Base.@propagate_inbounds function Base.getindex(
-    ds::BellCorrelationsDS{T, 2, 1, false, HasMarginals, false},
+    ds::BellCorrelationsDS{T, 2, D, false, HasMarginals, false},
     x::Vararg{Int, 2},
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number} where {D} where {HasMarginals}
     @boundscheck (checkbounds(ds, x...))
     return @inbounds dot(ds.ax[1][x[1], :], ds.ax[2][x[2], :])
 end
@@ -646,7 +646,7 @@ function FrankWolfe._unsafe_equal(ds1::BellProbabilitiesDS{T, N}, ds2::BellProba
     if ds1 === ds2
         return true
     end
-    @inbounds for n in 1:length(ds1.ax)
+    @inbounds for n in 1:N
         for x in eachindex(ds1.ax[n])
             if ds1.ax[n][x] != ds2.ax[n][x]
                 return false
