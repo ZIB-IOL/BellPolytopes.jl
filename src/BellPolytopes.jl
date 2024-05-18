@@ -83,7 +83,7 @@ function bell_frank_wolfe(
     hyperplane_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     bound_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     nb_increment_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
-    save_interval::Int=verbose > 0 ? 100callback_interval : typemax(Int),
+    save_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     save::Bool=false,
     file=nothing,
     seed::Int=0,
@@ -299,7 +299,8 @@ function bell_frank_wolfe(
         end
     end
     if save
-        serialize(file * ".dat", ActiveSetStorage(as))
+        #  serialize(file * ".dat", ActiveSetStorage(as))
+        serialize(file * ".dat", as)
     end
     return x, ds, primal, dual_gap, traj_data, as, M, β
 end

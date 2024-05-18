@@ -97,7 +97,8 @@ function build_callback(
                 #  println("The heuristic now runs ", state.v.lmo.nb, " times")
             end
             if save && mod(state.t, save_interval) == 0
-                serialize(file * "_tmp.dat", ActiveSetStorage(active_set))
+                #  serialize(file * "_tmp.dat", ActiveSetStorage(active_set))
+                serialize(file * "_tmp.dat", active_set)
             end
         end
         return state.primal > epsilon
