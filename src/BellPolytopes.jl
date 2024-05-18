@@ -311,6 +311,7 @@ No symmetry detection is implemented yet, used mostly for pedagogy and tests.
 function local_bound(
     M::Array{T, N};
     prob::Bool=false,
+    d::Int=1,
     marg::Bool=false,
     mode::Int=1,
     sym::Bool=false,
