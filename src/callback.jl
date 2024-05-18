@@ -81,6 +81,7 @@ function build_callback(
                 b = FrankWolfe.fast_dot(a, state.v) # local max found by the LMO
                 if verbose ≥ 3
                     @printf("v_c ≤ %f\n", b / FrankWolfe.fast_dot(a, p))
+                    display(a/a[1])
                 end
                 if save
                     serialize(file * "_hyperplane.dat", (a, b))
