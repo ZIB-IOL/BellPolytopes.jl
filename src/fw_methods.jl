@@ -2,23 +2,53 @@
 # LMO #
 #######
 
+#  function FrankWolfe.compute_extreme_point(
+    #  lmo::BellCorrelationsLMO{T, N, 1, 0, IsSymmetric, HasMarginals},
+    #  A::Array{T, N};
+    #  kwargs...,
+#  ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
+    #  ax = [ones(T, lmo.m[n]) for n in 1:N]
+    #  sc = zero(T)
+    #  axm = [zeros(T, lmo.m[n], 1) for n in 1:N]
+    #  scm = typemax(T)
+    #  # precompute arguments for speed
+    #  args_alternating_minimisation = arguments_alternating_minimisation(lmo, A)
+    #  for i in 1:lmo.nb
+        #  for n in 1:N-1
+            #  rand!(ax[n], [-one(T), one(T)])
+            #  if HasMarginals
+                #  ax[n][end] = one(T)
+            #  end
+        #  end
+        #  sc = alternating_minimisation!(ax, lmo, args_alternating_minimisation...)
+        #  if sc < scm
+            #  scm = sc
+            #  for n in 1:N
+                #  axm[n] .= ax[n]
+            #  end
+        #  end
+    #  end
+    #  dsm = BellCorrelationsDS(axm, lmo)
+    #  lmo.cnt += 1
+    #  lmo.data[2] += 1
+    #  return dsm
+#  end
+
 function FrankWolfe.compute_extreme_point(
-    lmo::BellCorrelationsLMO{T, N, 1, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, N, D, 0, IsSymmetric, false},
     A::Array{T, N};
     kwargs...,
-) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
-    ax = [ones(T, lmo.m[n]) for n in 1:N]
+) where {T <: Number} where {N} where {D} where {IsSymmetric}
+    ax = [ones(T, lmo.m[n], D) for n in 1:N]
     sc = zero(T)
-    axm = [zeros(T, lmo.m[n]) for n in 1:N]
+    axm = [zeros(T, lmo.m[n], D) for n in 1:N]
     scm = typemax(T)
     # precompute arguments for speed
     args_alternating_minimisation = arguments_alternating_minimisation(lmo, A)
     for i in 1:lmo.nb
         for n in 1:N-1
-            rand!(ax[n], [-one(T), one(T)])
-            if HasMarginals
-                ax[n][end] = one(T)
-            end
+            randn!(ax[n])
+            foreach(normalize!, eachrow(ax[n]))
         end
         sc = alternating_minimisation!(ax, lmo, args_alternating_minimisation...)
         if sc < scm
@@ -47,7 +77,7 @@ function FrankWolfe.compute_extreme_point(
     end
     ax = [ones(T, lmo.m[n]) for n in 1:2]
     sc = zero(T)
-    axm = [zeros(T, lmo.m[n]) for n in 1:2]
+    axm = [zeros(T, lmo.m[n], 1) for n in 1:2]
     scm = typemax(T)
     m = HasMarginals ? lmo.m .- 1 : lmo.m
     if verbose
@@ -90,7 +120,7 @@ function FrankWolfe.compute_extreme_point(
     end
     ax = [ones(T, lmo.m[n]) for n in 1:3]
     sc = zero(T)
-    axm = [zeros(T, lmo.m[n]) for n in 1:3]
+    axm = [zeros(T, lmo.m[n], 1) for n in 1:3]
     scm = typemax(T)
     m = HasMarginals ? lmo.m .- 1 : lmo.m
     if verbose
@@ -138,7 +168,7 @@ function FrankWolfe.compute_extreme_point(
     end
     ax = [ones(T, lmo.m[n]) for n in 1:4]
     sc = zero(T)
-    axm = [zeros(T, lmo.m[n]) for n in 1:4]
+    axm = [zeros(T, lmo.m[n], 1) for n in 1:4]
     scm = typemax(T)
     m = HasMarginals ? lmo.m .- 1 : lmo.m
     if verbose
@@ -190,7 +220,7 @@ function FrankWolfe.compute_extreme_point(
     end
     ax = [ones(T, lmo.m[n]) for n in 1:5]
     sc = zero(T)
-    axm = [zeros(T, lmo.m[n]) for n in 1:5]
+    axm = [zeros(T, lmo.m[n], 1) for n in 1:5]
     scm = typemax(T)
     m = HasMarginals ? lmo.m .- 1 : lmo.m
     if verbose
@@ -310,7 +340,7 @@ function FrankWolfe.compute_extreme_point(
     # the approach with the λa here is very naive and only allows pedagogical support for very small cases
     ds = BellCorrelationsDS([ones(T, lmo.m[n]) for n in 1:N], lmo; initialise=false)
     sc = zero(T)
-    axm = [zeros(T, lmo.m[n]) for n in 1:N]
+    axm = [zeros(T, lmo.m[n], 1) for n in 1:N]
     scm = typemax(T)
     m = HasMarginals ? lmo.m .- 1 : lmo.m
     if verbose

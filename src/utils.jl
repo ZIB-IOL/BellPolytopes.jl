@@ -15,27 +15,50 @@ end
 
 # Appendix A from arXiv:1609.06114 for correlation matrix
 # min_ab ∑_xy M_xy a_x b_y with a_x and b_y being ±1
+#  function alternating_minimisation!(
+    #  ax::Vector{Vector{T}},
+    #  lmo::BellCorrelationsLMO{T, 2, 1, 0, IsSymmetric, HasMarginals},
+    #  A::Array{T, 2},
+    #  At::Array{T, 2},
+#  ) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+    #  sc1 = zero(T)
+    #  sc2 = one(T)
+    #  @inbounds while sc1 < sc2
+        #  sc2 = sc1
+        #  # given a_x, min_b ∑_y b_y (∑_x A_xy a_x) so that b_y is the opposite sign of ∑_x A_xy a_x
+        #  mul!(lmo.tmp[2], At, ax[1])
+        #  for x2 in 1:length(ax[2])-HasMarginals
+            #  ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
+        #  end
+        #  # given b_y, min_a ∑_x a_x (∑_y A_xy b_y) so that a_x is the opposite sign of ∑_y A_xy b_y
+        #  mul!(lmo.tmp[1], A, ax[2])
+        #  for x2 in 1:length(ax[1])-HasMarginals
+            #  ax[1][x2] = lmo.tmp[1][x2] > zero(T) ? -one(T) : one(T)
+        #  end
+        #  sc1 = dot(ax[1], lmo.tmp[1])
+    #  end
+    #  return sc1
+#  end
+
 function alternating_minimisation!(
-    ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 2, 1, 0, IsSymmetric, HasMarginals},
+    ax::Vector{Matrix{T}},
+    lmo::BellCorrelationsLMO{T, 2, D, 0, IsSymmetric, false},
     A::Array{T, 2},
     At::Array{T, 2},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {D} where {IsSymmetric}
     sc1 = zero(T)
     sc2 = one(T)
-    @inbounds while sc1 < sc2
+    @inbounds while sc2 - sc1 > Base.rtoldefault(T)
         sc2 = sc1
         # given a_x, min_b ∑_y b_y (∑_x A_xy a_x) so that b_y is the opposite sign of ∑_x A_xy a_x
         mul!(lmo.tmp[2], At, ax[1])
-        for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
-        end
+        ax[2] .= -lmo.tmp[2]
+        foreach(normalize!, eachrow(ax[2])) # could create NaN
         # given b_y, min_a ∑_x a_x (∑_y A_xy b_y) so that a_x is the opposite sign of ∑_y A_xy b_y
         mul!(lmo.tmp[1], A, ax[2])
-        for x2 in 1:length(ax[1])-HasMarginals
-            ax[1][x2] = lmo.tmp[1][x2] > zero(T) ? -one(T) : one(T)
-        end
-        sc1 = dot(ax[1], lmo.tmp[1])
+        ax[1] .= -lmo.tmp[1]
+        foreach(normalize!, eachrow(ax[1])) # could create NaN
+        sc1 = sum(dot.(eachrow(ax[1]), eachrow(lmo.tmp[1])))
     end
     return sc1
 end

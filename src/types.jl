@@ -7,7 +7,7 @@ mutable struct BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals, Use
     const m::Vector{Int} # number of inputs
     const p::Array{T, N} # point of interest
     # general fields
-    tmp::Vector{Vector{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
+    tmp::Vector{Matrix{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
     const reynolds::Union{Nothing, Function}
@@ -16,7 +16,7 @@ mutable struct BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals, Use
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     data::Vector{Any} # store information about the computation
     lmofalse::BellCorrelationsLMO{T, N, D, Mode, false, HasMarginals, false}
-    function BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals, UseArray}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, reynolds::Union{Nothing, Function}, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {D} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
+    function BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals, UseArray}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Matrix{T}}, nb::Int, cnt::Int, reynolds::Union{Nothing, Function}, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {D} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
         lmo = new(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
         if IsSymmetric || UseArray
             lmo.lmofalse = BellCorrelationsLMO{T, N, D, Mode, false, HasMarginals, false}(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
@@ -42,7 +42,7 @@ function BellCorrelationsLMO(
     return BellCorrelationsLMO{T, N, d, mode, sym, marg, use_array}(
         collect(size(p)),
         p,
-        [zeros(T, size(p, n)) for n in 1:N],
+        [zeros(T, size(p, n), d) for n in 1:N],
         nb,
         1,
         reynolds,
@@ -78,7 +78,7 @@ function BellCorrelationsLMO(
         m = lmo.m .+ 1
         p = zeros(type, size(lmo.p) .+ 1)
         p[lmo.ci] .= lmo.p
-        tmp = [zeros(type, size(p, n)) for n in 1:N]
+        tmp = [zeros(type, size(p, n), D) for n in 1:N]
         ci = CartesianIndices(p)
     end
     return BellCorrelationsLMO{type, N, D, mode, sym, marg, use_array}(
@@ -169,7 +169,7 @@ end
 
 # deterministic strategy structure for multipartite correlation tensor
 mutable struct BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, UseArray} <: AbstractArray{T, N}
-    const ax::Vector{Vector{T}} # strategies, ±1 vector
+    const ax::Vector{Matrix{T}} # strategies, ±1 vector
     lmo::BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals} where {Mode} # sym, correlation tensor of interest, tmp
     dotp::T # dot product with the point p, stored to improve performance in argminmax
     dot::Vector{T} # dot product with the other atoms, stored to improve performance in argminmax
@@ -183,7 +183,7 @@ end
 Base.size(ds::BellCorrelationsDS) = Tuple(length.(ds.ax))
 
 function BellCorrelationsDS(
-    ax::Vector{Vector{T}},
+    ax::Vector{Matrix{T}},
     lmo::BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals, UseArray};
     initialise=true,
 ) where {T <: Number} where {N} where {D} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
@@ -308,11 +308,11 @@ end
 
 # specialised method for performance
 Base.@propagate_inbounds function Base.getindex(
-    ds::BellCorrelationsDS{T, 2, 1, true, HasMarginals, false},
+    ds::BellCorrelationsDS{T, 2, D, true, HasMarginals, false},
     x::Vararg{Int, 2},
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number} where {D} where {HasMarginals}
     @boundscheck (checkbounds(ds, x...))
-    return @inbounds (ds.ax[1][x[1]] * ds.ax[2][x[2]] + ds.ax[2][x[1]] * ds.ax[1][x[2]]) / T(2)
+    return @inbounds (dot(ds.ax[1][x[1], :], ds.ax[2][x[2], :]) + dot(ds.ax[2][x[1], :], ds.ax[1][x[2], :])) / T(2)
 end
 
 # specialised method for performance
@@ -321,7 +321,7 @@ Base.@propagate_inbounds function Base.getindex(
     x::Vararg{Int, 2},
 ) where {T <: Number} where {HasMarginals}
     @boundscheck (checkbounds(ds, x...))
-    return @inbounds ds.ax[1][x[1]] * ds.ax[2][x[2]]
+    return @inbounds dot(ds.ax[1][x[1], :], ds.ax[2][x[2], :])
 end
 
 Base.@propagate_inbounds function Base.getindex(
@@ -353,7 +353,7 @@ Base.@propagate_inbounds function Base.getindex(
 end
 
 function get_array(ds::BellCorrelationsDS{T, N, D, IsSymmetric}, lmo::BellCorrelationsLMO{T, N, D, Mode, IsSymmetric}) where {T <: Number} where {N} where {D} where {Mode} where {IsSymmetric}
-    aux = BellCorrelationsDS(ds.ax, lmo.lmofalse)
+    aux = BellCorrelationsDS(ds.ax, lmo.lmofalse; initialise=false)
     res = zeros(T, size(aux))
     @inbounds for x in lmo.ci
         res[x] = aux[x]
