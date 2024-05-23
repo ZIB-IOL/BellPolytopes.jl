@@ -718,7 +718,7 @@ struct ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray}
 end
 
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSet{BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}, T, Array{T, N}},
+    as::FrankWolfe.ActiveSet{BellCorrelationsDS{T, N, 1, IsSymmetric, HasMarginals, UseArray}, T, Array{T, N}},
 ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray}
     m = HasMarginals ? as.atoms[1].lmo.m .- 1 : as.atoms[1].lmo.m
     ax = [BitArray(undef, length(as), m[n]) for n in 1:N]
@@ -740,8 +740,8 @@ function load_active_set(
 ) where {T1 <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray} where {T2 <: Number}
     m = size(ass.ax[1], 2)
     p = zeros(T2, (marg ? m + 1 : m) * ones(Int, N)...)
-    lmo = BellCorrelationsLMO(p; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds, data=ass.data)
-    atoms = BellCorrelationsDS{T2, N, sym, marg, use_array}[]
+    lmo = BellCorrelationsLMO(p; d=1, sym=sym, marg=marg, use_array=use_array, reynolds=reynolds, data=ass.data)
+    atoms = BellCorrelationsDS{T2, N, 1, sym, marg, use_array}[]
     @inbounds for i in 1:length(ass.weights)
         ax = [ones(T2, marg ? m + 1 : m) for n in 1:N]
         for n in 1:N
@@ -755,6 +755,12 @@ function load_active_set(
     res = FrankWolfe.ActiveSet{eltype(atoms), T2, Array{T2, N}}(weights, atoms, zeros(T2, size(atoms[1])))
     FrankWolfe.compute_active_set_iterate!(res)
     return res
+end
+
+function ActiveSetStorage(
+    as::FrankWolfe.ActiveSet{BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, UseArray}, T, Array{T, N}},
+) where {T <: Number} where {N} where {D} where {IsSymmetric} where {HasMarginals} where {UseArray}
+    return as
 end
 
 # for multi-outcome scenarios

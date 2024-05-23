@@ -299,8 +299,7 @@ function bell_frank_wolfe(
         end
     end
     if save
-        #  serialize(file * ".dat", ActiveSetStorage(as))
-        serialize(file * ".dat", as)
+        serialize(file * ".dat", ActiveSetStorage(as))
     end
     return x, ds, primal, dual_gap, traj_data, as, M, β
 end

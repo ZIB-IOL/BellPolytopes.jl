@@ -81,7 +81,7 @@ function build_callback(
                 b = FrankWolfe.fast_dot(a, state.v) # local max found by the LMO
                 if verbose ≥ 3
                     @printf("v_c ≤ %f\n", b / FrankWolfe.fast_dot(a, p))
-                    display(a/a[1])
+                    #  display(a/a[1])
                 end
                 if save
                     serialize(file * "_hyperplane.dat", (a, b))
@@ -98,8 +98,7 @@ function build_callback(
                 #  println("The heuristic now runs ", state.v.lmo.nb, " times")
             end
             if save && mod(state.t, save_interval) == 0
-                #  serialize(file * "_tmp.dat", ActiveSetStorage(active_set))
-                serialize(file * "_tmp.dat", active_set)
+                serialize(file * "_tmp.dat", ActiveSetStorage(active_set))
             end
         end
         return state.primal > epsilon
