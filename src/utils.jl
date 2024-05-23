@@ -53,12 +53,12 @@ function alternating_minimisation!(
         # given a_x, min_b ∑_y b_y (∑_x A_xy a_x) so that b_y is the opposite sign of ∑_x A_xy a_x
         mul!(lmo.tmp[2], At, ax[1])
         ax[2] .= -lmo.tmp[2]
-        ax[2] .+= Base.rtoldefault(T)
+        ax[2] .+= eps(T)
         foreach(normalize!, eachrow(ax[2]))
         # given b_y, min_a ∑_x a_x (∑_y A_xy b_y) so that a_x is the opposite sign of ∑_y A_xy b_y
         mul!(lmo.tmp[1], A, ax[2])
         ax[1] .= -lmo.tmp[1]
-        ax[1] .+= Base.rtoldefault(T)
+        ax[1] .+= eps(T)
         foreach(normalize!, eachrow(ax[1]))
         sc1 = sum(dot.(eachrow(ax[1]), eachrow(lmo.tmp[1])))
     end
