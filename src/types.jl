@@ -19,7 +19,7 @@ mutable struct BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals, Use
     data::Vector{Any} # store information about the computation
     active_set::FrankWolfe.ActiveSetQuadratic{DS, T, Array{T, N}, FrankWolfe.Identity{Bool}}
     lmofalse::BellCorrelationsLMO{T, N, D, Mode, false, HasMarginals, false}
-    function BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals, UseArray, DS}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, reynolds::Function, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray} where {DS}
+    function BellCorrelationsLMO{T, N, D, Mode, IsSymmetric, HasMarginals, UseArray, DS}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Matrix{T}}, nb::Int, cnt::Int, reynolds::Function, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {D} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray} where {DS}
         lmo = new(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data, FrankWolfe.ActiveSetQuadratic{DS}(p))
         if IsSymmetric || UseArray
             lmo.lmofalse = BellCorrelationsLMO{T, N, D, Mode, false, HasMarginals, false, DS}(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
