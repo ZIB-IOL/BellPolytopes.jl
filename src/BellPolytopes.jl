@@ -32,7 +32,6 @@ Returns:
  - `ds`: a deterministic strategy, the atom returned by the last LMO,
  - `primal`: `½|x-v₀*p|²`
  - `dual_gap`: `⟨x-v₀*p, x-ds⟩`
- - `traj_data`: trajectory of the algorithm,
  - `active_set`: all deterministic strategies used for the decomposition of the last iterate `x`, contains fields `weights`, `atoms`, and `x`,
  - `M`: a Bell inequality, meaningful only if the dual gap is small enough
  - `β`: the local bound of the inequality parametrised by `M`, reliable only if the last LMO is exact.
@@ -71,7 +70,7 @@ function bell_frank_wolfe(
     nb_last::Int=10^5,
     epsilon_last=0,
     sym::Union{Nothing, Bool}=nothing,
-    reynolds::Union{Nothing, Function}=nothing,
+    reynolds::Function=identity,
     use_array::Union{Nothing, Bool}=nothing,
     active_set=nothing, # warm start
     lazy::Bool=true, # default in FW package is false
@@ -79,7 +78,6 @@ function bell_frank_wolfe(
     recompute_last_vertex=false, # default in FW package is true
     callback_interval::Int=verbose > 0 ? 10^4 : typemax(Int),
     renorm_interval::Int=verbose > 0 ? callback_interval : typemax(Int),
-    reduce_interval::Int=verbose > 0 ? 100callback_interval : typemax(Int),
     hyperplane_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     bound_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     nb_increment_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
@@ -95,10 +93,10 @@ function bell_frank_wolfe(
         println(" Visibility: ", v0)
     end
     if use_array === nothing
-        use_array = N > 2 || reynolds !== nothing
+        use_array = N > 2 || reynolds !== identity
     end
     # symmetry detection
-    if reynolds === nothing
+    if reynolds === identity
         if prob
             if all(diff(collect(size(p)[N÷2+1:end])) .== 0) && p ≈ reynolds_permutelastdims(p, BellProbabilitiesLMO(p))
                 reynolds = reynolds_permutelastdims
@@ -147,7 +145,7 @@ function bell_frank_wolfe(
         else
             m = all(diff(collect(size(p))) .== 0) ? size(p)[end] : size(p)
             println("    #Inputs: ", marg ? m .- 1 : m)
-            if all(diff(collect(size(p))) .== 0) && (reynolds === nothing || reynolds === permutedims)
+            if all(diff(collect(size(p))) .== 0) && (reynolds === identity || reynolds === permutedims)
                 println("  Dimension: ", sym ? marg ? sum(binomial(m+n-2, n) for n in 1:N) : binomial(m+N-1, N) : marg ? m^N-1 : m^N)
             end
         end
@@ -185,7 +183,8 @@ function bell_frank_wolfe(
     if active_set === nothing
         # run the LMO once from the center o to get a vertex
         x0 = FrankWolfe.compute_extreme_point(lmo, o - vp)
-        active_set = FrankWolfe.ActiveSet(x0)
+        active_set = FrankWolfe.ActiveSetQuadratic(x0)
+        lmo.active_set = active_set
     else
         if active_set isa Union{ActiveSetStorage, ActiveSetStorageMulti}
             active_set = load_active_set(active_set, TD; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
@@ -199,9 +198,7 @@ function bell_frank_wolfe(
     if verbose > 0
         println()
     end
-    trajectory_arr = []
     callback = build_callback(
-        trajectory_arr,
         p,
         v0,
         o,
@@ -210,7 +207,6 @@ function bell_frank_wolfe(
         epsilon,
         callback_interval,
         renorm_interval,
-        reduce_interval,
         hyperplane_interval,
         bound_interval,
         nb_increment_interval,
@@ -219,7 +215,7 @@ function bell_frank_wolfe(
         save_interval,
     )
     # main call to FW
-    x, ds, primal, dual_gap, traj_data, as = FrankWolfe.blended_pairwise_conditional_gradient(
+    x, ds, primal, dual_gap, _, as = FrankWolfe.blended_pairwise_conditional_gradient(
         f,
         grad!,
         lmo,
@@ -231,21 +227,20 @@ function bell_frank_wolfe(
         max_iteration=max_iteration,
         recompute_last_vertex=recompute_last_vertex,
         renorm_interval=typemax(Int),
-        trajectory=true,
+        trajectory=false,
         verbose=false,
         kwargs...,
     )
     if verbose ≥ 2
         println()
-        @printf("    Primal: %.2e\n", primal)
-        @printf("  Dual gap: %.2e\n", dual_gap)
-        @printf("      Time: %.2e\n", traj_data[end][5])
-        @printf("    It/sec: %.2e\n", traj_data[end][1] / traj_data[end][5])
-        @printf("    #Atoms: %d\n", length(as))
+        @printf("       Primal: %.2e\n", primal)
+        @printf("     Dual gap: %.2e\n", dual_gap)
+        @printf("       #Atoms: %d\n", length(as))
+        @printf("         #LMO: %d\n", lmo.data[2])
     end
     if prob
         atoms = BellProbabilitiesDS.(as.atoms; type=TL)
-        as = FrankWolfe.ActiveSet{eltype(atoms), TL, Array{TL, N}}(TL.(as.weights), atoms, zeros(TL, size(vp)))
+        as = FrankWolfe.ActiveSetQuadratic{eltype(atoms), TL, Array{TL, N}}(TL.(as.weights), atoms, zeros(TL, size(vp)))
         FrankWolfe.compute_active_set_iterate!(as)
         x = as.x
         M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))
@@ -262,7 +257,7 @@ function bell_frank_wolfe(
         end
     else
         atoms = BellCorrelationsDS.(as.atoms; type=TL)
-        as = FrankWolfe.ActiveSet{eltype(atoms), TL, Array{TL, N}}(TL.(as.weights), atoms, zeros(TL, size(vp)))
+        as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -TL.(vp))
         FrankWolfe.compute_active_set_iterate!(as)
         x = as.x
         M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))
@@ -287,8 +282,7 @@ function bell_frank_wolfe(
     dual_gap = FrankWolfe.fast_dot(x - vp, x) - FrankWolfe.fast_dot(x - vp, ds)
     if verbose > 0
         if verbose ≥ 2 && mode_last ≥ 0
-            @printf("  Dual gap: %.2e\n", dual_gap)
-            @printf("      Time: %.2e\n", time / 1e9)
+            @printf("Last dual gap: %.2e\n", dual_gap)
             println()
         end
         if primal > dual_gap
@@ -301,7 +295,7 @@ function bell_frank_wolfe(
     if save
         serialize(file * ".dat", ActiveSetStorage(as))
     end
-    return x, ds, primal, dual_gap, traj_data, as, M, β
+    return x, ds, primal, dual_gap, as, M, β
 end
 
 """
@@ -364,7 +358,6 @@ function nonlocality_threshold(
     upper_bound = one(T)
     local_model = nothing
     bell_inequality = nothing
-    traj_data = []
     while upper_bound - lower_bound > 10.0^(-precision)
         res = bell_frank_wolfe(
             p;
@@ -375,7 +368,6 @@ function nonlocality_threshold(
             marg=marg,
             kwargs...,
         )
-        push!(traj_data, res)
         x, ds, primal, dual_gap, _, as, M, β = res
         if primal > 10epsilon && dual_gap > 10epsilon
             @warn "Please increase nb or max_iteration"
@@ -409,7 +401,7 @@ function nonlocality_threshold(
     ν = 1 / (1 + norm(lower_bound * p + (1 - lower_bound) * o - local_model.x, 2))
     lower_bound_infinite = shr2^(N / 2) * ν * lower_bound
     # when mode_last = 0, the upper bound is not valid until the actual local bound (and not only the heuristic one) is computed
-    return lower_bound_infinite, lower_bound, upper_bound, local_model, bell_inequality, traj_data
+    return lower_bound_infinite, lower_bound, upper_bound, local_model, bell_inequality
 end
 
 end # module
