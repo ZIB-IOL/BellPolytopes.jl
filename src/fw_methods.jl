@@ -577,7 +577,7 @@ function FrankWolfe.muladd_memory_mode(
     as = a.lmo.active_set
     idx_a = FrankWolfe.find_atom(as, a)
     idx_v = FrankWolfe.find_atom(as, v)
-    d[1] = Inf
+    d[1] = typemax(T)
     if idx_v > idx_a
         @inbounds d[2] = ((as.dots_x[idx_a] + as.dots_b[idx_a]) - (as.dots_x[idx_v] + as.dots_b[idx_v])) / (as.dots_A[idx_a][idx_a] + as.dots_A[idx_v][idx_v] - 2as.dots_A[idx_v][idx_a])
     else
@@ -610,7 +610,7 @@ function FrankWolfe.perform_line_search(
     workspace,
     memory_mode::FrankWolfe.InplaceEmphasis,
 ) where {T <: Number}
-    if d[1] == Inf
+    if d[1] == typemax(T)
         return min(max(d[2], 0), gamma_max)
     else
         #  return min(max((FrankWolfe.fast_dot(gradient, x) - (d[1] - d[2])) * inv(FrankWolfe.fast_dot(x, x) + d[3]), 0), gamma_max)
