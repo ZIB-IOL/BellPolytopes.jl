@@ -232,10 +232,10 @@ function bell_frank_wolfe(
     )
     if verbose ≥ 2
         println()
-        @printf("       Primal: %.2e\n", primal)
-        @printf("     Dual gap: %.2e\n", dual_gap)
-        @printf("       #Atoms: %d\n", length(as))
-        @printf("         #LMO: %d\n", lmo.data[2])
+        @printf("Primal: %.2e\n", primal)
+        @printf("FW gap: %.2e\n", dual_gap)
+        @printf("#Atoms: %d\n", length(as))
+        @printf("  #LMO: %d\n", lmo.data[2])
     end
     if prob
         atoms = BellProbabilitiesDS.(as.atoms; type=TL)
@@ -281,7 +281,7 @@ function bell_frank_wolfe(
     dual_gap = FrankWolfe.fast_dot(x - vp, x) - FrankWolfe.fast_dot(x - vp, ds)
     if verbose > 0
         if verbose ≥ 2 && mode_last ≥ 0
-            @printf("Last dual gap: %.2e\n", dual_gap)
+            @printf("FW gap: %.2e\n", dual_gap) # recomputed FW gap (usually with a more reliable heuristic)
             println()
         end
         if primal > dual_gap
