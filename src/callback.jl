@@ -17,7 +17,7 @@ function build_callback(
     if isnan(shr2)
         bound_interval = typemax(Int)
     end
-    if verbose ≥ 3
+    if verbose > 3
         println("Intervals")
         println("    Print: ", callback_interval)
         println("   Renorm: ", renorm_interval)
