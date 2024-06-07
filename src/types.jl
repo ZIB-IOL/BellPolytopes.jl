@@ -700,7 +700,7 @@ function load_active_set(
     lmo = BellCorrelationsLMO(p; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds, data=ass.data)
     atoms = BellCorrelationsDS{T2, N, sym, marg, use_array}[]
     @inbounds for i in eachindex(ass.weights)
-        ax = [ones(T2, marg ? m[n] + 1 : m) for n in 1:N]
+        ax = [ones(T2, marg ? m[n] + 1 : m[n]) for n in 1:N]
         for n in 1:N
             @view(ax[n][1:m[n]]) .= T2.(2 * ass.ax[n][i, :] .- 1)
         end
