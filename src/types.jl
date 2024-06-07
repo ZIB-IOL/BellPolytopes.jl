@@ -695,8 +695,8 @@ function load_active_set(
     use_array=UseArray,
     reynolds=(IsSymmetric ? reynolds_permutedims : identity),
 ) where {T1 <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray} where {T2 <: Number}
-    m = size(ass.ax[1], 2)
-    p = zeros(T2, (marg ? m + 1 : m) * ones(Int, N)...)
+    m = size.(ass.ax, (2,))
+    p = zeros(T2, (marg ? m .+ 1 : m)...)
     lmo = BellCorrelationsLMO(p; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds, data=ass.data)
     atoms = BellCorrelationsDS{T2, N, sym, marg, use_array}[]
     @inbounds for i in eachindex(ass.weights)

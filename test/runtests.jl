@@ -40,26 +40,22 @@ end
                 correlation_tensor(HQVNB17_vec(3), 2; rho=rho_GHZ(2), marg=true);
                 marg=true,
                 max_iteration=10,
-            )[6],
+            )[5],
         )[3] - 0.613691,
     ) < 1e-5
     @test abs(
         bell_frank_wolfe(
             correlation_tensor(HQVNB17_vec(3), 2; rho=rho_GHZ(2), marg=true);
             marg=true,
-            active_set=BellPolytopes.load_active_set(
-                BellPolytopes.ActiveSetStorage(
-                    bell_frank_wolfe(
-                        correlation_tensor(HQVNB17_vec(3), 2; rho=rho_GHZ(2), marg=true);
-                        marg=true,
-                        max_iteration=10,
-                    )[6],
-                ),
-                Float64,
+            active_set=BellPolytopes.ActiveSetStorage(
+                bell_frank_wolfe(
+                    correlation_tensor(HQVNB17_vec(3), 2; rho=rho_GHZ(2), marg=true);
+                    marg=true,
+                    max_iteration=10,
+                )[5],
             ),
         )[3] - 0.613691,
     ) < 1e-5
-    :wqa
 
     # HQVNB17 without symmetry
     @test abs(
