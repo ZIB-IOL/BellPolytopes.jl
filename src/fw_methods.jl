@@ -566,8 +566,16 @@ end
 # MULADD #
 ##########
 
+function _unsafe_find_atom(active_set, atom)
+    @inbounds for idx in eachindex(active_set)
+        if active_set.atoms[idx] === atom
+            return idx
+        end
+    end
+    return -1
+end
+
 # avoid broadcast by using the stored data
-# quite an ugly hack...
 function FrankWolfe.muladd_memory_mode(
     memory_mode::FrankWolfe.InplaceEmphasis,
     d::Array{T, N},
@@ -575,8 +583,8 @@ function FrankWolfe.muladd_memory_mode(
     v::AT,
 ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     as = a.lmo.active_set
-    idx_a = FrankWolfe.find_atom(as, a)
-    idx_v = FrankWolfe.find_atom(as, v)
+    idx_a = _unsafe_find_atom(as, a)
+    idx_v = _unsafe_find_atom(as, v)
     d[1] = typemax(T)
     if idx_v > idx_a
         @inbounds d[2] = ((as.dots_x[idx_a] + as.dots_b[idx_a]) - (as.dots_x[idx_v] + as.dots_b[idx_v])) / (as.dots_A[idx_a][idx_a] + as.dots_A[idx_v][idx_v] - 2as.dots_A[idx_v][idx_a])
@@ -589,11 +597,11 @@ end
 function FrankWolfe.muladd_memory_mode(
     memory_mode::FrankWolfe.InplaceEmphasis,
     d::Array{T, N},
-    xit::Array{T, N},
+    x::AbstractArray{T, N},
     v::AT,
 ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    @inbounds for x in v.lmo.ci
-        d[x] = xit[x] - v[x]
+    @inbounds for i in v.lmo.ci
+        d[i] = x[i] - v[i]
     end
     return d
 end
