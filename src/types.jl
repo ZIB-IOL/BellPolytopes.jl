@@ -699,7 +699,7 @@ function load_active_set(
     p = zeros(T2, (marg ? m + 1 : m) * ones(Int, N)...)
     lmo = BellCorrelationsLMO(p; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds, data=ass.data)
     atoms = BellCorrelationsDS{T2, N, sym, marg, use_array}[]
-    @inbounds for i in 1:length(ass.weights)
+    @inbounds for i in eachindex(ass.weights)
         ax = [ones(T2, marg ? m + 1 : m) for n in 1:N]
         for n in 1:N
             @view(ax[n][1:m[n]]) .= T2.(2 * ass.ax[n][i, :] .- 1)
@@ -709,7 +709,7 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadratic{eltype(atoms), T2, Array{T2, N}}(weights, atoms, zeros(T2, size(atoms[1])))
+    res = FrankWolfe.ActiveSetQuadratic([(weights[i], atoms[i]) for i in eachindex(ass.weights)], I, p)
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
