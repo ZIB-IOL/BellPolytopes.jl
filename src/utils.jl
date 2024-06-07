@@ -481,6 +481,7 @@ function active_set_link_lmo!(
         as.atoms[i].lmo = lmo
     end
     lmo.active_set = as
+    as.b .= -lmo.p
     return as
 end
 
@@ -489,8 +490,12 @@ function active_set_reinitialise!(
     as::FrankWolfe.ActiveSetQuadratic{AT, T, IT},
 ) where {IT <: Array{T}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
     FrankWolfe.active_set_renormalize!(as)
-    @inbounds for i in eachindex(as)
-        set_array!(as.atoms[i])
+    @inbounds for idx in eachindex(as)
+        set_array!(as.atoms[idx])
+        for idy in 1:idx
+            as.dots_A[idx][idy] = FrankWolfe.fast_dot(as.A * as.atoms[idx], as.atoms[idy])
+        end
+        as.dots_b[idx] = FrankWolfe.fast_dot(as.b, as.atoms[idx])
     end
     FrankWolfe.compute_active_set_iterate!(as)
     return nothing

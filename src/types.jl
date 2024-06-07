@@ -99,7 +99,7 @@ function BellCorrelationsLMO(
 end
 
 # warning: N is twice the number of parties in this case
-mutable struct BellProbabilitiesLMO{T, N, Mode, IsSymmetric, UseArray} <: FrankWolfe.LinearMinimizationOracle
+mutable struct BellProbabilitiesLMO{T, N, Mode, IsSymmetric, UseArray, DS} <: FrankWolfe.LinearMinimizationOracle
     # scenario fields
     const o::Vector{Int} # number of outputs
     const m::Vector{Int} # number of inputs
@@ -113,6 +113,7 @@ mutable struct BellProbabilitiesLMO{T, N, Mode, IsSymmetric, UseArray} <: FrankW
     const per::Vector{Vector{Int}} # permutations used in the symmetric case
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     data::Vector{Any} # store information about the computation
+    active_set::FrankWolfe.ActiveSetQuadratic{DS, T, Array{T, N}, FrankWolfe.Identity{Bool}}
 end
 
 # constructor with predefined values
@@ -122,11 +123,11 @@ function BellProbabilitiesLMO(
     nb::Int=100,
     sym::Bool=false,
     use_array::Bool=true,
-    reynolds=nothing,
+    reynolds=identity,
     data=[0, 0],
 ) where {T <: Number} where {N}
     N2 = N ÷ 2
-    return BellProbabilitiesLMO{T, N, mode, sym, use_array}(
+    return BellProbabilitiesLMO{T, N, mode, sym, use_array, BellProbabilitiesDS{T, N, sym, use_array}}(
         collect(size(p)[1:N2]),
         collect(size(p)[N2+1:end]),
         p,
@@ -138,6 +139,7 @@ function BellProbabilitiesLMO(
         broadcast(perm -> vcat(1:N÷2, perm .+ N ÷ 2), collect(permutations(1:N÷2))),
         CartesianIndices(p),
         data,
+        FrankWolfe.ActiveSetQuadratic{BellProbabilitiesDS{T, N, sym, use_array}}(p),
     )
 end
 
@@ -151,7 +153,7 @@ function BellProbabilitiesLMO(
     reynolds=lmo.reynolds,
     data=lmo.data,
 ) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {UseArray}
-    return BellProbabilitiesLMO{type, N, mode, sym, use_array}(
+    return BellProbabilitiesLMO{type, N, mode, sym, use_array, BellProbabilitiesDS{type, N, sym, use_array}}(
         lmo.o,
         lmo.m,
         type.(lmo.p),
@@ -163,6 +165,7 @@ function BellProbabilitiesLMO(
         lmo.per,
         lmo.ci,
         data,
+        FrankWolfe.ActiveSetQuadratic{BellProbabilitiesDS{type, N, sym, use_array}}(lmo.p),
     )
 end
 
@@ -697,8 +700,8 @@ function load_active_set(
     p = zeros(T2, (marg ? m + 1 : m) * ones(Int, N)...)
     lmo = BellCorrelationsLMO(p; d=1, sym=sym, marg=marg, use_array=use_array, reynolds=reynolds, data=ass.data)
     atoms = BellCorrelationsDS{T2, N, 1, sym, marg, use_array}[]
-    @inbounds for i in 1:length(ass.weights)
-        ax = [ones(T2, marg ? m + 1 : m) for n in 1:N]
+    @inbounds for i in eachindex(ass.weights)
+        ax = [ones(T2, marg ? m[n] + 1 : m[n]) for n in 1:N]
         for n in 1:N
             @view(ax[n][1:m[n]]) .= T2.(2 * ass.ax[n][i, :] .- 1)
         end
@@ -707,7 +710,7 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadratic{eltype(atoms), T2, Array{T2, N}}(weights, atoms, zeros(T2, size(atoms[1])))
+    res = FrankWolfe.ActiveSetQuadratic([(weights[i], atoms[i]) for i in eachindex(ass.weights)], I, p)
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
@@ -766,7 +769,7 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadratic{eltype(atoms), T2, Array{T2, N}}(weights, atoms, zeros(T2, size(atoms[1])))
+    res = FrankWolfe.ActiveSetQuadratic([(weights[i], atoms[i]) for i in eachindex(ass.weights)], I, p)
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end

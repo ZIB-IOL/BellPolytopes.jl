@@ -233,14 +233,14 @@ function bell_frank_wolfe(
     )
     if verbose ≥ 2
         println()
-        @printf("       Primal: %.2e\n", primal)
-        @printf("     Dual gap: %.2e\n", dual_gap)
-        @printf("       #Atoms: %d\n", length(as))
-        @printf("         #LMO: %d\n", lmo.data[2])
+        @printf("Primal: %.2e\n", primal)
+        @printf("FW gap: %.2e\n", dual_gap)
+        @printf("#Atoms: %d\n", length(as))
+        @printf("  #LMO: %d\n", lmo.data[2])
     end
     if prob
         atoms = BellProbabilitiesDS.(as.atoms; type=TL)
-        as = FrankWolfe.ActiveSetQuadratic{eltype(atoms), TL, Array{TL, N}}(TL.(as.weights), atoms, zeros(TL, size(vp)))
+        as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -TL.(vp))
         FrankWolfe.compute_active_set_iterate!(as)
         x = as.x
         M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))
@@ -282,7 +282,7 @@ function bell_frank_wolfe(
     dual_gap = FrankWolfe.fast_dot(x - vp, x) - FrankWolfe.fast_dot(x - vp, ds)
     if verbose > 0
         if verbose ≥ 2 && mode_last ≥ 0
-            @printf("Last dual gap: %.2e\n", dual_gap)
+            @printf("FW gap: %.2e\n", dual_gap) # recomputed FW gap (usually with a more reliable heuristic)
             println()
         end
         if primal > dual_gap
@@ -368,7 +368,7 @@ function nonlocality_threshold(
             marg=marg,
             kwargs...,
         )
-        x, ds, primal, dual_gap, _, as, M, β = res
+        x, ds, primal, dual_gap, as, M, β = res
         if primal > 10epsilon && dual_gap > 10epsilon
             @warn "Please increase nb or max_iteration"
         end
