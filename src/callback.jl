@@ -1,5 +1,4 @@
 function build_callback(
-    trajectory_arr,
     p,
     v,
     o,
@@ -52,7 +51,6 @@ function build_callback(
                 )
             end
             active_set = args[1]
-            push!(trajectory_arr, (FrankWolfe.callback_state(state)..., length(active_set)))
             state.v.lmo.data[1] += 1
             if verbose ≥ 3 && mod(state.t, callback_interval) == 0
                 @printf(

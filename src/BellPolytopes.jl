@@ -32,7 +32,6 @@ Returns:
  - `ds`: a deterministic strategy, the atom returned by the last LMO,
  - `primal`: `½|x-v₀*p|²`
  - `dual_gap`: `⟨x-v₀*p, x-ds⟩`
- - `traj_data`: trajectory of the algorithm,
  - `active_set`: all deterministic strategies used for the decomposition of the last iterate `x`, contains fields `weights`, `atoms`, and `x`,
  - `M`: a Bell inequality, meaningful only if the dual gap is small enough
  - `β`: the local bound of the inequality parametrised by `M`, reliable only if the last LMO is exact.
@@ -198,9 +197,7 @@ function bell_frank_wolfe(
     if verbose > 0
         println()
     end
-    trajectory_arr = []
     callback = build_callback(
-        trajectory_arr,
         p,
         v0,
         o,
@@ -217,7 +214,7 @@ function bell_frank_wolfe(
         save_interval,
     )
     # main call to FW
-    x, ds, primal, dual_gap, traj_data, as = FrankWolfe.blended_pairwise_conditional_gradient(
+    x, ds, primal, dual_gap, _, as = FrankWolfe.blended_pairwise_conditional_gradient(
         f,
         grad!,
         lmo,
@@ -229,7 +226,7 @@ function bell_frank_wolfe(
         max_iteration=max_iteration,
         recompute_last_vertex=recompute_last_vertex,
         renorm_interval=typemax(Int),
-        trajectory=true,
+        trajectory=false,
         verbose=false,
         kwargs...,
     )
@@ -237,9 +234,8 @@ function bell_frank_wolfe(
         println()
         @printf("    Primal: %.2e\n", primal)
         @printf("  Dual gap: %.2e\n", dual_gap)
-        @printf("      Time: %.2e\n", traj_data[end][5])
-        @printf("    It/sec: %.2e\n", traj_data[end][1] / traj_data[end][5])
         @printf("    #Atoms: %d\n", length(as))
+        @printf("      #LMO: %d\n", lmo.data[2])
     end
     if prob
         atoms = BellProbabilitiesDS.(as.atoms; type=TL)
@@ -299,7 +295,7 @@ function bell_frank_wolfe(
     if save
         serialize(file * ".dat", ActiveSetStorage(as))
     end
-    return x, ds, primal, dual_gap, traj_data, as, M, β
+    return x, ds, primal, dual_gap, as, M, β
 end
 
 """
@@ -361,7 +357,6 @@ function nonlocality_threshold(
     upper_bound = one(T)
     local_model = nothing
     bell_inequality = nothing
-    traj_data = []
     while upper_bound - lower_bound > 10.0^(-precision)
         res = bell_frank_wolfe(
             p;
@@ -372,7 +367,6 @@ function nonlocality_threshold(
             marg=marg,
             kwargs...,
         )
-        push!(traj_data, res)
         x, ds, primal, dual_gap, _, as, M, β = res
         if primal > 10epsilon && dual_gap > 10epsilon
             @warn "Please increase nb or max_iteration"
@@ -406,7 +400,7 @@ function nonlocality_threshold(
     ν = 1 / (1 + norm(lower_bound * p + (1 - lower_bound) * o - local_model.x, 2))
     lower_bound_infinite = shr2^(N / 2) * ν * lower_bound
     # when mode_last = 0, the upper bound is not valid until the actual local bound (and not only the heuristic one) is computed
-    return lower_bound_infinite, lower_bound, upper_bound, local_model, bell_inequality, traj_data
+    return lower_bound_infinite, lower_bound, upper_bound, local_model, bell_inequality
 end
 
 end # module
