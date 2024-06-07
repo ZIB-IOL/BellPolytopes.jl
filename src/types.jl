@@ -2,6 +2,8 @@
 # LMO #
 #######
 
+FrankWolfe.ActiveSetQuadratic{AT}(p::Array{T, N}) where {AT, T <: Number, N} = FrankWolfe.ActiveSetQuadratic{AT, T, Array{T, N}, FrankWolfe.Identity{Bool}}([], [], p, FrankWolfe.Identity(true), p, [], [], [], [], [])
+
 mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray, DS} <: FrankWolfe.LinearMinimizationOracle
     # scenario fields
     const m::Vector{Int} # number of inputs
@@ -10,15 +12,15 @@ mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArr
     tmp::Vector{Vector{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
-    const reynolds::Union{Nothing, Function}
+    const reynolds::Function
     const fac::T # factorial of N used in the symmetric case
     const per::Vector{Vector{Int}} # permutations used in the symmetric case
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     data::Vector{Any} # store information about the computation
-    active_set::FrankWolfe.ActiveSetQuadratic{DS, T, Array{T, N}, FrankWolfe.Identity{T}}
+    active_set::FrankWolfe.ActiveSetQuadratic{DS, T, Array{T, N}, FrankWolfe.Identity{Bool}}
     lmofalse::BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}
-    function BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray, DS}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, reynolds::Union{Nothing, Function}, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray} where {DS}
-        lmo = new(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data, nothing)
+    function BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray, DS}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, reynolds::Function, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray} where {DS}
+        lmo = new(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data, FrankWolfe.ActiveSetQuadratic{DS}(p))
         if IsSymmetric || UseArray
             lmo.lmofalse = BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false, DS}(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
         else
@@ -105,7 +107,7 @@ mutable struct BellProbabilitiesLMO{T, N, Mode, IsSymmetric, UseArray} <: FrankW
     tmp::Vector{Matrix{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
-    const reynolds::Union{Nothing, Function}
+    const reynolds::Function
     const fac::T # factorial of N used in the symmetric case
     const per::Vector{Vector{Int}} # permutations used in the symmetric case
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
@@ -676,7 +678,7 @@ function load_active_set(
     sym=IsSymmetric,
     marg=HasMarginals,
     use_array=UseArray,
-    reynolds=(IsSymmetric ? reynolds_permutedims : nothing),
+    reynolds=(IsSymmetric ? reynolds_permutedims : identity),
 ) where {T1 <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray} where {T2 <: Number}
     m = size(ass.ax[1], 2)
     p = zeros(T2, (marg ? m + 1 : m) * ones(Int, N)...)
@@ -726,7 +728,7 @@ function load_active_set(
     ::Type{T2};
     sym=IsSymmetric,
     use_array=UseArray,
-    reynolds=(IsSymmetric ? reynolds_permutelastdims : nothing),
+    reynolds=(IsSymmetric ? reynolds_permutelastdims : identity),
     marg=nothing,
 ) where {T1 <: Number} where {N} where {IsSymmetric} where {UseArray} where {T2 <: Number}
     N2 = N ÷ 2

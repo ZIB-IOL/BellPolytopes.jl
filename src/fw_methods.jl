@@ -520,7 +520,7 @@ end
 function FrankWolfe.ActiveSetQuadratic(
     atom::AT,
 ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    return FrankWolfe.ActiveSetQuadratic([(one(T), atom)], e(), -atom.lmo.p)
+    return FrankWolfe.ActiveSetQuadratic([(one(T), atom)], I, -atom.lmo.p)
 end
 
 function FrankWolfe.compute_active_set_iterate!(

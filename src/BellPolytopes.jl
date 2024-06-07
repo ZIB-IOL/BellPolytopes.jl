@@ -70,7 +70,7 @@ function bell_frank_wolfe(
     nb_last::Int=10^5,
     epsilon_last=0,
     sym::Union{Nothing, Bool}=nothing,
-    reynolds::Union{Nothing, Function}=nothing,
+    reynolds::Function=identity,
     use_array::Union{Nothing, Bool}=nothing,
     active_set=nothing, # warm start
     lazy::Bool=true, # default in FW package is false
@@ -93,10 +93,10 @@ function bell_frank_wolfe(
         println(" Visibility: ", v0)
     end
     if use_array === nothing
-        use_array = N > 2 || reynolds !== nothing
+        use_array = N > 2 || reynolds !== identity
     end
     # symmetry detection
-    if reynolds === nothing
+    if reynolds === identity
         if prob
             if all(diff(collect(size(p)[N÷2+1:end])) .== 0) && p ≈ reynolds_permutelastdims(p, BellProbabilitiesLMO(p))
                 reynolds = reynolds_permutelastdims
@@ -145,7 +145,7 @@ function bell_frank_wolfe(
         else
             m = all(diff(collect(size(p))) .== 0) ? size(p)[end] : size(p)
             println("    #Inputs: ", marg ? m .- 1 : m)
-            if all(diff(collect(size(p))) .== 0) && (reynolds === nothing || reynolds === permutedims)
+            if all(diff(collect(size(p))) .== 0) && (reynolds === identity || reynolds === permutedims)
                 println("  Dimension: ", sym ? marg ? sum(binomial(m+n-2, n) for n in 1:N) : binomial(m+N-1, N) : marg ? m^N-1 : m^N)
             end
         end
@@ -260,7 +260,7 @@ function bell_frank_wolfe(
         end
     else
         atoms = BellCorrelationsDS.(as.atoms; type=TL)
-        as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], e(), -TL.(vp))
+        as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -TL.(vp))
         FrankWolfe.compute_active_set_iterate!(as)
         x = as.x
         M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))
