@@ -517,72 +517,14 @@ end
 ##############
 
 # create an active set from x0
-function FrankWolfe.ActiveSet(
+function FrankWolfe.ActiveSetQuadratic(
     atom::AT,
 ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    x = similar(atom)
-    as = FrankWolfe.ActiveSet{AT, T, typeof(x)}([one(T)], [atom], x)
-    FrankWolfe.compute_active_set_iterate!(as)
-    return as
-end
-
-# find the best and worst atoms in the active set
-# direction is not used and assumed to be x-p where x is the current active set iterate
-function FrankWolfe.active_set_argminmax(
-    active_set::FrankWolfe.ActiveSet{AT, T, IT},
-    direction::IT;
-    Φ=0.5,
-) where {
-    IT <: Array{T, N},
-} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    val = typemax(T)
-    valM = typemin(T)
-    idx = -1
-    idxM = -1
-    idx_modified = Int[]
-    @inbounds for j in eachindex(active_set)
-        if active_set.atoms[j].modified
-            push!(idx_modified, j)
-        end
-    end
-    @inbounds @batch minbatch = 100 for i in eachindex(active_set)
-        for j in idx_modified
-            if j ≤ i
-                active_set.atoms[i].gap +=
-                    (active_set.weights[j] - active_set.atoms[j].weight) *
-                    active_set.atoms[i].dot[active_set.atoms[j].hash]
-            else
-                active_set.atoms[i].gap +=
-                    (active_set.weights[j] - active_set.atoms[j].weight) *
-                    active_set.atoms[j].dot[active_set.atoms[i].hash]
-            end
-        end
-    end
-    @inbounds for i in eachindex(active_set)
-        temp_val = active_set.atoms[i].gap - active_set.atoms[i].dotp
-        #  if abs(temp_val - FrankWolfe.fast_dot(active_set.atoms[i], direction)) > 1e-8
-        #  println(temp_val)
-        #  println(FrankWolfe.fast_dot(active_set.atoms[i], direction))
-        #  error("Updated scalar product does not coincide with the real one")
-        #  end
-        if temp_val < val
-            val = temp_val
-            idx = i
-        end
-        if valM < temp_val
-            valM = temp_val
-            idxM = i
-        end
-    end
-    @inbounds for j in idx_modified
-        active_set.atoms[j].modified = false
-        active_set.atoms[j].weight = active_set.weights[j]
-    end
-    return (active_set[idx]..., idx, val, active_set[idxM]..., idxM, valM, valM - val ≥ Φ)
+    return FrankWolfe.ActiveSetQuadratic([(one(T), atom)], I, -atom.lmo.p)
 end
 
 function FrankWolfe.compute_active_set_iterate!(
-    active_set::FrankWolfe.ActiveSet{AT, T, IT},
+    active_set::FrankWolfe.ActiveSetQuadratic{AT, T, IT},
 ) where {
     IT <: Array{T, N},
 } where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
@@ -606,55 +548,6 @@ function FrankWolfe.active_set_update_scale!(
     return xit
 end
 
-# add a new atom in the active set
-function FrankWolfe.active_set_update!(
-    active_set::FrankWolfe.ActiveSet{AT, T, IT},
-    lambda::T,
-    atom::AT,
-    renorm=true,
-    idx=nothing,
-) where {
-    IT <: Array{T, N},
-} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    # rescale active set
-    active_set.weights .*= (1 - lambda)
-    @inbounds for i in eachindex(active_set)
-        active_set.atoms[i].weight *= (1 - lambda)
-        active_set.atoms[i].gap *= (1 - lambda)
-    end
-    # add value for new atom
-    if idx === nothing
-        idx = FrankWolfe.find_atom(active_set, atom)
-    end
-    if idx > 0
-        # still dubious
-        @inbounds active_set.atoms[idx].modified = true
-        @inbounds active_set.weights[idx] += lambda
-    else
-        push!(active_set, (lambda, atom))
-    end
-    if renorm
-        FrankWolfe.active_set_cleanup!(active_set, update=false)
-        FrankWolfe.active_set_renormalize!(active_set)
-    end
-    FrankWolfe.active_set_update_scale!(active_set.x, lambda, atom)
-    return active_set
-end
-
-function FrankWolfe.active_set_renormalize!(
-    active_set::FrankWolfe.ActiveSet{AT, T, IT},
-) where {
-    IT <: Array{T, N},
-} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    renorm = sum(active_set.weights)
-    active_set.weights ./= renorm
-    @inbounds for i in eachindex(active_set)
-        active_set.atoms[i].weight /= renorm
-        active_set.atoms[i].gap /= renorm
-    end
-    return active_set
-end
-
 function FrankWolfe.active_set_update_iterate_pairwise!(
     xit::IT,
     lambda::T,
@@ -663,69 +556,40 @@ function FrankWolfe.active_set_update_iterate_pairwise!(
 ) where {
     IT <: Array{T, N},
 } where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Real} where {N}
-    fw_atom.modified = true
-    away_atom.modified = true
     @inbounds for x in fw_atom.lmo.ci
         xit[x] += lambda * (fw_atom[x] - away_atom[x])
     end
     return xit
 end
 
-function Base.push!(
-    as::FrankWolfe.ActiveSet{AT, T, IT},
-    (λ, a),
-) where {
-    IT <: Array{T, N},
-} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    push!(as.weights, λ)
-    push!(as.atoms, a)
-    #  a.dotp = FrankWolfe.fast_dot(a.lmo.p, a)
-    a.modified = false
-    a.weight = λ
-    a.gap = λ * a.dot[a.hash]
-    @inbounds for j in 1:length(as)-1
-        a.dot[as.atoms[j].hash] = FrankWolfe.fast_dot(as.atoms[j], a)
-        as.atoms[j].gap += λ * a.dot[as.atoms[j].hash]
-        a.gap += as.weights[j] * a.dot[as.atoms[j].hash]
-    end
-    return as
-end
-
-function Base.deleteat!(
-    as::FrankWolfe.ActiveSet{AT, T, IT},
-    idx::Int,
-) where {
-    IT <: Array{T, N},
-} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    @inbounds for j in eachindex(as)
-        if j ≤ idx
-            as.atoms[j].gap -= as.weights[idx] * as.atoms[idx].dot[as.atoms[j].hash]
-        else
-            as.atoms[j].gap -= as.weights[idx] * as.atoms[j].dot[as.atoms[idx].hash]
-        end
-    end
-    deleteat!(as.weights, idx)
-    deleteat!(as.atoms, idx)
-    return as
-end
-
 ##########
 # MULADD #
 ##########
 
+function _unsafe_find_atom(active_set, atom)
+    @inbounds for idx in eachindex(active_set)
+        if active_set.atoms[idx] === atom
+            return idx
+        end
+    end
+    return -1
+end
+
 # avoid broadcast by using the stored data
-# quite an ugly hack...
 function FrankWolfe.muladd_memory_mode(
     memory_mode::FrankWolfe.InplaceEmphasis,
     d::Array{T, N},
     a::AT,
     v::AT,
 ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    d[1] = Inf
-    if a.hash > v.hash
-        @inbounds d[2] = ((a.gap - a.dotp) - (v.gap - v.dotp)) / (a.dot[a.hash] + v.dot[v.hash] - 2a.dot[v.hash])
+    as = a.lmo.active_set
+    idx_a = _unsafe_find_atom(as, a)
+    idx_v = _unsafe_find_atom(as, v)
+    d[1] = typemax(T)
+    if idx_v > idx_a
+        @inbounds d[2] = ((as.dots_x[idx_a] + as.dots_b[idx_a]) - (as.dots_x[idx_v] + as.dots_b[idx_v])) / (as.dots_A[idx_a][idx_a] + as.dots_A[idx_v][idx_v] - 2as.dots_A[idx_v][idx_a])
     else
-        @inbounds d[2] = ((a.gap - a.dotp) - (v.gap - v.dotp)) / (a.dot[a.hash] + v.dot[v.hash] - 2v.dot[a.hash])
+        @inbounds d[2] = ((as.dots_x[idx_a] + as.dots_b[idx_a]) - (as.dots_x[idx_v] + as.dots_b[idx_v])) / (as.dots_A[idx_a][idx_a] + as.dots_A[idx_v][idx_v] - 2as.dots_A[idx_a][idx_v])
     end
     return d
 end
@@ -733,11 +597,11 @@ end
 function FrankWolfe.muladd_memory_mode(
     memory_mode::FrankWolfe.InplaceEmphasis,
     d::Array{T, N},
-    xit::Array{T, N},
+    x::AbstractArray{T, N},
     v::AT,
 ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    @inbounds for x in v.lmo.ci
-        d[x] = xit[x] - v[x]
+    @inbounds for i in v.lmo.ci
+        d[i] = x[i] - v[i]
     end
     return d
 end
@@ -754,7 +618,7 @@ function FrankWolfe.perform_line_search(
     workspace,
     memory_mode::FrankWolfe.InplaceEmphasis,
 ) where {T <: Number}
-    if d[1] == Inf
+    if d[1] == typemax(T)
         return min(max(d[2], 0), gamma_max)
     else
         #  return min(max((FrankWolfe.fast_dot(gradient, x) - (d[1] - d[2])) * inv(FrankWolfe.fast_dot(x, x) + d[3]), 0), gamma_max)
