@@ -366,7 +366,7 @@ function nonlocality_threshold(
             marg=marg,
             kwargs...,
         )
-        x, ds, primal, dual_gap, _, as, M, β = res
+        x, ds, primal, dual_gap, as, M, β = res
         if primal > 10epsilon && dual_gap > 10epsilon
             @warn "Please increase nb or max_iteration"
         end
