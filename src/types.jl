@@ -42,7 +42,7 @@ function BellCorrelationsLMO(
     reynolds=reynolds_permutedims,
     data=[0, 0],
 ) where {T <: Number} where {N}
-    return BellCorrelationsLMO{T, N, d, mode, sym, marg, use_array, BellCorrelationsDS{T, N, sym, marg, use_array}}(
+    return BellCorrelationsLMO{T, N, d, mode, sym, marg, use_array, BellCorrelationsDS{T, N, d, sym, marg, use_array}}(
         collect(size(p)),
         p,
         [zeros(T, size(p, n), d) for n in 1:N],
@@ -84,7 +84,7 @@ function BellCorrelationsLMO(
         tmp = [zeros(type, size(p, n), D) for n in 1:N]
         ci = CartesianIndices(p)
     end
-    return BellCorrelationsLMO{type, N, D, mode, sym, marg, use_array, BellCorrelationsDS{type, N, sym, marg, use_array}}(
+    return BellCorrelationsLMO{type, N, D, mode, sym, marg, use_array, BellCorrelationsDS{type, N, D, sym, marg, use_array}}(
         m,
         p,
         tmp,
@@ -715,10 +715,39 @@ function load_active_set(
     return res
 end
 
+struct ActiveSetStorageMapsto{T, N, D, IsSymmetric, HasMarginals, UseArray}
+    weights::Vector{T}
+    ax::Vector{Vector{Matrix{T}}}
+    data::Vector{Any}
+end
+
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSet{BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, UseArray}, T, Array{T, N}},
+    as::FrankWolfe.ActiveSetQuadratic{BellCorrelationsDS{T, N, D, IsSymmetric, HasMarginals, UseArray}, T, Array{T, N}},
 ) where {T <: Number} where {N} where {D} where {IsSymmetric} where {HasMarginals} where {UseArray}
-    return as
+    return ActiveSetStorageMapsto{T, N, D, IsSymmetric, HasMarginals, UseArray}(as.weights, [as.atoms[i].ax for i in eachindex(as)], as.atoms[1].lmo.data)
+end
+
+function load_active_set(
+    ass::ActiveSetStorageMapsto{T1, N, D, IsSymmetric, HasMarginals, UseArray},
+    ::Type{T2};
+    sym=IsSymmetric,
+    marg=HasMarginals,
+    use_array=UseArray,
+    reynolds=(IsSymmetric ? reynolds_permutedims : identity),
+) where {T1 <: Number} where {N} where {D} where {IsSymmetric} where {HasMarginals} where {UseArray} where {T2 <: Number}
+    m = size.(ass.ax[1], (1,))
+    p = zeros(T2, (marg ? m .+ 1 : m)...)
+    lmo = BellCorrelationsLMO(p; d=D, sym=sym, marg=marg, use_array=use_array, reynolds=reynolds, data=ass.data)
+    atoms = BellCorrelationsDS{T2, N, D, sym, marg, use_array}[]
+    @inbounds for i in eachindex(ass.weights)
+        atom = BellCorrelationsDS(ass.ax[i], lmo)
+        push!(atoms, atom)
+    end
+    weights = T2.(ass.weights)
+    weights /= sum(weights)
+    res = FrankWolfe.ActiveSetQuadratic([(weights[i], atoms[i]) for i in eachindex(ass.weights)], I, p)
+    FrankWolfe.compute_active_set_iterate!(res)
+    return res
 end
 
 # for multi-outcome scenarios

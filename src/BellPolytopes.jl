@@ -186,7 +186,7 @@ function bell_frank_wolfe(
         active_set = FrankWolfe.ActiveSetQuadratic(x0)
         lmo.active_set = active_set
     else
-        if active_set isa Union{ActiveSetStorage, ActiveSetStorageMulti}
+        if active_set isa Union{ActiveSetStorage, ActiveSetStorageMapsto, ActiveSetStorageMulti}
             active_set = load_active_set(active_set, TD; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
         end
         active_set_link_lmo!(active_set, lmo)
