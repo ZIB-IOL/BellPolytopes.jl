@@ -48,7 +48,7 @@ function FrankWolfe.compute_extreme_point(
     for i in 1:lmo.nb
         for n in 1:N-1
             randn!(ax[n])
-            foreach(normalize!, eachrow(ax[n]))
+            foreach(_normalize!, eachrow(ax[n]))
         end
         sc = alternating_minimisation!(ax, lmo, args_alternating_minimisation...)
         if sc < scm

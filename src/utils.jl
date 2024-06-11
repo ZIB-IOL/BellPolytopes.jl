@@ -2,6 +2,10 @@
 # HEURISTIC #
 #############
 
+function _normalize!(v::AbstractVector)
+    rmul!(v, inv(sqrt(dot(v, v))))
+end
+
 function arguments_alternating_minimisation(
     lmo::BellCorrelationsLMO{T, 2, D, 0, IsSymmetric},
     A::Array{T, 2},
@@ -48,19 +52,19 @@ function alternating_minimisation!(
 ) where {T <: Number} where {D} where {IsSymmetric}
     sc1 = zero(T)
     sc2 = one(T)
-    @inbounds while sc2 - sc1 > Base.rtoldefault(T)
+    @inbounds while sc2 - sc1 > 10Base.rtoldefault(T)
         sc2 = sc1
         # given a_x, min_b ∑_y b_y (∑_x A_xy a_x) so that b_y is the opposite sign of ∑_x A_xy a_x
         mul!(lmo.tmp[2], At, ax[1])
-        ax[2] .= -lmo.tmp[2]
+        @. ax[2] = -lmo.tmp[2]
         # ax[2] .+= eps(T)
-        foreach(normalize!, eachrow(ax[2]))
+        foreach(_normalize!, eachrow(ax[2]))
         # given b_y, min_a ∑_x a_x (∑_y A_xy b_y) so that a_x is the opposite sign of ∑_y A_xy b_y
         mul!(lmo.tmp[1], A, ax[2])
-        ax[1] .= -lmo.tmp[1]
+        @. ax[1] = -lmo.tmp[1]
         # ax[1] .+= eps(T)
-        foreach(normalize!, eachrow(ax[1]))
-        sc1 = sum(dot.(eachrow(ax[1]), eachrow(lmo.tmp[1])))
+        foreach(_normalize!, eachrow(ax[1]))
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
