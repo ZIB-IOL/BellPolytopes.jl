@@ -93,7 +93,7 @@ function bell_frank_wolfe(
         println(" Visibility: ", v0)
     end
     if use_array === nothing
-        use_array = N > 2 || reynolds !== identity
+        use_array = N > 2 || d > 1 || reynolds !== identity
     end
     # symmetry detection
     if reynolds === identity
