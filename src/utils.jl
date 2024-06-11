@@ -456,7 +456,7 @@ function active_set_link_lmo!(
         as.atoms[i].lmo = lmo
     end
     lmo.active_set = as
-    as.b .= -lmo.p
+    @. as.b = -lmo.p
     return as
 end
 
