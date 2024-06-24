@@ -42,7 +42,6 @@ Optional arguments:
  - `epsilon`: the tolerance, used as a stopping criterion (when the primal value or the dual gap go below its value), by default 1e-7,
  - `verbose`: an integer, indicates the level of verbosity from 0 to 3,
  - `shr2`: the potential underlying shrinking factor, used to display the lower bound in the callback,
- - `TD`: type of the computations, by default the one of ̀`p`,
  - `mode`: an integer, 0 is for the heuristic LMO, 1 for the enumeration LMO,
  - `nb`: an integer, number of random tries in the LMO, if heuristic, by default 10^2,
  - `TL`: type of the last call of the LMO,
@@ -61,15 +60,16 @@ function bell_frank_wolfe(
     epsilon=1e-7,
     verbose=0,
     shr2=NaN,
-    TD::DataType=T,
     mode::Int=0,
     nb::Int=10^2,
-    TL::DataType=TD,
+    TL::DataType=T,
     mode_last::Int=mode,
     nb_last::Int=10^5,
     epsilon_last=0,
     sym::Union{Nothing, Bool}=nothing,
     reynolds::Function=identity,
+    reduce::Function=(x, lmo) -> FrankWolfe.SymmetricArray(x, x[:]),
+    inflate::Function=(x, lmo) -> copyto!(x.data, x.vec),
     use_array::Union{Nothing, Bool}=nothing,
     active_set=nothing, # warm start
     lazy::Bool=true, # default in FW package is false
@@ -151,21 +151,24 @@ function bell_frank_wolfe(
     end
     # center of the polytope
     if prob
-        o = ones(TD, size(p)) / prod(size(p)[1:N÷2])
+        o = ones(T, size(p)) / prod(size(p)[1:N÷2])
     else
-        o = zeros(TD, size(p))
+        o = zeros(T, size(p))
         if marg
-            o[end] = one(TD)
+            o[end] = one(T)
         end
     end
-    # choosing the point on the line between o and p according to the visibility v0
-    vp = v0 * TD.(p) + (one(TD) - v0) * o
     # create the LMO
     if prob
-        lmo = BellProbabilitiesLMO(vp; mode=mode, nb=nb, sym=sym, use_array=use_array, reynolds=reynolds)
+        lmo = BellProbabilitiesLMO(p; mode=mode, nb=nb, sym=sym, use_array=use_array, reynolds=reynolds)
     else
-        lmo = BellCorrelationsLMO(vp; mode=mode, nb=nb, sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
+        lmo = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(p; mode=mode, nb=nb, sym=false, marg=marg, use_array=use_array), reduce, inflate)
     end
+    # choosing the point on the line between o and p according to the visibility v0
+    vp = reduce(v0 * p + (one(T) - v0) * o, lmo)
+    o = reduce(o, lmo)
+    p = reduce(p, lmo)
+    # vp = v0 * p + (one(T) - v0) * o # TODO replace
     # useful to make f efficient
     normp2 = dot(vp, vp) / 2
     # weird syntax to enable the compiler to correctly understand the type
@@ -182,13 +185,13 @@ function bell_frank_wolfe(
     if active_set === nothing
         # run the LMO once from the center o to get a vertex
         x0 = FrankWolfe.compute_extreme_point(lmo, o - vp)
-        active_set = FrankWolfe.ActiveSetQuadratic(x0)
-        lmo.active_set = active_set
+        active_set = FrankWolfe.ActiveSetQuadratic([(one(T), x0)], I, -vp)
+        lmo.lmo.active_set = active_set
     else
         if active_set isa Union{ActiveSetStorage, ActiveSetStorageMulti}
-            active_set = load_active_set(active_set, TD; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
+            active_set = load_active_set(active_set, T; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
         end
-        active_set_link_lmo!(active_set, lmo)
+        active_set_link_lmo!(active_set, lmo, -vp)
         active_set_reinitialise!(active_set)
         if verbose > 1
             println("Active set initialised")
@@ -222,7 +225,7 @@ function bell_frank_wolfe(
         callback=callback,
         epsilon=epsilon,
         lazy=lazy,
-        line_search=FrankWolfe.Shortstep(one(TD)),
+        line_search=FrankWolfe.Shortstep(one(T)),
         max_iteration=max_iteration,
         recompute_last_vertex=recompute_last_vertex,
         renorm_interval=typemax(Int),
@@ -235,41 +238,33 @@ function bell_frank_wolfe(
         @printf("Primal: %.2e\n", primal)
         @printf("FW gap: %.2e\n", dual_gap)
         @printf("#Atoms: %d\n", length(as))
-        @printf("  #LMO: %d\n", lmo.data[2])
+        @printf("  #LMO: %d\n", lmo.lmo.data[2])
     end
     if prob
-        atoms = BellProbabilitiesDS.(as.atoms; type=TL)
-        as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -TL.(vp))
+        atoms = [FrankWolfe.SymmetricArray(BellProbabilitiesDS(atom.data; type=TL), TL.(atom.vec)) for atom in as.atoms]
+        vp_last = FrankWolfe.SymmetricArray(TL.(vp.data), TL.(vp.vec))
+        as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
         FrankWolfe.compute_active_set_iterate!(as)
         x = as.x
-        M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))
+        M = (vp - x) # / FrankWolfe.fast_dot(vp - x, p) TODO
         if mode_last ≥ 0 # bypass the last LMO with a negative mode
-            time_start = time_ns()
-            ds = FrankWolfe.compute_extreme_point(
-                BellProbabilitiesLMO(lmo; mode=mode_last, type=TL, nb=nb_last),
-                -M;
-                verbose=verbose > 0,
-            )
-            time = time_ns() - time_start
+            lmo_last = FrankWolfe.SymmetricLMO(BellProbabilitiesLMO(lmo.lmo; mode=mode_last, type=TL, nb=nb_last), reduce, inflate)
+            ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose=verbose > 0)
         else
-            ds = BellProbabilitiesDS(ds; type=TL)
+            ds = FrankWolfe.SymmetricArray(BellProbabilitiesDS(ds.data; type=TL), TL.(ds.vec))
         end
     else
-        atoms = BellCorrelationsDS.(as.atoms; type=TL)
-        as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -TL.(vp))
+        atoms = [FrankWolfe.SymmetricArray(BellCorrelationsDS(atom.data; type=TL), TL.(atom.vec)) for atom in as.atoms]
+        vp_last = FrankWolfe.SymmetricArray(TL.(vp.data), TL.(vp.vec))
+        as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
         FrankWolfe.compute_active_set_iterate!(as)
         x = as.x
-        M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))
+        M = (vp_last - x) # / FrankWolfe.fast_dot(vp_last - x, p) TODO
         if mode_last ≥ 0 # bypass the last LMO with a negative mode
-            time_start = time_ns()
-            ds = FrankWolfe.compute_extreme_point(
-                BellCorrelationsLMO(lmo; mode=mode_last, type=TL, nb=nb_last),
-                -M;
-                verbose=verbose > 0,
-            )
-            time = time_ns() - time_start
+            lmo_last = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(lmo.lmo; mode=mode_last, type=TL, nb=nb_last), reduce, inflate)
+            ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose=verbose > 0)
         else
-            ds = BellCorrelationsDS(ds; type=TL)
+            ds = FrankWolfe.SymmetricArray(BellCorrelationsDS(ds.data; type=TL), TL.(ds.vec))
         end
     end
     # renormalise the inequality by its smalles element, neglecting entries smaller than epsilon_last
@@ -287,7 +282,7 @@ function bell_frank_wolfe(
         if primal > dual_gap
             @printf("v_c ≤ %f\n", β)
         else
-            ν = 1 / (1 + norm(v0 * p + (1 - v0) * o - as.x, 2))
+            ν = 1 / (1 + norm(vp - as.x, 2))
             @printf("v_c ≥ %f (%f)\n", shr2^(N / 2) * ν * v0, shr2^(N / 2) * v0)
         end
     end

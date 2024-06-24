@@ -443,30 +443,21 @@ end
 ##############
 
 # associate a new lmo with all atoms
-function active_set_link_lmo!(
-    as::FrankWolfe.ActiveSetQuadratic{AT, T, IT},
-    lmo::LMO,
-) where {
-    AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}},
-} where {
-    IT <: Array{T},
-} where {LMO <: Union{BellCorrelationsLMO{T, N}, BellProbabilitiesLMO{T, N}}} where {T <: Number} where {N}
-    lmo.data = as.atoms[1].lmo.data
+function active_set_link_lmo!(as::FrankWolfe.ActiveSetQuadratic, lmo, p)
+    lmo.lmo.data = as.atoms[1].data.lmo.data
     @inbounds for i in eachindex(as)
-        as.atoms[i].lmo = lmo
+        as.atoms[i].data.lmo = lmo.lmo
     end
-    lmo.active_set = as
-    @. as.b = -lmo.p
+    lmo.lmo.active_set = as
+    @. as.b = p
     return as
 end
 
 # initialise an active set from a previously computed active set
-function active_set_reinitialise!(
-    as::FrankWolfe.ActiveSetQuadratic{AT, T, IT},
-) where {IT <: Array{T}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+function active_set_reinitialise!(as::FrankWolfe.ActiveSetQuadratic)
     FrankWolfe.active_set_renormalize!(as)
     @inbounds for idx in eachindex(as)
-        set_array!(as.atoms[idx])
+        set_array!(as.atoms[idx].data)
         for idy in 1:idx
             as.dots_A[idx][idy] = FrankWolfe.fast_dot(as.A * as.atoms[idx], as.atoms[idy])
         end

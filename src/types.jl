@@ -2,12 +2,11 @@
 # LMO #
 #######
 
-FrankWolfe.ActiveSetQuadratic{AT}(p::Array{T, N}) where {AT, T <: Number, N} = FrankWolfe.ActiveSetQuadratic{AT, T, Array{T, N}, FrankWolfe.Identity{Bool}}([], [], p, FrankWolfe.Identity(true), p, [], [], [], [], [])
+FrankWolfe.ActiveSetQuadratic{AT}(p::IT) where {AT, IT} = FrankWolfe.ActiveSetQuadratic{AT, eltype(p), IT, FrankWolfe.Identity{Bool}}([], [], p, FrankWolfe.Identity(true), p, [], [], [], [], [])
 
 mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray, DS} <: FrankWolfe.LinearMinimizationOracle
     # scenario fields
     const m::Vector{Int} # number of inputs
-    const p::Array{T, N} # point of interest
     # general fields
     tmp::Vector{Vector{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
     nb::Int # number of repetition
@@ -17,10 +16,10 @@ mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArr
     const per::Vector{Vector{Int}} # permutations used in the symmetric case
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     data::Vector{Any} # store information about the computation
-    active_set::FrankWolfe.ActiveSetQuadratic{DS, T, Array{T, N}, FrankWolfe.Identity{Bool}}
+    active_set::FrankWolfe.ActiveSetQuadratic{DS, T, FrankWolfe.SymmetricArray{false, T, Array{T, N}}, FrankWolfe.Identity{Bool}}
     lmofalse::BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}
     function BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray, DS}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, reynolds::Function, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray} where {DS}
-        lmo = new(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data, FrankWolfe.ActiveSetQuadratic{DS}(p))
+        lmo = new(m, tmp, nb, cnt, reynolds, fac, per, ci, data, FrankWolfe.ActiveSetQuadratic{DS}(FrankWolfe.SymmetricArray(p, T[])))
         if IsSymmetric || UseArray
             lmo.lmofalse = BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false, DS}(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
         else
@@ -41,7 +40,7 @@ function BellCorrelationsLMO(
     reynolds=reynolds_permutedims,
     data=[0, 0],
 ) where {T <: Number} where {N}
-    return BellCorrelationsLMO{T, N, mode, sym, marg, use_array, BellCorrelationsDS{T, N, sym, marg, use_array}}(
+    return BellCorrelationsLMO{T, N, mode, sym, marg, use_array, FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, sym, marg, use_array}}}(
         collect(size(p)),
         p,
         [zeros(T, size(p, n)) for n in 1:N],
@@ -68,29 +67,25 @@ function BellCorrelationsLMO(
 ) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
     if marg == HasMarginals
         m = lmo.m
-        p = type.(lmo.p)
         tmp = broadcast.(type, lmo.tmp)
         ci = lmo.ci
     elseif HasMarginals
         m = lmo.m .- 1
-        ci = CartesianIndices(size(p) .- 1)
-        p = type.(lmo.p[ci])
-        tmp = zeros(type, m)
+        tmp = [zeros(type, m[n]) for n in 1:N]
+        ci = CartesianIndices(Tuple(m))
     else
         m = lmo.m .+ 1
-        p = zeros(type, size(lmo.p) .+ 1)
-        p[lmo.ci] .= lmo.p
-        tmp = [zeros(type, size(p, n)) for n in 1:N]
-        ci = CartesianIndices(p)
+        tmp = [zeros(type, m[n]) for n in 1:N]
+        ci = CartesianIndices(Tuple(m))
     end
-    return BellCorrelationsLMO{type, N, mode, sym, marg, use_array, BellCorrelationsDS{type, N, sym, marg, use_array}}(
+    return BellCorrelationsLMO{type, N, mode, sym, marg, use_array, FrankWolfe.SymmetricArray{false, type, BellCorrelationsDS{type, N, sym, marg, use_array}}}(
         m,
-        p,
+        zeros(type, m...),
         tmp,
         nb,
         lmo.cnt,
         lmo.reynolds,
-        lmo.fac,
+        type(lmo.fac),
         lmo.per,
         lmo.ci,
         data,
@@ -675,16 +670,16 @@ struct ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray}
 end
 
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSetQuadratic{BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}, T, Array{T, N}},
+    as::FrankWolfe.ActiveSetQuadratic{FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}}, T, FrankWolfe.SymmetricArray{false, T, Array{T, N}}},
 ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray}
-    m = HasMarginals ? as.atoms[1].lmo.m .- 1 : as.atoms[1].lmo.m
+    m = HasMarginals ? as.atoms[1].data.lmo.m .- 1 : as.atoms[1].data.lmo.m
     ax = [BitArray(undef, length(as), m[n]) for n in 1:N]
     for i in eachindex(as)
         for n in 1:N
-            @view(ax[n][i, :]) .= as.atoms[i].ax[n][1:m[n]] .> zero(T)
+            @view(ax[n][i, :]) .= as.atoms[i].data.ax[n][1:m[n]] .> zero(T)
         end
     end
-    return ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray}(as.weights, ax, as.atoms[1].lmo.data)
+    return ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray}(as.weights, ax, as.atoms[1].data.lmo.data)
 end
 
 function load_active_set(
@@ -723,19 +718,19 @@ struct ActiveSetStorageMulti{T, N, IsSymmetric, UseArray}
 end
 
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSetQuadratic{BellProbabilitiesDS{T, N, IsSymmetric, UseArray}, T, Array{T, N}},
+    as::FrankWolfe.ActiveSetQuadratic{FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N, IsSymmetric, UseArray}}, T, FrankWolfe.SymmetricArray{false, T, Array{T, N}}},
 ) where {T <: Number} where {N} where {IsSymmetric} where {UseArray}
     N2 = N ÷ 2
-    omax = maximum(as.atoms[1].lmo.o)
-    m = as.atoms[1].lmo.m
+    omax = maximum(as.atoms[1].data.lmo.o)
+    m = as.atoms[1].data.lmo.m
     IntK = omax < typemax(Int8) ? Int8 : omax < typemax(Int16) ? Int16 : omax < typemax(Int32) ? Int32 : Int
     ax = [ones(IntK, length(as), m[n]) for n in 1:N2]
     for i in eachindex(as)
         for n in 1:N2
-            @view(ax[n][i, :]) .= as.atoms[i].ax[n]
+            @view(ax[n][i, :]) .= as.atoms[i].data.ax[n]
         end
     end
-    return ActiveSetStorageMulti{T, N, IsSymmetric, UseArray}(as.atoms[1].lmo.o, as.weights, ax, as.atoms[1].lmo.data)
+    return ActiveSetStorageMulti{T, N, IsSymmetric, UseArray}(as.atoms[1].data.lmo.o, as.weights, ax, as.atoms[1].data.lmo.data)
 end
 
 function load_active_set(
