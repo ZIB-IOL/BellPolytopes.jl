@@ -76,7 +76,7 @@ function bell_frank_wolfe(
     max_iteration::Int=10^7, # default in FW package is 10^4
     recompute_last_vertex=false, # default in FW package is true
     callback_interval::Int=verbose > 0 ? 10^4 : typemax(Int),
-    renorm_interval::Int=verbose > 0 ? callback_interval : typemax(Int),
+    renorm_interval::Int=10^3,
     hyperplane_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     bound_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     nb_increment_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
