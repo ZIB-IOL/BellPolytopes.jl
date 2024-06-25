@@ -242,7 +242,8 @@ function bell_frank_wolfe(
         as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -TL.(vp))
         FrankWolfe.compute_active_set_iterate!(as)
         x = as.x
-        M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))
+        tmp = abs(FrankWolfe.fast_dot(vp - x, p))
+        M = TL.((vp - x) / (tmp == 0 ? 1 : tmp))
         if mode_last ≥ 0 # bypass the last LMO with a negative mode
             time_start = time_ns()
             ds = FrankWolfe.compute_extreme_point(
@@ -259,7 +260,8 @@ function bell_frank_wolfe(
         as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -TL.(vp))
         FrankWolfe.compute_active_set_iterate!(as)
         x = as.x
-        M = TL.((vp - x) / FrankWolfe.fast_dot(vp - x, p))
+        tmp = abs(FrankWolfe.fast_dot(vp - x, p))
+        M = TL.((vp - x) / (tmp == 0 ? 1 : tmp))
         if mode_last ≥ 0 # bypass the last LMO with a negative mode
             time_start = time_ns()
             ds = FrankWolfe.compute_extreme_point(
