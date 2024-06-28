@@ -43,9 +43,9 @@ function bell_frank_wolfe_correlation(
     nb_last::Int=10^5,
     epsilon_last=0,
     sym::Union{Nothing, Bool}=nothing,
-    reduce::Function=(x, lmo=nothing) -> FrankWolfe.SymmetricArray(x, vec(collect(x))),
+    reduce::Function=(x, lmo=nothing) -> FrankWolfe.SymmetricArray(x, vec(x)),
     inflate::Function=(x, lmo=nothing) -> copyto!(x.data, x.vec),
-    use_array=N > 2,
+    use_array=true, #N > 2,
     active_set=nothing, # warm start
     lazy::Bool=true, # default in FW package is false
     max_iteration::Int=10^7, # default in FW package is 10^4

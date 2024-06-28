@@ -355,6 +355,12 @@ function set_array!(
     ds::BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, false},
 ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} end
 
+function Base.vec(
+    ds::BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, true},
+) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
+    return vec(ds.array)
+end
+
 FrankWolfe.fast_dot(A::Array, ds::BellCorrelationsDS) = conj(FrankWolfe.fast_dot(ds, A))
 
 # assume the array A is symmetric when IsSymmetric is true
