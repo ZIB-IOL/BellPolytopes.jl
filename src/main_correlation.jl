@@ -43,10 +43,9 @@ function bell_frank_wolfe_correlation(
     nb_last::Int=10^5,
     epsilon_last=0,
     sym::Union{Nothing, Bool}=nothing,
-    reynolds::Function=identity,
-    reduce::Function=(x, lmo) -> FrankWolfe.SymmetricArray(x, x[:]),
-    inflate::Function=(x, lmo) -> copyto!(x.data, x.vec),
-    use_array::Union{Nothing, Bool}=nothing,
+    reduce::Function=(x, lmo=nothing) -> FrankWolfe.SymmetricArray(x, vec(collect(x))),
+    inflate::Function=(x, lmo=nothing) -> copyto!(x.data, x.vec),
+    use_array=N > 2,
     active_set=nothing, # warm start
     lazy::Bool=true, # default in FW package is false
     max_iteration::Int=10^7, # default in FW package is 10^4
@@ -66,41 +65,18 @@ function bell_frank_wolfe_correlation(
     if verbose > 0
         println("Visibility: ", v0)
     end
-    if use_array === nothing
-        use_array = N > 2 || reynolds !== identity
-    end
-    # symmetry detection
-    if reynolds === identity
-        if all(diff(collect(size(p))) .== 0) && p ≈ reynolds_permutedims(p, BellCorrelationsLMO(p))
-            reynolds = reynolds_permutedims
-            if sym === nothing # respect the user choice if sym is false
-                sym = true
-            end
-        else
-            if sym == true
-                @warn "Input array seemingly inconsistant with sym being true"
-            else
-                sym = false
-            end
-        end
+    if sym === nothing && all(diff(collect(size(p))) .== 0) && p ≈ reynolds_permutedims(p)
+        reduce, inflate = build_reduce_inflate_permutedims(p)
+        sym = true
     else
-        if p ≈ reynolds(p, BellCorrelationsLMO(p))
-            sym = true
-        else
-            @warn "Input array seemingly inconsistant with the reynolds operator provided"
-        end
-        if use_array != true
-            @warn "For custom reynolds operators, use_array should be set to true"
-        end
-    end
-    if verbose > 1
-        println(" Symmetric: ", sym)
+        sym = false
     end
     # nb of inputs
     if verbose > 1
+        println(" Symmetric: ", sym)
         m = all(diff(collect(size(p))) .== 0) ? size(p)[end] : size(p)
         println("   #Inputs: ", marg ? m .- 1 : m)
-        if all(diff(collect(size(p))) .== 0) && (reynolds === identity || reynolds === permutedims)
+        if all(diff(collect(size(p))) .== 0) # TODO: asymmetric case
             println(" Dimension: ", sym ? marg ? sum(binomial(m+n-2, n) for n in 1:N) : binomial(m+N-1, N) : marg ? m^N-1 : m^N)
         end
     end
@@ -112,9 +88,9 @@ function bell_frank_wolfe_correlation(
     # create the LMO
     lmo = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(p; mode=mode, nb=nb, sym=false, marg=marg, use_array=use_array), reduce, inflate)
     # choosing the point on the line between o and p according to the visibility v0
-    vp = reduce(v0 * p + (one(T) - v0) * o, lmo)
-    o = reduce(o, lmo)
-    p = reduce(p, lmo)
+    vp = reduce(v0 * p + (one(T) - v0) * o)
+    o = reduce(o)
+    p = reduce(p)
     # vp = v0 * p + (one(T) - v0) * o # TODO replace
     # useful to make f efficient
     normp2 = dot(vp, vp) / 2
