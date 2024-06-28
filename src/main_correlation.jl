@@ -43,8 +43,8 @@ function bell_frank_wolfe_correlation(
     nb_last::Int=10^5,
     epsilon_last=0,
     sym::Union{Nothing, Bool}=nothing,
-    reduce::Function=(x, lmo=nothing) -> FrankWolfe.SymmetricArray(x, vec(x)),
-    inflate::Function=(x, lmo=nothing) -> copyto!(x.data, x.vec),
+    reduce::Function=identity,
+    inflate::Function=identity,
     use_array=true, #N > 2,
     active_set=nothing, # warm start
     lazy::Bool=true, # default in FW package is false
@@ -85,13 +85,16 @@ function bell_frank_wolfe_correlation(
     if marg
         o[end] = one(T)
     end
-    # create the LMO
-    lmo = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(p; mode=mode, nb=nb, sym=false, marg=marg, use_array=use_array), reduce, inflate)
     # choosing the point on the line between o and p according to the visibility v0
     vp = reduce(v0 * p + (one(T) - v0) * o)
+    if sym
+        lmo = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(p, vp; mode=mode, nb=nb, marg=marg), reduce, inflate)
+    else
+        lmo = BellCorrelationsLMO(p, vp; mode=mode, nb=nb, marg=marg)
+    end
     o = reduce(o)
     p = reduce(p)
-    # vp = v0 * p + (one(T) - v0) * o # TODO replace
+    # create the LMO
     # useful to make f efficient
     normp2 = dot(vp, vp) / 2
     # weird syntax to enable the compiler to correctly understand the type
@@ -163,18 +166,27 @@ function bell_frank_wolfe_correlation(
         @printf("#Atoms: %d\n", length(as))
         @printf("  #LMO: %d\n", lmo.lmo.data[2])
     end
-    atoms = [FrankWolfe.SymmetricArray(BellCorrelationsDS(atom.data; type=TL), TL.(atom.vec)) for atom in as.atoms]
-    vp_last = FrankWolfe.SymmetricArray(TL.(vp.data), TL.(vp.vec))
+    if sym
+        atoms = [FrankWolfe.SymmetricArray(BellCorrelationsDS(atom.data; type=TL), TL.(atom.vec)) for atom in as.atoms]
+        vp_last = FrankWolfe.SymmetricArray(TL.(vp.data), TL.(vp.vec))
+    else
+        atoms = [BellCorrelationsDS(atom; type=TL) for atom in as.atoms]
+        vp_last = TL.(vp)
+    end
     as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
     FrankWolfe.compute_active_set_iterate!(as)
     x = as.x
     tmp = 0 #abs(FrankWolfe.fast_dot(vp - x, p)) TODO
     M = TL.((vp - x) / (tmp == 0 ? 1 : tmp))
     if mode_last ≥ 0 # bypass the last LMO with a negative mode
-        lmo_last = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(lmo.lmo; mode=mode_last, type=TL, nb=nb_last), reduce, inflate)
+        lmo_last = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(lmo.lmo, vp_last; mode=mode_last, type=TL, nb=nb_last), reduce, inflate)
         ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose=verbose > 0)
     else
-        ds = FrankWolfe.SymmetricArray(BellCorrelationsDS(ds.data; type=TL), TL.(ds.vec))
+        if sym
+            ds = FrankWolfe.SymmetricArray(BellCorrelationsDS(ds.data; type=TL), TL.(ds.vec))
+        else
+            ds = BellCorrelationsDS(ds; type=TL)
+        end
     end
     # renormalise the inequality by its smalles element, neglecting entries smaller than epsilon_last
     if epsilon_last > 0
@@ -214,7 +226,7 @@ function local_bound_correlation(
     nb::Int=10^5,
     verbose=false,
 ) where {T <: Number} where {N}
-    ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M; marg=marg, mode=mode, sym=sym, nb=nb), -M; verbose=verbose)
+    ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M, M; marg=marg, mode=mode, nb=nb), -M; verbose=verbose)
     return FrankWolfe.fast_dot(M, ds), ds
 end
 export local_bound_correlation

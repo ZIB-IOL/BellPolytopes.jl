@@ -2,31 +2,19 @@
 # HEURISTIC #
 #############
 
-function arguments_alternating_minimisation(
-    lmo::BellCorrelationsLMO{T, 2, 0, IsSymmetric},
-    A::Array{T, 2},
-) where {T <: Number} where {IsSymmetric}
-    return (A, IsSymmetric ? A : collect(A'))
-end
-
-function arguments_alternating_minimisation(lmo::BellCorrelationsLMO{T, N, 0}, A::Array{T, N}) where {T <: Number} where {N}
-    return (A,)
-end
-
 # Appendix A from arXiv:1609.06114 for correlation matrix
 # min_ab ∑_xy M_xy a_x b_y with a_x and b_y being ±1
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 2, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 2, 0, HasMarginals},
     A::Array{T, 2},
-    At::Array{T, 2},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
         # given a_x, min_b ∑_y b_y (∑_x A_xy a_x) so that b_y is the opposite sign of ∑_x A_xy a_x
-        mul!(lmo.tmp[2], At, ax[1])
+        mul!(lmo.tmp[2], A', ax[1])
         for x2 in 1:length(ax[2])-HasMarginals
             ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
@@ -42,9 +30,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 3, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 3, 0, HasMarginals},
     A::Array{T, 3},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -71,9 +59,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 4, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 4, 0, HasMarginals},
     A::Array{T, 4},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -101,9 +89,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 5, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 5, 0, HasMarginals},
     A::Array{T, 5},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -135,9 +123,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 6, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 6, 0, HasMarginals},
     A::Array{T, 6},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -173,9 +161,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 7, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 7, 0, HasMarginals},
     A::Array{T, 7},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -222,9 +210,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 8, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 8, 0, HasMarginals},
     A::Array{T, 8},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number} where {HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
