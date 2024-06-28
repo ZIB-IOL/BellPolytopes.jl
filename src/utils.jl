@@ -471,30 +471,57 @@ end
 # REYNOLDS #
 ############
 
-function reynolds_permutedims(A::Array{T, 2}, lmo::BellCorrelationsLMO{T, 2}) where {T <: Number}
+function reynolds_permutedims(A::Array{T, 2}) where {T <: Number}
     return (A + A') / 2
 end
 
-function reynolds_permutedims(
-    A::Array{T, N},
-    lmo::BellCorrelationsLMO{T, N},
-) where {T <: Number} where {N}
-    res = zeros(T, size(A))
-    for per in lmo.per
+function reynolds_permutedims(A::Array{T, N}) where {T <: Number} where {N}
+    res = zero(A)
+    for per in permutations(1:N)
         res .+= permutedims(A, per)
     end
-    return res / lmo.fac
+    return res / factorial(N)
 end
 
-function reynolds_permutelastdims(
-    A::Array{T, N},
-    lmo::BellProbabilitiesLMO{T, N},
-) where {T <: Number} where {N}
-    res = zeros(T, size(A))
-    for per in lmo.per
-        res .+= permutedims(A, per)
+function reynolds_permutelastdims(A::Array{T, N2}) where {T <: Number} where {N2}
+    N = N2 ÷ 2
+    res = zero(A)
+    for per in permutations(1:N)
+        res .+= permutedims(A, vcat(1:N, per .+ N))
     end
-    return res / lmo.fac
+    return res / factorial(N)
+end
+
+function build_reduce_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
+    n = size(p, 1)
+    @assert n == size(p, 2)
+    dimension = (n * (n + 1)) ÷ 2
+    sqrt2 = sqrt(T(2))
+    function reduce(A::AbstractArray{T, 2}, lmo=nothing)
+        vec = Vector{T}(undef, dimension)
+        cnt = 0
+        @inbounds for i in 1:n
+            vec[i] = A[i, i]
+            cnt += n - i
+            for j in i+1:n
+                vec[cnt+j] = (A[i, j] + A[j, i]) / sqrt2
+            end
+        end
+        return FrankWolfe.SymmetricArray(A, vec)
+    end
+    function inflate(x::FrankWolfe.SymmetricArray, lmo=nothing)
+        cnt = 0
+        @inbounds for i in 1:n
+            x.data[i, i] = x.vec[i]
+            cnt += n - i
+            for j in i+1:n
+                x.data[i, j] = x.vec[cnt+j] / sqrt2
+                x.data[j, i] = x.data[i, j]
+            end
+        end
+        return x.data
+    end
+    return reduce, inflate
 end
 
 #############
