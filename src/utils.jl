@@ -522,6 +522,7 @@ function polyhedronisme(f::String, m::Int)
     @assert length(res) == m
     return vertices
 end
+export polyhedronisme
 
 # acos handling floating point imprecision
 function _unsafe_acos(x::T) where {T <: Number}
@@ -590,3 +591,4 @@ function shrinking_squared(vecs::Vector{TB}; verbose=true) where {TB <: Abstract
     end
     return eta2
 end
+export shrinking_squared

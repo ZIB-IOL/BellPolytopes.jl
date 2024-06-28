@@ -216,6 +216,7 @@ function bell_frank_wolfe_probability(
     end
     return x, ds, primal, dual_gap, as, M, β
 end
+export bell_frank_wolfe_probability
 
 """
 Compute the local bound of a Bell inequality parametrised by `M`.
@@ -231,6 +232,7 @@ function local_bound_probability(
     ds = FrankWolfe.compute_extreme_point(BellProbabilitiesLMO(M; mode=mode, sym=sym, nb=nb), -M; verbose=verbose)
     return FrankWolfe.fast_dot(M, ds), ds
 end
+export local_bound_probability
 
 """
 Compute the nonlocality threshold of the qubit measurements encoded by the Bloch vectors `vec` in a Bell scenario with `N` parties.
@@ -313,3 +315,4 @@ function nonlocality_threshold_probability(
     # when mode_last = 0, the upper bound is not valid until the actual local bound (and not only the heuristic one) is computed
     return lower_bound_infinite, lower_bound, upper_bound, local_model, bell_inequality
 end
+export nonlocality_threshold_probability
