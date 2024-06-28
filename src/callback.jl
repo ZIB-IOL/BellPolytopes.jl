@@ -51,18 +51,18 @@ function build_callback(
                 )
             end
             active_set = args[1]
-            state.v.data.lmo.data[1] += 1
+            state.lmo.lmo.data[1] += 1
             if verbose ≥ 3 && mod(state.t, callback_interval) == 0
                 @printf(
                     stdout,
                     "%s    %.4e    %.4e    %.4e    %.4e   %s    %s\n",
-                    lpad(state.v.data.lmo.data[1], 12),
+                    lpad(state.lmo.lmo.data[1], 12),
                     state.primal,
                     state.dual_gap,
                     state.time,
                     state.t / state.time,
                     lpad(length(active_set), 7),
-                    lpad(state.v.data.lmo.data[2], 7)
+                    lpad(state.lmo.lmo.data[2], 7)
                 )
             end
             if mod(state.t, renorm_interval) == 0
@@ -86,8 +86,8 @@ function build_callback(
                 end
             end
             if mod(state.t, nb_increment_interval) == 0
-                state.v.data.lmo.nb += 1
-                #  println("The heuristic now runs ", state.v.data.lmo.nb, " times")
+                state.lmo.lmo.nb += 1
+                #  println("The heuristic now runs ", state.lmo.lmo.nb, " times")
             end
             if save && mod(state.t, save_interval) == 0
                 serialize(file * "_tmp.dat", ActiveSetStorage(active_set))
