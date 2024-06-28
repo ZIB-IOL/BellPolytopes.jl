@@ -2,10 +2,10 @@
 Calls the lazy pairwise blended conditional gradient algorithm from Frank-Wolfe package.
 
 Arguments:
- - `p`: a correlation tensor of order `N`.
+ - `p`: a probability tensor of order `N`.
 
 Returns:
- - `x`: a correlation tensor of order `N`, the output of the Frank-Wolfe algorithm,
+ - `x`: a probability tensor of order `N`, the output of the Frank-Wolfe algorithm,
  - `ds`: a deterministic strategy, the atom returned by the last LMO,
  - `primal`: `½|x-v₀*p|²`
  - `dual_gap`: `⟨x-v₀*p, x-ds⟩`
@@ -82,7 +82,7 @@ function bell_frank_wolfe_probability(
             end
         end
     else
-        if p ≈ reynolds(p, BellCorrelationsLMO(p))
+        if p ≈ reynolds(p, BellProbabilitiesLMO(p))
             sym = true
         else
             @warn "Input array seemingly inconsistant with the reynolds operator provided"
@@ -245,7 +245,7 @@ Returns:
  - `lower_bound_infinite`: a lower bound on the nonlocality threshold under all projective measurements (in the subspace spanned by `vec` in the Bloch sphere),
  - `lower_bound`: a lower bound on the nonlocality threshold under the measurements provided in input,
  - `upper_bound`: a (heuristic) upper bound on the nonlocality threshold under the measurements provided in input, also valid for all projective measurements
- - `local_model`: a decomposition of the correlation tensor obtained by applying the measurements encoded by the Bloch vectors `vec` on all `N` subsystems of the shared state `rho` with visibility `lower_bound`,
+ - `local_model`: a decomposition of the probability tensor obtained by applying the measurements encoded by the Bloch vectors `vec` on all `N` subsystems of the shared state `rho` with visibility `lower_bound`,
  - `bell_inequality`: a (heuristic) Bell inequality corresponding to `upper_bound`.
 
 Optional arguments:
