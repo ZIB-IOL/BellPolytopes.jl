@@ -2,7 +2,7 @@
 Calls the lazy pairwise blended conditional gradient algorithm from Frank-Wolfe package.
 
 Arguments:
- - `p`: a probability tensor of order `N`.
+kj - `p`: a probability tensor of order `N`.
 
 Returns:
  - `x`: a probability tensor of order `N`, the output of the Frank-Wolfe algorithm,
@@ -41,10 +41,8 @@ function bell_frank_wolfe_probability(
     nb_last::Int=10^5,
     epsilon_last=0,
     sym::Union{Nothing, Bool}=nothing,
-    reynolds::Function=identity,
-    reduce::Function=(x, lmo) -> FrankWolfe.SymmetricArray(x, x[:]),
-    inflate::Function=(x, lmo) -> copyto!(x.data, x.vec),
-    use_array::Union{Nothing, Bool}=nothing,
+    reduce::Function=identity,
+    inflate::Function=identity,
     active_set=nothing, # warm start
     lazy::Bool=true, # default in FW package is false
     max_iteration::Int=10^7, # default in FW package is 10^4
@@ -64,50 +62,27 @@ function bell_frank_wolfe_probability(
     if verbose > 0
         println("Visibility: ", v0)
     end
-    if use_array === nothing
-        use_array = N > 2 || reynolds !== identity
-    end
-    # symmetry detection
-    if reynolds === identity
-        if all(diff(collect(size(p)[N÷2+1:end])) .== 0) && p ≈ reynolds_permutelastdims(p, BellProbabilitiesLMO(p))
-            reynolds = reynolds_permutelastdims
-            if sym === nothing # respect the user choice if sym is false
-                sym = true
-            end
-        else
-            if sym == true
-                @warn "Input array seemingly inconsistant with sym being true"
-            else
-                sym = false
-            end
-        end
+    if sym === nothing && all(diff(collect(size(p)[N÷2+1:end])) .== 0) && p ≈ reynolds_permutelastdims(p)
+        reduce, inflate = build_reduce_inflate_permutelastdims(p)
+        sym = true
     else
-        if p ≈ reynolds(p, BellProbabilitiesLMO(p))
-            sym = true
-        else
-            @warn "Input array seemingly inconsistant with the reynolds operator provided"
-        end
-        if use_array != true
-            @warn "For custom reynolds operators, use_array should be set to true"
-        end
-    end
-    if verbose > 1
-        println(" Symmetric: ", sym)
+        sym = false
     end
     # nb of inputs
     if verbose > 1
-        m = all(diff(collect(size(p)[N÷2+1:end])) .== 0) ? size(p)[end] : size(p)[N÷2+1:end]
-        println("   #Inputs: ", m)
+        println(" Symmetric: ", sym)
+        println("   #Inputs: ", all(diff(collect(size(p)[N÷2+1:end])) .== 0) ? size(p)[end] : size(p)[N÷2+1:end])
     end
     # center of the polytope
     o = ones(T, size(p)) / prod(size(p)[1:N÷2])
     # create the LMO
-    lmo = BellProbabilitiesLMO(p; mode=mode, nb=nb, sym=sym, use_array=use_array, reynolds=reynolds)
-    # choosing the point on the line between o and p according to the visibility v0
-    vp = reduce(v0 * p + (one(T) - v0) * o, lmo)
-    o = reduce(o, lmo)
-    p = reduce(p, lmo)
-    # vp = v0 * p + (one(T) - v0) * o # TODO replace
+    if sym
+        lmo = FrankWolfe.SymmetricLMO(BellProbabilitiesLMO(p, vp; mode=mode, nb=nb), reduce, inflate)
+    else
+        lmo = BellProbabilitiesLMO(p, vp; mode=mode, nb=nb)
+    end
+    o = reduce(o)
+    p = reduce(p)
     # useful to make f efficient
     normp2 = dot(vp, vp) / 2
     # weird syntax to enable the compiler to correctly understand the type
@@ -179,18 +154,34 @@ function bell_frank_wolfe_probability(
         @printf("#Atoms: %d\n", length(as))
         @printf("  #LMO: %d\n", lmo.lmo.data[2])
     end
-    atoms = [FrankWolfe.SymmetricArray(BellProbabilitiesDS(atom.data; type=TL), TL.(atom.vec)) for atom in as.atoms]
-    vp_last = FrankWolfe.SymmetricArray(TL.(vp.data), TL.(vp.vec))
-    as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
-    FrankWolfe.compute_active_set_iterate!(as)
+    if T != TL
+        as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
+        FrankWolfe.compute_active_set_iterate!(as)
+    end
     x = as.x
     tmp = abs(FrankWolfe.fast_dot(vp - x, p))
-    M = TL.((vp - x) / (tmp == 0 ? 1 : tmp))
+    if sym
+        atoms = [FrankWolfe.SymmetricArray(BellProbabilitiesDS(atom.data; type=TL), TL.(atom.vec)) for atom in as.atoms]
+        vp_last = FrankWolfe.SymmetricArray(TL.(vp.data), TL.(vp.vec))
+        M = FrankWolfe.SymmetricArray(TL.(vp.data - x.data) / (tmp == 0 ? 1 : tmp), TL.(vp.vec - x.vec) / (tmp == 0 ? 1 : tmp))
+    else
+        atoms = [BellProbabilitiesDS(atom; type=TL) for atom in as.atoms]
+        vp_last = TL.(vp)
+        M = TL.((vp - x) / (tmp == 0 ? 1 : tmp))
+    end
     if mode_last ≥ 0 # bypass the last LMO with a negative mode
-        lmo_last = FrankWolfe.SymmetricLMO(BellProbabilitiesLMO(lmo.lmo; mode=mode_last, type=TL, nb=nb_last), reduce, inflate)
+        if sym
+            lmo_last = FrankWolfe.SymmetricLMO(BellProbabilitiesLMO(lmo.lmo, vp_last; mode=mode_last, type=TL, nb=nb_last), reduce, inflate)
+        else
+            lmo_last = BellProbabilitiesLMO(lmo.lmo, vp_last; mode=mode_last, type=TL, nb=nb_last)
+        end
         ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose=verbose > 0)
     else
-        ds = FrankWolfe.SymmetricArray(BellProbabilitiesDS(ds.data; type=TL), TL.(ds.vec))
+        if sym
+            ds = FrankWolfe.SymmetricArray(BellProbabilitiesDS(ds.data; type=TL), TL.(ds.vec))
+        else
+            ds = BellProbabilitiesDS(ds; type=TL)
+        end
     end
     # renormalise the inequality by its smalles element, neglecting entries smaller than epsilon_last
     if epsilon_last > 0
@@ -214,7 +205,11 @@ function bell_frank_wolfe_probability(
     if save
         serialize(file * ".dat", ActiveSetStorage(as))
     end
-    return x, ds, primal, dual_gap, as, M, β
+    if sym
+        return inflate(x), ds.data, primal, dual_gap, as, inflate(M), β
+    else
+        return x, ds, primal, dual_gap, as, M, β
+    end
 end
 export bell_frank_wolfe_probability
 
@@ -278,6 +273,7 @@ function nonlocality_threshold_probability(
             verbose=verbose + (upper_bound == one(T)) / 2,
             epsilon=epsilon,
             shr2=shr2,
+            sym=false,
             kwargs...,
         )
         x, ds, primal, dual_gap, as, M, β = res
