@@ -112,7 +112,7 @@ function BellProbabilitiesLMO(
     mode::Int=0,
     nb::Int=100,
     data=[0, 0],
-) where {T <: N2umber} where {N2} where {IT}
+) where {T <: Number} where {N2} where {IT}
     N = N2 ÷ 2
     if IT <: FrankWolfe.SymmetricArray
         AT = FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}
