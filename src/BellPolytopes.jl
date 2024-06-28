@@ -76,7 +76,7 @@ function bell_frank_wolfe(
     max_iteration::Int=10^7, # default in FW package is 10^4
     recompute_last_vertex=false, # default in FW package is true
     callback_interval::Int=verbose > 0 ? 10^4 : typemax(Int),
-    renorm_interval::Int=verbose > 0 ? callback_interval : typemax(Int),
+    renorm_interval::Int=10^3,
     hyperplane_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     bound_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     nb_increment_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
@@ -246,7 +246,8 @@ function bell_frank_wolfe(
         as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
         FrankWolfe.compute_active_set_iterate!(as)
         x = as.x
-        M = (vp - x) # / FrankWolfe.fast_dot(vp - x, p) TODO
+        tmp = abs(FrankWolfe.fast_dot(vp - x, p))
+        M = TL.((vp - x) / (tmp == 0 ? 1 : tmp))
         if mode_last ≥ 0 # bypass the last LMO with a negative mode
             lmo_last = FrankWolfe.SymmetricLMO(BellProbabilitiesLMO(lmo.lmo; mode=mode_last, type=TL, nb=nb_last), reduce, inflate)
             ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose=verbose > 0)
@@ -259,7 +260,8 @@ function bell_frank_wolfe(
         as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
         FrankWolfe.compute_active_set_iterate!(as)
         x = as.x
-        M = (vp_last - x) # / FrankWolfe.fast_dot(vp_last - x, p) TODO
+        tmp = 0 #abs(FrankWolfe.fast_dot(vp - x, p)) TODO
+        M = TL.((vp - x) / (tmp == 0 ? 1 : tmp))
         if mode_last ≥ 0 # bypass the last LMO with a negative mode
             lmo_last = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(lmo.lmo; mode=mode_last, type=TL, nb=nb_last), reduce, inflate)
             ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose=verbose > 0)
