@@ -16,7 +16,7 @@ mutable struct BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArr
     const per::Vector{Vector{Int}} # permutations used in the symmetric case
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     data::Vector{Any} # store information about the computation
-    active_set::FrankWolfe.ActiveSetQuadratic{DS, T, FrankWolfe.SymmetricArray{false, T, Array{T, N}}, FrankWolfe.Identity{Bool}}
+    active_set::FrankWolfe.ActiveSetQuadratic{DS, T, FrankWolfe.SymmetricArray{false, T, Array{T, N}, Vector{T}}, FrankWolfe.Identity{Bool}}
     lmofalse::BellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}
     function BellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray, DS}(m::Vector{Int}, p::Array{T, N}, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, reynolds::Function, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray} where {DS}
         lmo = new(m, tmp, nb, cnt, reynolds, fac, per, ci, data, FrankWolfe.ActiveSetQuadratic{DS}(FrankWolfe.SymmetricArray(p, T[])))
@@ -40,7 +40,7 @@ function BellCorrelationsLMO(
     reynolds=reynolds_permutedims,
     data=[0, 0],
 ) where {T <: Number} where {N}
-    return BellCorrelationsLMO{T, N, mode, sym, marg, use_array, FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, sym, marg, use_array}}}(
+return BellCorrelationsLMO{T, N, mode, sym, marg, use_array, FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, sym, marg, use_array}, Vector{T}}}(
         collect(size(p)),
         p,
         [zeros(T, size(p, n)) for n in 1:N],
@@ -78,7 +78,7 @@ function BellCorrelationsLMO(
         tmp = [zeros(type, m[n]) for n in 1:N]
         ci = CartesianIndices(Tuple(m))
     end
-    return BellCorrelationsLMO{type, N, mode, sym, marg, use_array, FrankWolfe.SymmetricArray{false, type, BellCorrelationsDS{type, N, sym, marg, use_array}}}(
+    return BellCorrelationsLMO{type, N, mode, sym, marg, use_array, FrankWolfe.SymmetricArray{false, type, BellCorrelationsDS{type, N, sym, marg, use_array}, Vector{T}}}(
         m,
         zeros(type, m...),
         tmp,
@@ -670,7 +670,7 @@ struct ActiveSetStorage{T, N, IsSymmetric, HasMarginals, UseArray}
 end
 
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSetQuadratic{FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}}, T, FrankWolfe.SymmetricArray{false, T, Array{T, N}}},
+    as::FrankWolfe.ActiveSetQuadratic{FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}, Vector{T}}, T, FrankWolfe.SymmetricArray{false, T, Array{T, N}, Vector{T}}},
 ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray}
     m = HasMarginals ? as.atoms[1].data.lmo.m .- 1 : as.atoms[1].data.lmo.m
     ax = [BitArray(undef, length(as), m[n]) for n in 1:N]
@@ -718,7 +718,7 @@ struct ActiveSetStorageMulti{T, N, IsSymmetric, UseArray}
 end
 
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSetQuadratic{FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N, IsSymmetric, UseArray}}, T, FrankWolfe.SymmetricArray{false, T, Array{T, N}}},
+    as::FrankWolfe.ActiveSetQuadratic{FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N, IsSymmetric, UseArray}, Vector{T}}, T, FrankWolfe.SymmetricArray{false, T, Array{T, N}, Vector{T}}},
 ) where {T <: Number} where {N} where {IsSymmetric} where {UseArray}
     N2 = N ÷ 2
     omax = maximum(as.atoms[1].data.lmo.o)
