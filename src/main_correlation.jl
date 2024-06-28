@@ -45,7 +45,6 @@ function bell_frank_wolfe_correlation(
     sym::Union{Nothing, Bool}=nothing,
     reduce::Function=identity,
     inflate::Function=identity,
-    use_array=true, #N > 2,
     active_set=nothing, # warm start
     lazy::Bool=true, # default in FW package is false
     max_iteration::Int=10^7, # default in FW package is 10^4
@@ -87,6 +86,7 @@ function bell_frank_wolfe_correlation(
     end
     # choosing the point on the line between o and p according to the visibility v0
     vp = reduce(v0 * p + (one(T) - v0) * o)
+    # create the LMO
     if sym
         lmo = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(p, vp; mode=mode, nb=nb, marg=marg), reduce, inflate)
     else
@@ -94,7 +94,6 @@ function bell_frank_wolfe_correlation(
     end
     o = reduce(o)
     p = reduce(p)
-    # create the LMO
     # useful to make f efficient
     normp2 = dot(vp, vp) / 2
     # weird syntax to enable the compiler to correctly understand the type
@@ -287,6 +286,7 @@ function nonlocality_threshold_correlation(
             epsilon=epsilon,
             shr2=shr2,
             marg=marg,
+            sym=false,
             kwargs...,
         )
         x, ds, primal, dual_gap, as, M, β = res
