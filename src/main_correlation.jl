@@ -166,20 +166,27 @@ function bell_frank_wolfe_correlation(
         @printf("#Atoms: %d\n", length(as))
         @printf("  #LMO: %d\n", lmo.lmo.data[2])
     end
+    if T != TL
+        as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
+        FrankWolfe.compute_active_set_iterate!(as)
+    end
+    x = as.x
+    tmp = abs(FrankWolfe.fast_dot(vp - x, p))
     if sym
         atoms = [FrankWolfe.SymmetricArray(BellCorrelationsDS(atom.data; type=TL), TL.(atom.vec)) for atom in as.atoms]
         vp_last = FrankWolfe.SymmetricArray(TL.(vp.data), TL.(vp.vec))
+        M = FrankWolfe.SymmetricArray(TL.(vp.data - x.data) / (tmp == 0 ? 1 : tmp), TL.(vp.vec - x.vec) / (tmp == 0 ? 1 : tmp))
     else
         atoms = [BellCorrelationsDS(atom; type=TL) for atom in as.atoms]
         vp_last = TL.(vp)
+        M = TL.((vp - x) / (tmp == 0 ? 1 : tmp))
     end
-    as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
-    FrankWolfe.compute_active_set_iterate!(as)
-    x = as.x
-    tmp = abs(FrankWolfe.fast_dot(vp - x, p))
-    M = TL.((vp - x) / (tmp == 0 ? 1 : tmp))
     if mode_last ≥ 0 # bypass the last LMO with a negative mode
-        lmo_last = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(lmo.lmo, vp_last; mode=mode_last, type=TL, nb=nb_last), reduce, inflate)
+        if sym
+            lmo_last = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(lmo.lmo, vp_last; mode=mode_last, type=TL, nb=nb_last), reduce, inflate)
+        else
+            lmo_last = BellCorrelationsLMO(lmo.lmo, vp_last; mode=mode_last, type=TL, nb=nb_last)
+        end
         ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose=verbose > 0)
     else
         if sym
@@ -210,7 +217,11 @@ function bell_frank_wolfe_correlation(
     if save
         serialize(file * ".dat", ActiveSetStorage(as))
     end
-    return x, ds, primal, dual_gap, as, M, β
+    if sym
+        return inflate(x), ds.data, primal, dual_gap, as, inflate(M), β
+    else
+        return x, ds, primal, dual_gap, as, M, β
+    end
 end
 export bell_frank_wolfe_correlation
 
