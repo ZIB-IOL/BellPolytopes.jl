@@ -111,5 +111,5 @@ for a in 1:k
 end
 Bby = povm(bas)
 p = probability_tensor([Aax, Bby], N)
-res = bell_frank_wolfe(p; verbose=3, prob=true, mode=1)
+res = bell_frank_wolfe_probability(p; verbose=3, prob=true, mode=1)
 println()
