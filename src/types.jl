@@ -197,7 +197,7 @@ function BellCorrelationsDS(
     end
     res = BellCorrelationsDS{type, N, marg}(
         broadcast.(type, ax),
-        BellCorrelationsLMO(ds.lmo, zero(T); type=type, marg=marg),
+        BellCorrelationsLMO(ds.lmo, zero(type); type=type, marg=marg),
     )
     return res
 end

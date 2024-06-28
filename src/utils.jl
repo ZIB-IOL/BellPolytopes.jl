@@ -476,8 +476,8 @@ function build_reduce_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
     @assert n == size(p, 2)
     dimension = (n * (n + 1)) ÷ 2
     sqrt2 = sqrt(T(2))
-    function reduce(A::AbstractArray{T, 2}, lmo=nothing)
-        vec = Vector{T}(undef, dimension)
+    function reduce(A::AbstractArray{S, 2}, lmo=nothing) where {S <: Number}
+        vec = Vector{S}(undef, dimension)
         cnt = 0
         @inbounds for i in 1:n
             vec[i] = A[i, i]

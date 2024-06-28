@@ -165,19 +165,20 @@ function bell_frank_wolfe_correlation(
         @printf("#Atoms: %d\n", length(as))
         @printf("  #LMO: %d\n", lmo.lmo.data[2])
     end
-    if T != TL
-        as = FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
-        FrankWolfe.compute_active_set_iterate!(as)
-    end
-    x = as.x
-    tmp = abs(FrankWolfe.fast_dot(vp - x, p))
     if sym
         atoms = [FrankWolfe.SymmetricArray(BellCorrelationsDS(atom.data; type=TL), TL.(atom.vec)) for atom in as.atoms]
         vp_last = FrankWolfe.SymmetricArray(TL.(vp.data), TL.(vp.vec))
-        M = FrankWolfe.SymmetricArray(TL.(vp.data - x.data) / (tmp == 0 ? 1 : tmp), TL.(vp.vec - x.vec) / (tmp == 0 ? 1 : tmp))
     else
         atoms = [BellCorrelationsDS(atom; type=TL) for atom in as.atoms]
         vp_last = TL.(vp)
+    end
+    as = T == TL ? as : FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
+    FrankWolfe.compute_active_set_iterate!(as)
+    x = as.x
+    tmp = abs(FrankWolfe.fast_dot(vp - x, p))
+    if sym
+        M = FrankWolfe.SymmetricArray(TL.(vp.data - x.data) / (tmp == 0 ? 1 : tmp), TL.(vp.vec - x.vec) / (tmp == 0 ? 1 : tmp))
+    else
         M = TL.((vp - x) / (tmp == 0 ? 1 : tmp))
     end
     if mode_last ≥ 0 # bypass the last LMO with a negative mode
