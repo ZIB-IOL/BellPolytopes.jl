@@ -75,6 +75,7 @@ function bell_frank_wolfe_probability(
     end
     # center of the polytope
     o = ones(T, size(p)) / prod(size(p)[1:N÷2])
+    vp = reduce(v0 * p + (one(T) - v0) * o)
     # create the LMO
     if sym
         lmo = FrankWolfe.SymmetricLMO(BellProbabilitiesLMO(p, vp; mode=mode, nb=nb), reduce, inflate)

@@ -90,7 +90,6 @@ mutable struct BellProbabilitiesLMO{T, N, Mode, AT, IT} <: FrankWolfe.LinearMini
     # scenario fields
     const o::Vector{Int} # number of outputs
     const m::Vector{Int} # number of inputs
-    const p::Array{T, N} # point of interest
     # general fields
     tmp::Vector{Matrix{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
     nb::Int # number of repetition
@@ -98,46 +97,62 @@ mutable struct BellProbabilitiesLMO{T, N, Mode, AT, IT} <: FrankWolfe.LinearMini
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     data::Vector # store information about the computation
     active_set::FrankWolfe.ActiveSetQuadratic{AT, T, IT, FrankWolfe.Identity{Bool}}
+    lmo::BellProbabilitiesLMO{T, N, Mode, AT, IT}
+    function BellProbabilitiesLMO{T, N, Mode, AT, IT}(o::Vector{Int}, m::Vector{Int}, vp::IT, tmp::Vector{Matrix{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {AT} where {IT}
+        lmo = new(o, m, tmp, nb, cnt, ci, data, FrankWolfe.ActiveSetQuadratic{AT}(vp))
+        lmo.lmo = lmo
+        return lmo
+    end
 end
 
 # constructor with predefined values
 function BellProbabilitiesLMO(
-    p::Array{T, N};
+    p::Array{T, N},
+    vp::IT;
     mode::Int=0,
     nb::Int=100,
     data=[0, 0],
-) where {T <: Number} where {N}
+) where {T <: Number} where {N} where {IT}
     N2 = N ÷ 2
-    return BellProbabilitiesLMO{T, N, mode, BellProbabilitiesDS{T, N}}(
+    if IT <: FrankWolfe.SymmetricArray
+        AT = FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N}, Vector{T}}
+    else
+        AT = BellProbabilitiesDS{T, N}
+    end
+    return BellProbabilitiesLMO{T, N, mode, AT, IT}(
         collect(size(p)[1:N2]),
         collect(size(p)[N2+1:end]),
-        p,
+        vp,
         [zeros(T, size(p, N2+n), size(p, n)) for n in 1:N2],
         nb,
         0,
         CartesianIndices(p),
         data,
-        FrankWolfe.ActiveSetQuadratic{BellProbabilitiesDS{T, N}}(p),
     )
 end
 
 function BellProbabilitiesLMO(
-    lmo::BellProbabilitiesLMO{T, N, Mode};
+    lmo::BellProbabilitiesLMO{T, N, Mode},
+    vp::IT;
     type=T,
     mode=Mode,
     nb=lmo.nb,
     data=lmo.data,
-) where {T <: Number} where {N} where {Mode}
-    return BellProbabilitiesLMO{type, N, mode, BellProbabilitiesDS{type, N}}(
+) where {T <: Number} where {N} where {Mode} where {IT}
+    if IT <: FrankWolfe.SymmetricArray
+        AT = FrankWolfe.SymmetricArray{false, type, BellProbabilitiesDS{type, N}, Vector{type}}
+    else
+        AT = BellProbabilitiesDS{type, N}
+    end
+    return BellProbabilitiesLMO{type, N, mode, AT, IT}(
         lmo.o,
         lmo.m,
-        type.(lmo.p),
+        vp,
         broadcast.(type, lmo.tmp),
         nb,
         lmo.cnt,
         lmo.ci,
         data,
-        FrankWolfe.ActiveSetQuadratic{BellProbabilitiesDS{type, N}}(lmo.p),
     )
 end
 
@@ -182,7 +197,7 @@ function BellCorrelationsDS(
     end
     res = BellCorrelationsDS{type, N, marg}(
         broadcast.(type, ax),
-        BellCorrelationsLMO(ds.lmo, zeros(T, length.(ax)...); type=type, marg=marg),
+        BellCorrelationsLMO(ds.lmo, zero(T); type=type, marg=marg),
     )
     return res
 end
@@ -397,7 +412,13 @@ end
 mutable struct BellProbabilitiesDS{T, N} <: AbstractArray{T, N}
     const ax::Vector{Vector{Int}} # strategies, 1..d vector
     lmo::BellProbabilitiesLMO{T, N} # tmp
-    array::Array{T, N} # if full storage to trade speed for memory TODO
+    array::Array{T, N} # if full storage to trade speed for memory; TODO: remove
+    data::BellProbabilitiesDS{T, N}
+    function BellProbabilitiesDS{T, N}(ax::Vector{Vector{Int}}, lmo::BellProbabilitiesLMO{T, N, Mode}, array::Array{T, N}) where {T <: Number} where {N} where {Mode}
+        ds = new(ax, lmo, array)
+        ds.data = ds
+        return ds
+    end
 end
 
 Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.o, length.(ds.ax)))
@@ -425,7 +446,7 @@ function BellProbabilitiesDS(
     ax = ds.ax
     res = BellProbabilitiesDS{type, N}(
         ax,
-        BellProbabilitiesLMO(ds.lmo; type=type),
+        BellProbabilitiesLMO(ds.lmo, zero(T); type=type),
         zeros(type, zeros(Int, N)...),
     )
     set_array!(res)
