@@ -332,23 +332,23 @@ function FrankWolfe.compute_extreme_point(
 end
 
 function FrankWolfe.compute_extreme_point(
-    lmo::BellProbabilitiesLMO{T, N, 0},
-    A::Array{T, N};
+    lmo::BellProbabilitiesLMO{T, N2, 0},
+    A::Array{T, N2};
     kwargs...,
-) where {T <: Number} where {N}
-    N2 = N ÷ 2
-    ax = [ones(Int, lmo.m[n]) for n in 1:N2]
+) where {T <: Number} where {N2}
+    N = N2 ÷ 2
+    ax = [ones(Int, lmo.m[n]) for n in 1:N]
     sc = zero(T)
-    axm = [zeros(Int, lmo.m[n]) for n in 1:N2]
+    axm = [zeros(Int, lmo.m[n]) for n in 1:N]
     scm = typemax(T)
     for i in 1:lmo.nb
-        for n in 1:N2-1
+        for n in 1:N-1
             rand!(ax[n], 1:lmo.o[n])
         end
         sc = alternating_minimisation!(ax, lmo, A)
         if sc < scm
             scm = sc
-            for n in 1:N2
+            for n in 1:N
                 axm[n] .= ax[n]
             end
         end

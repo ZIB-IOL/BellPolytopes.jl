@@ -504,7 +504,7 @@ function build_reduce_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
 end
 
 function reynolds_permutelastdims(A::Array{T, N2}) where {T <: Number} where {N2}
-    N = N2 ÷ 2 # TODO check all N2
+    N = N2 ÷ 2
     res = zero(A)
     for per in permutations(1:N)
         res .+= permutedims(A, vcat(1:N, per .+ N))

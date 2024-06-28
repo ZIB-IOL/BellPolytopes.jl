@@ -85,8 +85,8 @@ function BellCorrelationsLMO(
     )
 end
 
-# warning: N is twice the number of parties in this case
-mutable struct BellProbabilitiesLMO{T, N, Mode, AT, IT} <: FrankWolfe.LinearMinimizationOracle
+# warning: N2 is twice the number of parties in this case
+mutable struct BellProbabilitiesLMO{T, N2, Mode, AT, IT} <: FrankWolfe.LinearMinimizationOracle
     # scenario fields
     const o::Vector{Int} # number of outputs
     const m::Vector{Int} # number of inputs
@@ -94,11 +94,11 @@ mutable struct BellProbabilitiesLMO{T, N, Mode, AT, IT} <: FrankWolfe.LinearMini
     tmp::Vector{Matrix{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
-    const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
+    const ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     data::Vector # store information about the computation
     active_set::FrankWolfe.ActiveSetQuadratic{AT, T, IT, FrankWolfe.Identity{Bool}}
-    lmo::BellProbabilitiesLMO{T, N, Mode, AT, IT}
-    function BellProbabilitiesLMO{T, N, Mode, AT, IT}(o::Vector{Int}, m::Vector{Int}, vp::IT, tmp::Vector{Matrix{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {AT} where {IT}
+    lmo::BellProbabilitiesLMO{T, N2, Mode, AT, IT}
+    function BellProbabilitiesLMO{T, N2, Mode, AT, IT}(o::Vector{Int}, m::Vector{Int}, vp::IT, tmp::Vector{Matrix{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N2} where {Mode} where {AT} where {IT}
         lmo = new(o, m, tmp, nb, cnt, ci, data, FrankWolfe.ActiveSetQuadratic{AT}(vp))
         lmo.lmo = lmo
         return lmo
@@ -107,23 +107,23 @@ end
 
 # constructor with predefined values
 function BellProbabilitiesLMO(
-    p::Array{T, N},
+    p::Array{T, N2},
     vp::IT;
     mode::Int=0,
     nb::Int=100,
     data=[0, 0],
-) where {T <: Number} where {N} where {IT}
-    N2 = N ÷ 2
+) where {T <: N2umber} where {N2} where {IT}
+    N = N2 ÷ 2
     if IT <: FrankWolfe.SymmetricArray
-        AT = FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N}, Vector{T}}
+        AT = FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}
     else
-        AT = BellProbabilitiesDS{T, N}
+        AT = BellProbabilitiesDS{T, N2}
     end
-    return BellProbabilitiesLMO{T, N, mode, AT, IT}(
-        collect(size(p)[1:N2]),
-        collect(size(p)[N2+1:end]),
+    return BellProbabilitiesLMO{T, N2, mode, AT, IT}(
+        collect(size(p)[1:N]),
+        collect(size(p)[N+1:end]),
         vp,
-        [zeros(T, size(p, N2+n), size(p, n)) for n in 1:N2],
+        [zeros(T, size(p, N+n), size(p, n)) for n in 1:N],
         nb,
         0,
         CartesianIndices(p),
@@ -132,19 +132,19 @@ function BellProbabilitiesLMO(
 end
 
 function BellProbabilitiesLMO(
-    lmo::BellProbabilitiesLMO{T, N, Mode},
+    lmo::BellProbabilitiesLMO{T, N2, Mode},
     vp::IT;
     type=T,
     mode=Mode,
     nb=lmo.nb,
     data=lmo.data,
-) where {T <: Number} where {N} where {Mode} where {IT}
+) where {T <: Number} where {N2} where {Mode} where {IT}
     if IT <: FrankWolfe.SymmetricArray
-        AT = FrankWolfe.SymmetricArray{false, type, BellProbabilitiesDS{type, N}, Vector{type}}
+        AT = FrankWolfe.SymmetricArray{false, type, BellProbabilitiesDS{type, N2}, Vector{type}}
     else
-        AT = BellProbabilitiesDS{type, N}
+        AT = BellProbabilitiesDS{type, N2}
     end
-    return BellProbabilitiesLMO{type, N, mode, AT, IT}(
+    return BellProbabilitiesLMO{type, N2, mode, AT, IT}(
         lmo.o,
         lmo.m,
         vp,
@@ -409,12 +409,12 @@ end
 ######################
 
 # deterministic strategy structure for multipartite probability tensor
-mutable struct BellProbabilitiesDS{T, N} <: AbstractArray{T, N}
+mutable struct BellProbabilitiesDS{T, N2} <: AbstractArray{T, N2}
     const ax::Vector{Vector{Int}} # strategies, 1..d vector
-    lmo::BellProbabilitiesLMO{T, N} # tmp
-    array::Array{T, N} # if full storage to trade speed for memory; TODO: remove
-    data::BellProbabilitiesDS{T, N}
-    function BellProbabilitiesDS{T, N}(ax::Vector{Vector{Int}}, lmo::BellProbabilitiesLMO{T, N, Mode}, array::Array{T, N}) where {T <: Number} where {N} where {Mode}
+    lmo::BellProbabilitiesLMO{T, N2} # tmp
+    array::Array{T, N2} # if full storage to trade speed for memory; TODO: remove
+    data::BellProbabilitiesDS{T, N2}
+    function BellProbabilitiesDS{T, N2}(ax::Vector{Vector{Int}}, lmo::BellProbabilitiesLMO{T, N2, Mode}, array::Array{T, N2}) where {T <: Number} where {N2} where {Mode}
         ds = new(ax, lmo, array)
         ds.data = ds
         return ds
@@ -425,13 +425,13 @@ Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.o, length.(ds.ax)))
 
 function BellProbabilitiesDS(
     ax::Vector{Vector{Int}},
-    lmo::BellProbabilitiesLMO{T, N, Mode};
+    lmo::BellProbabilitiesLMO{T, N2, Mode};
     initialise=true,
-) where {T <: Number} where {N} where {Mode}
-    res = BellProbabilitiesDS{T, N}(
+) where {T <: Number} where {N2} where {Mode}
+    res = BellProbabilitiesDS{T, N2}(
         ax,
         lmo,
-        zeros(T, zeros(Int, N)...),
+        zeros(T, zeros(Int, N2)...),
     )
     if initialise
         set_array!(res)
@@ -440,14 +440,14 @@ function BellProbabilitiesDS(
 end
 
 function BellProbabilitiesDS(
-    ds::BellProbabilitiesDS{T, N};
+    ds::BellProbabilitiesDS{T, N2};
     type=T,
-) where {T <: Number} where {N}
+) where {T <: Number} where {N2}
     ax = ds.ax
-    res = BellProbabilitiesDS{type, N}(
+    res = BellProbabilitiesDS{type, N2}(
         ax,
         BellProbabilitiesLMO(ds.lmo, zero(T); type=type),
-        zeros(type, zeros(Int, N)...),
+        zeros(type, zeros(Int, N2)...),
     )
     set_array!(res)
     return res
@@ -456,22 +456,22 @@ end
 # method used to convert active_set.atoms into a desired type (intended Rational{BigInt})
 # to recompute the last iterate
 function BellProbabilitiesDS(
-    vds::Vector{BellProbabilitiesDS{T1, N}},
+    vds::Vector{BellProbabilitiesDS{T1, N2}},
     ::Type{T2};
-) where {T1 <: Number} where {N} where {T2 <: Number}
+) where {T1 <: Number} where {N2} where {T2 <: Number}
     array = zeros(T2, size(vds[1]))
     lmo = BellProbabilitiesLMO(array)
-    res = BellProbabilitiesDS{T2, N}[]
+    res = BellProbabilitiesDS{T2, N2}[]
     for ds in vds
         ax = ds.ax
-        atom = BellProbabilitiesDS{T2, N}(ax, lmo, array)
+        atom = BellProbabilitiesDS{T2, N2}(ax, lmo, array)
         set_array!(atom)
         push!(res, atom)
     end
     return res
 end
 
-function FrankWolfe._unsafe_equal(ds1::BellProbabilitiesDS{T, N}, ds2::BellProbabilitiesDS{T, N}) where {T <: Number} where {N}
+function FrankWolfe._unsafe_equal(ds1::BellProbabilitiesDS{T, N2}, ds2::BellProbabilitiesDS{T, N2}) where {T <: Number} where {N2}
     if ds1 === ds2
         return true
     end
@@ -485,19 +485,19 @@ function FrankWolfe._unsafe_equal(ds1::BellProbabilitiesDS{T, N}, ds2::BellProba
     return true
 end
 
-Base.@propagate_inbounds function Base.getindex(ds::BellProbabilitiesDS{T, N}, x::Int) where {T <: Number} where {N}
+Base.@propagate_inbounds function Base.getindex(ds::BellProbabilitiesDS{T, N2}, x::Int) where {T <: Number} where {N2}
     return Base.getindex(ds, ds.lmo.ci[x])
 end
 
 Base.@propagate_inbounds function Base.getindex(
-    ds::BellProbabilitiesDS{T, N},
-    x::Vararg{Int, N},
-) where {T <: Number} where {N}
+    ds::BellProbabilitiesDS{T, N2},
+    x::Vararg{Int, N2},
+) where {T <: Number} where {N2}
     @boundscheck (checkbounds(ds, x...))
     return @inbounds getindex(ds.array, x...)
 end
 
-function get_array(ds::BellProbabilitiesDS{T, N}) where {T <: Number} where {N}
+function get_array(ds::BellProbabilitiesDS{T, N2}) where {T <: Number} where {N2}
     res = zeros(T, size(ds))
     @inbounds for x in CartesianIndices(Tuple(length.(ds.ax)))
         res[CartesianIndex(Tuple([ds.ax[n][x.I[n]] for n in 1:length(ds.ax)])), x] = one(T)
@@ -505,23 +505,23 @@ function get_array(ds::BellProbabilitiesDS{T, N}) where {T <: Number} where {N}
     return res
 end
 
-function set_array!(ds::BellProbabilitiesDS{T, N}) where {T <: Number} where {N}
+function set_array!(ds::BellProbabilitiesDS{T, N2}) where {T <: Number} where {N2}
     ds.array = get_array(ds)
 end
 
 FrankWolfe.fast_dot(A::Array, ds::BellProbabilitiesDS) = conj(FrankWolfe.fast_dot(ds, A))
 
 function FrankWolfe.fast_dot(
-    ds::BellProbabilitiesDS{T, N},
-    A::Array{T, N},
-) where {T <: Number} where {N}
+    ds::BellProbabilitiesDS{T, N2},
+    A::Array{T, N2},
+) where {T <: Number} where {N2}
     return dot(ds.array, A)
 end
 
 function FrankWolfe.fast_dot(
-    ds1::BellProbabilitiesDS{T, N},
-    ds2::BellProbabilitiesDS{T, N},
-) where {T <: Number} where {N}
+    ds1::BellProbabilitiesDS{T, N2},
+    ds2::BellProbabilitiesDS{T, N2},
+) where {T <: Number} where {N2}
     return dot(ds1.array, ds2.array)
 end
 
@@ -584,15 +584,15 @@ struct ActiveSetStorageMulti{T, N}
 end
 
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSetQuadratic{FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N}, Vector{T}}, T, FrankWolfe.SymmetricArray{false, T, Array{T, N}, Vector{T}}},
-) where {T <: Number} where {N}
-    N2 = N ÷ 2
+    as::FrankWolfe.ActiveSetQuadratic{FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}, T, FrankWolfe.SymmetricArray{false, T, Array{T, N2}, Vector{T}}},
+) where {T <: Number} where {N2}
+    N = N2 ÷ 2
     omax = maximum(as.atoms[1].data.lmo.o)
     m = as.atoms[1].data.lmo.m
     IntK = omax < typemax(Int8) ? Int8 : omax < typemax(Int16) ? Int16 : omax < typemax(Int32) ? Int32 : Int
-    ax = [ones(IntK, length(as), m[n]) for n in 1:N2]
+    ax = [ones(IntK, length(as), m[n]) for n in 1:N]
     for i in eachindex(as)
-        for n in 1:N2
+        for n in 1:N
             @view(ax[n][i, :]) .= as.atoms[i].data.ax[n]
         end
     end
@@ -604,15 +604,14 @@ function load_active_set(
     ::Type{T2};
     marg=nothing,
 ) where {T1 <: Number} where {N} where {T2 <: Number}
-    N2 = N ÷ 2
     o = ass.o
-    m = [size(ass.ax[n], 2) for n in 1:N2]
+    m = [size(ass.ax[n], 2) for n in 1:N]
     p = zeros(T2, vcat(o, m)...)
     lmo = BellProbabilitiesLMO(p; data=ass.data)
-    atoms = BellProbabilitiesDS{T2, N}[]
+    atoms = BellProbabilitiesDS{T2, 2N}[]
     @inbounds for i in 1:length(ass.weights)
-        ax = [ones(Int, m[n]) for n in 1:N2]
-        for n in 1:N2
+        ax = [ones(Int, m[n]) for n in 1:N]
+        for n in 1:N
             ax[n] .= Int.(ass.ax[n][i, :])
         end
         atom = BellProbabilitiesDS(ax, lmo)
