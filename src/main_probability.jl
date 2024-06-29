@@ -225,18 +225,6 @@ export bell_frank_wolfe_probability
 Compute the local bound of a Bell inequality parametrised by `M`.
 No symmetry detection is implemented yet, used mostly for pedagogy and tests.
 """
-function local_bound_probability(
-    M::Array{T, N};
-    mode::Int=1,
-    sym::Bool=false,
-    nb::Int=10^5,
-    verbose=false,
-) where {T <: Number} where {N}
-    ds = FrankWolfe.compute_extreme_point(BellProbabilitiesLMO(M; mode, sym, nb), -M; verbose)
-    return FrankWolfe.fast_dot(M, ds), ds
-end
-export local_bound_probability
-
 """
 Compute the nonlocality threshold of the qubit measurements encoded by the Bloch vectors `vec` in a Bell scenario with `N` parties.
 
