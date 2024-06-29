@@ -547,6 +547,25 @@ end
 # avoid broadcast by using the stored data
 function FrankWolfe.muladd_memory_mode(
     memory_mode::FrankWolfe.InplaceEmphasis,
+    d::AbstractArray{T, N},
+    a::AT,
+    v::AT,
+) where {AT <: FrankWolfe.SymmetricArray{false, T, DS}} where {DS <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+    as = a.data.lmo.lmo.active_set
+    idx_a = _unsafe_find_atom(as, a)
+    idx_v = _unsafe_find_atom(as, v)
+    d[1] = typemax(T)
+    if idx_v > idx_a
+        @inbounds d[2] = ((as.dots_x[idx_a] + as.dots_b[idx_a]) - (as.dots_x[idx_v] + as.dots_b[idx_v])) / (as.dots_A[idx_a][idx_a] + as.dots_A[idx_v][idx_v] - 2as.dots_A[idx_v][idx_a])
+    else
+        @inbounds d[2] = ((as.dots_x[idx_a] + as.dots_b[idx_a]) - (as.dots_x[idx_v] + as.dots_b[idx_v])) / (as.dots_A[idx_a][idx_a] + as.dots_A[idx_v][idx_v] - 2as.dots_A[idx_a][idx_v])
+    end
+    return d
+end
+
+# avoid broadcast by using the stored data
+function FrankWolfe.muladd_memory_mode(
+    memory_mode::FrankWolfe.InplaceEmphasis,
     d::Array{T, N},
     a::AT,
     v::AT,
