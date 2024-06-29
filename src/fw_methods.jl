@@ -545,13 +545,7 @@ function _unsafe_find_atom(active_set, atom)
 end
 
 # avoid broadcast by using the stored data
-function FrankWolfe.muladd_memory_mode(
-    memory_mode::FrankWolfe.InplaceEmphasis,
-    d::AbstractArray{T, N},
-    a::AT,
-    v::AT,
-) where {AT <: FrankWolfe.SymmetricArray{false, T, DS}} where {DS <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    as = a.data.lmo.lmo.active_set
+function _muladd_memory_mode(as, d, a, v)
     idx_a = _unsafe_find_atom(as, a)
     idx_v = _unsafe_find_atom(as, v)
     d[1] = typemax(T)
@@ -563,6 +557,15 @@ function FrankWolfe.muladd_memory_mode(
     return d
 end
 
+function FrankWolfe.muladd_memory_mode(
+    memory_mode::FrankWolfe.InplaceEmphasis,
+    d::AbstractArray{T, N},
+    a::AT,
+    v::AT,
+) where {AT <: FrankWolfe.SymmetricArray{false, T, DS}} where {DS <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+    return _muladd_memory_mode(a.data.lmo.lmo.active_set, d, a, v)
+end
+
 # avoid broadcast by using the stored data
 function FrankWolfe.muladd_memory_mode(
     memory_mode::FrankWolfe.InplaceEmphasis,
@@ -570,16 +573,7 @@ function FrankWolfe.muladd_memory_mode(
     a::AT,
     v::AT,
 ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
-    as = a.lmo.active_set
-    idx_a = _unsafe_find_atom(as, a)
-    idx_v = _unsafe_find_atom(as, v)
-    d[1] = typemax(T)
-    if idx_v > idx_a
-        @inbounds d[2] = ((as.dots_x[idx_a] + as.dots_b[idx_a]) - (as.dots_x[idx_v] + as.dots_b[idx_v])) / (as.dots_A[idx_a][idx_a] + as.dots_A[idx_v][idx_v] - 2as.dots_A[idx_v][idx_a])
-    else
-        @inbounds d[2] = ((as.dots_x[idx_a] + as.dots_b[idx_a]) - (as.dots_x[idx_v] + as.dots_b[idx_v])) / (as.dots_A[idx_a][idx_a] + as.dots_A[idx_v][idx_v] - 2as.dots_A[idx_a][idx_v])
-    end
-    return d
+    return _muladd_memory_mode(a.lmo.active_set, d, a, v)
 end
 
 function FrankWolfe.muladd_memory_mode(
