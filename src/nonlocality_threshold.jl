@@ -36,7 +36,7 @@ function nonlocality_threshold(
     local_model = nothing
     bell_inequality = nothing
     while upper_bound - lower_bound > 10.0^(-precision)
-        res = bell_frank_wolfe_correlation(
+        res = bell_frank_wolfe(
             p;
             v0,
             verbose=verbose + (upper_bound == one(T)) / 2,
