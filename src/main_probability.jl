@@ -263,7 +263,7 @@ function nonlocality_threshold_probability(
     kwargs...,
 ) where {TB <: AbstractMatrix{T}} where {T <: Number}
     p = probability_tensor(vec, N; rho, marg)
-    shr2 = shrinking_squared(vec; verbose > 0)
+    shr2 = shrinking_squared(vec; verbose=verbose > 0)
     lower_bound = zero(T)
     upper_bound = one(T)
     local_model = nothing

@@ -274,7 +274,7 @@ function nonlocality_threshold_correlation(
     kwargs...,
 ) where {TB <: AbstractMatrix{T}} where {T <: Number}
     p = correlation_tensor(vec, N; rho, marg)
-    shr2 = shrinking_squared(vec; verbose > 0)
+    shr2 = shrinking_squared(vec; verbose=verbose > 0)
     lower_bound = zero(T)
     upper_bound = one(T)
     local_model = nothing
