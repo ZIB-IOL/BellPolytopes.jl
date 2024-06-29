@@ -31,6 +31,7 @@ Optional arguments:
 """
 function bell_frank_wolfe_correlation(
     p::Array{T, N};
+    prob::Bool=false,
     marg::Bool=N != 2,
     v0=one(T),
     epsilon=1e-7,
@@ -61,36 +62,47 @@ function bell_frank_wolfe_correlation(
     kwargs...,
 ) where {T <: Number} where {N}
     Random.seed!(seed)
+    if !prob
+        LMO = BellCorrelationsLMO
+        DS = BellCorrelationsDS
+        m = collect(size(p))
+        # center of the polytope
+        o = zeros(T, size(p))
+        o[end] = marg
+        if sym === nothing && all(diff(m) .== 0) && p ≈ reynolds_permutedims(p)
+            reduce, inflate = build_reduce_inflate_permutedims(p)
+            sym = true
+        else
+            sym = false
+        end
+    else
+        LMO = BellProbabilitiesLMO
+        DS = BellProbabilitiesDS
+        m = collect(size(p)[N÷2+1:end])
+        # center of the polytope
+        o = ones(T, size(p)) / prod(size(p)[1:N÷2])
+        if sym === nothing && all(diff(m) .== 0) && p ≈ reynolds_permutelastdims(p)
+            reduce, inflate = build_reduce_inflate_permutelastdims(p)
+            sym = true
+        else
+            sym = false
+        end
+    end
     if verbose > 0
         println("Visibility: ", v0)
     end
-    if sym === nothing && all(diff(collect(size(p))) .== 0) && p ≈ reynolds_permutedims(p)
-        reduce, inflate = build_reduce_inflate_permutedims(p)
-        sym = true
-    else
-        sym = false
-    end
-    # nb of inputs
-    if verbose > 1
-        println(" Symmetric: ", sym)
-        m = all(diff(collect(size(p))) .== 0) ? size(p)[end] : size(p)
-        println("   #Inputs: ", marg ? m .- 1 : m)
-        if all(diff(collect(size(p))) .== 0) # TODO: asymmetric case
-            println(" Dimension: ", sym ? marg ? sum(binomial(m+n-2, n) for n in 1:N) : binomial(m+N-1, N) : marg ? m^N-1 : m^N)
-        end
-    end
-    # center of the polytope
-    o = zeros(T, size(p))
-    if marg
-        o[end] = one(T)
-    end
     # choosing the point on the line between o and p according to the visibility v0
     vp = reduce(v0 * p + (one(T) - v0) * o)
+    if verbose > 1
+        println(" Symmetric: ", sym)
+        println("   #Inputs: ", all(diff(m) .== 0) ? m[end] - (marg && !prob) : m .- (marg && !prob))
+        println(" Dimension: ", length(vp))
+    end
     # create the LMO
     if sym
-        lmo = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(p, vp; mode, nb, marg), reduce, inflate)
+        lmo = FrankWolfe.SymmetricLMO(LMO(p, vp; mode, nb, marg), reduce, inflate)
     else
-        lmo = BellCorrelationsLMO(p, vp; mode, nb, marg)
+        lmo = LMO(p, vp; mode, nb, marg)
     end
     o = reduce(o)
     p = reduce(p)
@@ -113,7 +125,7 @@ function bell_frank_wolfe_correlation(
         active_set = FrankWolfe.ActiveSetQuadratic([(one(T), x0)], I, -vp)
         lmo.lmo.active_set = active_set
     else
-        if active_set isa ActiveSetStorage
+        if active_set isa AbstractActiveSetStorage
             active_set = load_active_set(active_set, T; sym, marg)
         end
         active_set_link_lmo!(active_set, lmo, -vp)
@@ -166,10 +178,10 @@ function bell_frank_wolfe_correlation(
         @printf("  #LMO: %d\n", lmo.lmo.data[2])
     end
     if sym
-        atoms = [FrankWolfe.SymmetricArray(BellCorrelationsDS(atom.data; T2=TL), TL.(atom.vec)) for atom in as.atoms]
+        atoms = [FrankWolfe.SymmetricArray(DS(atom.data; T2=TL), TL.(atom.vec)) for atom in as.atoms]
         vp_last = FrankWolfe.SymmetricArray(TL.(vp.data), TL.(vp.vec))
     else
-        atoms = [BellCorrelationsDS(atom; T2=TL) for atom in as.atoms]
+        atoms = [DS(atom; T2=TL) for atom in as.atoms]
         vp_last = TL.(vp)
     end
     as = T == TL ? as : FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
@@ -183,16 +195,16 @@ function bell_frank_wolfe_correlation(
     end
     if mode_last ≥ 0 # bypass the last LMO with a negative mode
         if sym
-            lmo_last = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(lmo.lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last), reduce, inflate)
+            lmo_last = FrankWolfe.SymmetricLMO(LMO(lmo.lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last), reduce, inflate)
         else
-            lmo_last = BellCorrelationsLMO(lmo.lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last)
+            lmo_last = LMO(lmo.lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last)
         end
         ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose=verbose > 0)
     else
         if sym
-            ds = FrankWolfe.SymmetricArray(BellCorrelationsDS(ds.data; T2=TL), TL.(ds.vec))
+            ds = FrankWolfe.SymmetricArray(DS(ds.data; T2=TL), TL.(ds.vec))
         else
-            ds = BellCorrelationsDS(ds; T2=TL)
+            ds = DS(ds; T2=TL)
         end
     end
     # renormalise the inequality by its smalles element, neglecting entries smaller than epsilon_last

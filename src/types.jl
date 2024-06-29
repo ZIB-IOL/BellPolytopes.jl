@@ -30,6 +30,7 @@ function BellCorrelationsLMO(
     nb::Int=100,
     marg::Bool=false,
     data=[0, 0],
+    kwargs...
 ) where {T <: Number} where {N} where {IT}
     if IT <: FrankWolfe.SymmetricArray
         AT = FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, marg}, Vector{T}}
@@ -55,6 +56,7 @@ function BellCorrelationsLMO(
     marg=HasMarginals,
     nb=lmo.nb,
     data=lmo.data,
+    kwargs...
 ) where {T1 <: Number} where {N} where {Mode} where {HasMarginals} where {AT1} where {IT1} where {IT2}
     if T2 == T1 && mode == Mode && marg == HasMarginals && IT1 == IT2
         lmo.nb = nb
@@ -117,6 +119,7 @@ function BellProbabilitiesLMO(
     mode::Int=0,
     nb::Int=100,
     data=[0, 0],
+    kwargs...
 ) where {T <: Number} where {N2} where {IT}
     N = N2 ÷ 2
     if IT <: FrankWolfe.SymmetricArray
@@ -143,6 +146,7 @@ function BellProbabilitiesLMO(
     mode=Mode,
     nb=lmo.nb,
     data=lmo.data,
+    kwargs...
 ) where {T1 <: Number} where {N2} where {Mode} where {AT1} where {IT1} where {IT2}
     if T2 == T1 && mode == Mode && IT1 == IT2
         lmo.nb = nb
@@ -197,6 +201,7 @@ function BellCorrelationsDS(
     ds::BellCorrelationsDS{T1, N, HasMarginals};
     T2=T1,
     marg=HasMarginals,
+    kwargs...
 ) where {T1 <: Number} where {N} where {HasMarginals}
     if T2 == T1 && marg == HasMarginals
         return ds
@@ -221,6 +226,7 @@ function BellCorrelationsDS(
     vds::Vector{BellCorrelationsDS{T1, N, HasMarginals}},
     ::Type{T2};
     marg=HasMarginals,
+    kwargs...
 ) where {T1 <: Number} where {N} where {HasMarginals} where {T2 <: Number}
     lmo = BellCorrelationsLMO(zeros(T2, size(vds[1])); marg)
     res = BellCorrelationsDS{T2, N, marg}[]
@@ -455,6 +461,7 @@ end
 function BellProbabilitiesDS(
     ds::BellProbabilitiesDS{T1, N2};
     T2=T1,
+    kwargs...
 ) where {T1 <: Number} where {N2}
     if T2 == T1
         return ds
@@ -473,6 +480,7 @@ end
 function BellProbabilitiesDS(
     vds::Vector{BellProbabilitiesDS{T1, N2}},
     ::Type{T2};
+    kwargs...
 ) where {T1 <: Number} where {N2} where {T2 <: Number}
     array = zeros(T2, size(vds[1]))
     lmo = BellProbabilitiesLMO(array)
@@ -544,7 +552,9 @@ end
 # STORAGE #
 ###########
 
-struct ActiveSetStorage{T, N, HasMarginals}
+abstract type AbstractActiveSetStorage end
+
+struct ActiveSetStorage{T, N, HasMarginals} <: AbstractActiveSetStorage
     weights::Vector{T}
     ax::Vector{BitMatrix}
     data::Vector
@@ -570,6 +580,7 @@ function load_active_set(
     ass::ActiveSetStorage{T1, N, HasMarginals},
     ::Type{T2};
     marg=HasMarginals,
+    kwargs...
 ) where {T1 <: Number} where {N} where {HasMarginals} where {T2 <: Number}
     m = size.(ass.ax, (2,))
     p = zeros(T2, (marg ? m .+ 1 : m)...)
@@ -591,7 +602,7 @@ function load_active_set(
 end
 
 # for multi-outcome scenarios
-struct ActiveSetStorageMulti{T, N}
+struct ActiveSetStorageMulti{T, N} <: AbstractActiveSetStorage
     o::Vector{Int}
     weights::Vector{T}
     ax::Vector{Matrix{IntK}} where {IntK <: Integer}
@@ -617,7 +628,7 @@ end
 function load_active_set(
     ass::ActiveSetStorageMulti{T1, N},
     ::Type{T2};
-    marg=nothing,
+    kwargs...
 ) where {T1 <: Number} where {N} where {T2 <: Number}
     o = ass.o
     m = [size(ass.ax[n], 2) for n in 1:N]

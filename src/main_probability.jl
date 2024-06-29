@@ -30,6 +30,7 @@ Optional arguments:
 """
 function bell_frank_wolfe_probability(
     p::Array{T, N};
+    marg::Bool=N != 2,
     v0=one(T),
     epsilon=1e-7,
     verbose=0,
@@ -62,7 +63,13 @@ function bell_frank_wolfe_probability(
     if verbose > 0
         println("Visibility: ", v0)
     end
-    if sym === nothing && all(diff(collect(size(p)[N÷2+1:end])) .== 0) && p ≈ reynolds_permutelastdims(p)
+    prob = true
+    LMO = BellProbabilitiesLMO
+    DS = BellProbabilitiesDS
+    m = collect(size(p)[N÷2+1:end])
+    # center of the polytope
+    o = ones(T, size(p)) / prod(size(p)[1:N÷2])
+    if sym === nothing && all(diff(m) .== 0) && p ≈ reynolds_permutelastdims(p)
         reduce, inflate = build_reduce_inflate_permutelastdims(p)
         sym = true
     else
@@ -71,16 +78,15 @@ function bell_frank_wolfe_probability(
     # nb of inputs
     if verbose > 1
         println(" Symmetric: ", sym)
-        println("   #Inputs: ", all(diff(collect(size(p)[N÷2+1:end])) .== 0) ? size(p)[end] : size(p)[N÷2+1:end])
+        println("   #Inputs: ", all(diff(m) .== 0) ? m[end] - (marg && !prob) : m .- (marg && !prob))
     end
-    # center of the polytope
-    o = ones(T, size(p)) / prod(size(p)[1:N÷2])
+    # choosing the point on the line between o and p according to the visibility v0
     vp = reduce(v0 * p + (one(T) - v0) * o)
     # create the LMO
     if sym
-        lmo = FrankWolfe.SymmetricLMO(BellProbabilitiesLMO(p, vp; mode, nb), reduce, inflate)
+        lmo = FrankWolfe.SymmetricLMO(LMO(p, vp; mode, nb, marg), reduce, inflate)
     else
-        lmo = BellProbabilitiesLMO(p, vp; mode, nb)
+        lmo = LMO(p, vp; mode, nb, marg)
     end
     o = reduce(o)
     p = reduce(p)
@@ -103,8 +109,8 @@ function bell_frank_wolfe_probability(
         active_set = FrankWolfe.ActiveSetQuadratic([(one(T), x0)], I, -vp)
         lmo.lmo.active_set = active_set
     else
-        if active_set isa ActiveSetStorageMulti
-            active_set = load_active_set(active_set, T; sym)
+        if active_set isa AbstractActiveSetStorage
+            active_set = load_active_set(active_set, T; sym, marg)
         end
         active_set_link_lmo!(active_set, lmo, -vp)
         active_set_reinitialise!(active_set)
@@ -156,10 +162,10 @@ function bell_frank_wolfe_probability(
         @printf("  #LMO: %d\n", lmo.lmo.data[2])
     end
     if sym
-        atoms = [FrankWolfe.SymmetricArray(BellProbabilitiesDS(atom.data; T2=TL), TL.(atom.vec)) for atom in as.atoms]
+        atoms = [FrankWolfe.SymmetricArray(DS(atom.data; T2=TL), TL.(atom.vec)) for atom in as.atoms]
         vp_last = FrankWolfe.SymmetricArray(TL.(vp.data), TL.(vp.vec))
     else
-        atoms = [BellProbabilitiesDS(atom; T2=TL) for atom in as.atoms]
+        atoms = [DS(atom; T2=TL) for atom in as.atoms]
         vp_last = TL.(vp)
     end
     as = T == TL ? as : FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
@@ -173,16 +179,16 @@ function bell_frank_wolfe_probability(
     end
     if mode_last ≥ 0 # bypass the last LMO with a negative mode
         if sym
-            lmo_last = FrankWolfe.SymmetricLMO(BellProbabilitiesLMO(lmo.lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last), reduce, inflate)
+            lmo_last = FrankWolfe.SymmetricLMO(LMO(lmo.lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last), reduce, inflate)
         else
-            lmo_last = BellProbabilitiesLMO(lmo.lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last)
+            lmo_last = LMO(lmo.lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last)
         end
         ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose=verbose > 0)
     else
         if sym
-            ds = FrankWolfe.SymmetricArray(BellProbabilitiesDS(ds.data; T2=TL), TL.(ds.vec))
+            ds = FrankWolfe.SymmetricArray(DS(ds.data; T2=TL), TL.(ds.vec))
         else
-            ds = BellProbabilitiesDS(ds; T2=TL)
+            ds = DS(ds; T2=TL)
         end
     end
     # renormalise the inequality by its smalles element, neglecting entries smaller than epsilon_last
