@@ -191,7 +191,7 @@ end
 
 # convert a 2x...x2xmx...xm probability array into a mx...xm correlation array if marg = false (no marginals)
 # convert a 2x...x2xmx...xm probability array into a (m+1)x...x(m+1) correlation array if marg = true (marginals)
-function correlation_tensor(p::AbstractArray{T, N2}; marg::Bool=false) where {T <: Number} where {N2}
+function correlation_tensor(p::AbstractArray{T, N2}; marg::Bool=false) where {T <: Number, N2}
     @assert iseven(N2)
     N = N2 ÷ 2
     m = size(p)[end]

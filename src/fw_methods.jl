@@ -6,7 +6,7 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, N, 0, HasMarginals},
     A::Array{T, N};
     kwargs...,
-) where {T <: Number} where {N} where {HasMarginals}
+) where {T <: Number, N, HasMarginals}
     ax = [ones(T, lmo.m[n]) for n in 1:N]
     sc = zero(T)
     axm = [zeros(T, lmo.m[n]) for n in 1:N]
@@ -39,7 +39,7 @@ function FrankWolfe.compute_extreme_point(
     last=false,
     initialise=true,
     kwargs...,
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     ax = [ones(T, lmo.m[n]) for n in 1:2]
     sc = zero(T)
     axm = [zeros(T, lmo.m[n]) for n in 1:2]
@@ -79,7 +79,7 @@ function FrankWolfe.compute_extreme_point(
     initialise=true,
     sym = false,
     kwargs...,
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     ax = [ones(T, lmo.m[n]) for n in 1:3]
     sc = zero(T)
     axm = [zeros(T, lmo.m[n]) for n in 1:3]
@@ -124,7 +124,7 @@ function FrankWolfe.compute_extreme_point(
     initialise=true,
     sym = false,
     kwargs...,
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     ax = [ones(T, lmo.m[n]) for n in 1:4]
     sc = zero(T)
     axm = [zeros(T, lmo.m[n]) for n in 1:4]
@@ -173,7 +173,7 @@ function FrankWolfe.compute_extreme_point(
     initialise=true,
     sym = false,
     kwargs...,
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     ax = [ones(T, lmo.m[n]) for n in 1:5]
     sc = zero(T)
     axm = [zeros(T, lmo.m[n]) for n in 1:5]
@@ -226,7 +226,7 @@ function FrankWolfe.compute_extreme_point(
     initialise=true,
     sym = false,
     kwargs...,
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     ax = [ones(T, lmo.m[n]) for n in 1:6]
     sc = zero(T)
     axm = [zeros(T, lmo.m[n]) for n in 1:6]
@@ -284,7 +284,7 @@ function FrankWolfe.compute_extreme_point(
     initialise=true,
     sym = false,
     kwargs...,
-) where {T <: Number} where {N} where {HasMarginals}
+) where {T <: Number, N, HasMarginals}
     @warn("This function is naive and should not be used for actual computations.")
     @assert all(diff(lmo.m) .== 0) # only support symmetric scenarios
     # the approach with the λa here is very naive and only allows pedagogical support for very small cases
@@ -328,7 +328,7 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellProbabilitiesLMO{T, N2, 0},
     A::Array{T, N2};
     kwargs...,
-) where {T <: Number} where {N2}
+) where {T <: Number, N2}
     N = N2 ÷ 2
     ax = [ones(Int, lmo.m[n]) for n in 1:N]
     sc = zero(T)
@@ -496,7 +496,7 @@ function FrankWolfe.compute_active_set_iterate!(
     active_set::FrankWolfe.ActiveSetQuadratic{AT, T, IT},
 ) where {
     IT <: Array{T, N},
-} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number, N}
     active_set.x .= zero(T)
     for (λi, ai) in active_set
         @inbounds for x in active_set.atoms[1].lmo.ci
@@ -510,7 +510,7 @@ function FrankWolfe.active_set_update_scale!(
     xit::Array{T, N},
     lambda::T,
     atom::AT,
-) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number, N}
     @inbounds for x in atom.lmo.ci
         xit[x] = (1 - lambda) * xit[x] + lambda * atom[x]
     end
@@ -524,7 +524,7 @@ function FrankWolfe.active_set_update_iterate_pairwise!(
     away_atom::AT,
 ) where {
     IT <: Array{T, N},
-} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Real} where {N}
+} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Real, N} # Real for disambiguation
     @inbounds for x in fw_atom.lmo.ci
         xit[x] += lambda * (fw_atom[x] - away_atom[x])
     end
@@ -562,7 +562,7 @@ function FrankWolfe.muladd_memory_mode(
     d::AbstractArray{T, N},
     a::AT,
     v::AT,
-) where {AT <: FrankWolfe.SymmetricArray{false, T, DS}} where {DS <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+) where {AT <: FrankWolfe.SymmetricArray{false, T, DS}} where {DS <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number, N}
     return _muladd_memory_mode(a.data.lmo.lmo.active_set, d, a, v)
 end
 
@@ -572,7 +572,7 @@ function FrankWolfe.muladd_memory_mode(
     d::Array{T, N},
     a::AT,
     v::AT,
-) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number, N}
     return _muladd_memory_mode(a.lmo.active_set, d, a, v)
 end
 
@@ -581,7 +581,7 @@ function FrankWolfe.muladd_memory_mode(
     d::Array{T, N},
     x::AbstractArray{T, N},
     v::AT,
-) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number, N}
     @inbounds for i in v.lmo.ci
         d[i] = x[i] - v[i]
     end

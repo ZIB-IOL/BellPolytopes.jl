@@ -61,7 +61,7 @@ function bell_frank_wolfe(
     file=nothing,
     seed::Int=0,
     kwargs...,
-) where {T <: Number} where {N}
+) where {T <: Number, N}
     Random.seed!(seed)
     if !prob
         LMO = BellCorrelationsLMO
@@ -244,7 +244,7 @@ function bell_frank_wolfe(
     p::Array{T, N},
     build_reduce_inflate::Function;
     kwargs...,
-) where {T <: Number} where {N}
+) where {T <: Number, N}
     reduce, inflate = build_reduce_inflate(p)
     return bell_frank_wolfe(p; sym=true, reduce, inflate, kwargs...)
 end

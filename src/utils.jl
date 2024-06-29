@@ -8,7 +8,7 @@ function alternating_minimisation!(
     ax::Vector{Vector{T}},
     lmo::BellCorrelationsLMO{T, 2, 0, HasMarginals},
     A::Array{T, 2},
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -32,7 +32,7 @@ function alternating_minimisation!(
     ax::Vector{Vector{T}},
     lmo::BellCorrelationsLMO{T, 3, 0, HasMarginals},
     A::Array{T, 3},
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -61,7 +61,7 @@ function alternating_minimisation!(
     ax::Vector{Vector{T}},
     lmo::BellCorrelationsLMO{T, 4, 0, HasMarginals},
     A::Array{T, 4},
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -91,7 +91,7 @@ function alternating_minimisation!(
     ax::Vector{Vector{T}},
     lmo::BellCorrelationsLMO{T, 5, 0, HasMarginals},
     A::Array{T, 5},
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -125,7 +125,7 @@ function alternating_minimisation!(
     ax::Vector{Vector{T}},
     lmo::BellCorrelationsLMO{T, 6, 0, HasMarginals},
     A::Array{T, 6},
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -163,7 +163,7 @@ function alternating_minimisation!(
     ax::Vector{Vector{T}},
     lmo::BellCorrelationsLMO{T, 7, 0, HasMarginals},
     A::Array{T, 7},
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -212,7 +212,7 @@ function alternating_minimisation!(
     ax::Vector{Vector{T}},
     lmo::BellCorrelationsLMO{T, 8, 0, HasMarginals},
     A::Array{T, 8},
-) where {T <: Number} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -322,7 +322,7 @@ function alternating_minimisation!(
     ax::Vector{Vector{T}},
     lmo::BellCorrelationsLMO{T, N, 0},
     A::Array{T, N},
-) where {T <: Number} where {N}
+) where {T <: Number, N}
     error("Number of parties (" * string(N) * ") not supported, please trivially adapt alternating_minimisation! in utils.jl")
 end
 
@@ -461,7 +461,7 @@ function reynolds_permutedims(A::Array{T, 2}) where {T <: Number}
     return (A + A') / 2
 end
 
-function reynolds_permutedims(A::Array{T, N}) where {T <: Number} where {N}
+function reynolds_permutedims(A::Array{T, N}) where {T <: Number, N}
     res = zero(A)
     for per in permutations(1:N)
         res .+= permutedims(A, per)
@@ -565,7 +565,7 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
     return reduce, inflate
 end
 
-function build_reduce_inflate_unique(p::Array{T, N}; digits=9) where {T <: Number} where {N}
+function build_reduce_inflate_unique(p::Array{T, N}; digits=9) where {T <: Number, N}
     ptol = round.(p; digits)
     ptol[ptol .== zero(T)] .= zero(T) # transform -0.0 into 0.0 as isequal(0.0, -0.0) is false
     uniquetol = unique(ptol[:])
@@ -588,7 +588,7 @@ function build_reduce_inflate_unique(p::Array{T, N}; digits=9) where {T <: Numbe
     return reduce, inflate
 end
 
-function reynolds_permutelastdims(A::Array{T, N2}) where {T <: Number} where {N2}
+function reynolds_permutelastdims(A::Array{T, N2}) where {T <: Number, N2}
     N = N2 ÷ 2
     res = zero(A)
     for per in permutations(1:N)
@@ -713,7 +713,7 @@ function shrinking_squared(vec::AbstractMatrix{T}; verbose=true) where {T <: Num
     return eta2
 end
 
-function shrinking_squared(vecs::Vector{TB}; verbose=true) where {TB <: AbstractMatrix{T}} where {T <: Number}
+function shrinking_squared(vecs::Vector{<:AbstractMatrix{T}}; verbose=true) where {T <: Number}
     eta2 = typemax(T)
     for i in 1:length(vecs)
         eta2 = min(eta2, shrinking_squared(vecs[i]; verbose=false))
