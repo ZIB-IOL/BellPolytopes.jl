@@ -11,7 +11,6 @@ function FrankWolfe.compute_extreme_point(
     sc = zero(T)
     axm = [zeros(T, lmo.m[n], 1) for n in 1:N]
     scm = typemax(T)
-    # precompute arguments for speed
     for i in 1:lmo.nb
         for n in 1:N-1
             rand!(ax[n], [-one(T), one(T)])
@@ -41,14 +40,12 @@ function FrankWolfe.compute_extreme_point(
     sc = zero(T)
     axm = [zeros(T, lmo.m[n], D) for n in 1:N]
     scm = typemax(T)
-    # precompute arguments for speed
-    args_alternating_minimisation = arguments_alternating_minimisation(lmo, A)
     for i in 1:lmo.nb
         for n in 1:N-1
             randn!(ax[n])
             foreach(_normalize!, eachrow(ax[n]))
         end
-        sc = alternating_minimisation!(ax, lmo, args_alternating_minimisation...)
+        sc = alternating_minimisation!(ax, lmo, A)
         if sc < scm
             scm = sc
             for n in 1:N
@@ -58,7 +55,6 @@ function FrankWolfe.compute_extreme_point(
     end
     dsm = BellCorrelationsDS(axm, lmo)
     lmo.cnt += 1
-    lmo.data[2] += 1
     return dsm
 end
 

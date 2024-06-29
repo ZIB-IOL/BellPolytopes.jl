@@ -36,14 +36,13 @@ function alternating_minimisation!(
     ax::Vector{Matrix{T}},
     lmo::BellCorrelationsLMO{T, 2, D, 0, false},
     A::Array{T, 2},
-    At::Array{T, 2},
 ) where {T <: Number} where {D}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc2 - sc1 > 10Base.rtoldefault(T)
         sc2 = sc1
         # given a_x, min_b ∑_y b_y (∑_x A_xy a_x) so that b_y is the opposite sign of ∑_x A_xy a_x
-        mul!(lmo.tmp[2], At, ax[1])
+        mul!(lmo.tmp[2], A', ax[1])
         @. ax[2] = -lmo.tmp[2]
         # ax[2] .+= eps(T)
         foreach(_normalize!, eachrow(ax[2]))
