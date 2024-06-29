@@ -12,11 +12,11 @@
 function qubit_proj(v::Vector{T}; mes::Bool=false, type=Complex{T}) where {T <: Number}
     if mes
         return [
-            (σI(; type=type) - v[1] * σX(; type=type) - v[2] * σY(; type=type) - v[3] * σZ(; type=type)) / 2;;;
-            (σI(; type=type) + v[1] * σX(; type=type) + v[2] * σY(; type=type) + v[3] * σZ(; type=type)) / 2
+            (σI(; type) - v[1] * σX(; type) - v[2] * σY(; type) - v[3] * σZ(; type)) / 2;;;
+            (σI(; type) + v[1] * σX(; type) + v[2] * σY(; type) + v[3] * σZ(; type)) / 2
         ]
     else
-        return (σI(; type=type) + v[1] * σX(; type=type) + v[2] * σY(; type=type) + v[3] * σZ(; type=type)) / 2
+        return (σI(; type) + v[1] * σX(; type) + v[2] * σY(; type) + v[3] * σZ(; type)) / 2
     end
 end
 
@@ -76,7 +76,7 @@ export ketbra
 function qubit_mes(v::Matrix{T}; type=Complex{T}) where {T <: Number}
     res = zeros(type, 2, 2, 2, size(v, 1))
     for i in 1:size(v, 1)
-        res[:, :, :, i] = qubit_proj(v[i, :]; mes=true, type=type)
+        res[:, :, :, i] = qubit_proj(v[i, :]; mes=true, type)
     end
     return res
 end
@@ -225,7 +225,7 @@ function correlation_tensor(
     marg::Bool=false,
     type=Complex{T},
 ) where {T <: Number}
-    correlation_tensor(probability_tensor(vec, N; rho=rho, type=type); marg=marg)
+    correlation_tensor(probability_tensor(vec, N; rho, type); marg)
 end
 
 function correlation_tensor(
@@ -235,7 +235,7 @@ function correlation_tensor(
     marg::Bool=false,
     type=Complex{T},
 ) where {TB <: AbstractMatrix{T}} where {T <: Number}
-    correlation_tensor(probability_tensor(vecs, N; rho=rho, type=type); marg=marg)
+    correlation_tensor(probability_tensor(vecs, N; rho, type); marg)
 end
 export correlation_tensor
 
@@ -243,7 +243,7 @@ export correlation_tensor
 function probability_tensor(vec::AbstractMatrix{T}, N::Int; rho=rho_W(N; type=T), type=Complex{T}) where {T <: Number}
     @assert size(rho) == (2^N, 2^N)
     m = size(vec, 1)
-    Aax = qubit_mes(vec; type=type)
+    Aax = qubit_mes(vec; type)
     p = zeros(T, 2 * ones(Int, N)..., m * ones(Int, N)...)
     cia = CartesianIndices(Tuple(2 * ones(Int, N)))
     cix = CartesianIndices(Tuple(m * ones(Int, N)))
@@ -263,7 +263,7 @@ function probability_tensor(
     @assert length(vecs) == N
     @assert size(rho) == (2^N, 2^N)
     m = size(vecs[1], 1)
-    Aax = [qubit_mes(vec; type=type) for vec in vecs]
+    Aax = [qubit_mes(vec; type) for vec in vecs]
     p = zeros(T, 2 * ones(Int, N)..., m * ones(Int, N)...)
     cia = CartesianIndices(Tuple(2 * ones(Int, N)))
     cix = CartesianIndices(Tuple(m * ones(Int, N)))

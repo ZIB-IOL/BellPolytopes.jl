@@ -88,9 +88,9 @@ function bell_frank_wolfe_correlation(
     vp = reduce(v0 * p + (one(T) - v0) * o)
     # create the LMO
     if sym
-        lmo = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(p, vp; mode=mode, nb=nb, marg=marg), reduce, inflate)
+        lmo = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(p, vp; mode, nb, marg), reduce, inflate)
     else
-        lmo = BellCorrelationsLMO(p, vp; mode=mode, nb=nb, marg=marg)
+        lmo = BellCorrelationsLMO(p, vp; mode, nb, marg)
     end
     o = reduce(o)
     p = reduce(p)
@@ -114,7 +114,7 @@ function bell_frank_wolfe_correlation(
         lmo.lmo.active_set = active_set
     else
         if active_set isa ActiveSetStorage
-            active_set = load_active_set(active_set, T; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds)
+            active_set = load_active_set(active_set, T; sym, marg)
         end
         active_set_link_lmo!(active_set, lmo, -vp)
         active_set_reinitialise!(active_set)
@@ -147,12 +147,12 @@ function bell_frank_wolfe_correlation(
         grad!,
         lmo,
         active_set;
-        callback=callback,
-        epsilon=epsilon,
-        lazy=lazy,
+        callback,
+        epsilon,
+        lazy,
         line_search=FrankWolfe.Shortstep(one(T)),
-        max_iteration=max_iteration,
-        recompute_last_vertex=recompute_last_vertex,
+        max_iteration,
+        recompute_last_vertex,
         renorm_interval=typemax(Int),
         trajectory=false,
         verbose=false,
@@ -166,10 +166,10 @@ function bell_frank_wolfe_correlation(
         @printf("  #LMO: %d\n", lmo.lmo.data[2])
     end
     if sym
-        atoms = [FrankWolfe.SymmetricArray(BellCorrelationsDS(atom.data; type=TL), TL.(atom.vec)) for atom in as.atoms]
+        atoms = [FrankWolfe.SymmetricArray(BellCorrelationsDS(atom.data; T2=TL), TL.(atom.vec)) for atom in as.atoms]
         vp_last = FrankWolfe.SymmetricArray(TL.(vp.data), TL.(vp.vec))
     else
-        atoms = [BellCorrelationsDS(atom; type=TL) for atom in as.atoms]
+        atoms = [BellCorrelationsDS(atom; T2=TL) for atom in as.atoms]
         vp_last = TL.(vp)
     end
     as = T == TL ? as : FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
@@ -183,16 +183,16 @@ function bell_frank_wolfe_correlation(
     end
     if mode_last ≥ 0 # bypass the last LMO with a negative mode
         if sym
-            lmo_last = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(lmo.lmo, vp_last; mode=mode_last, type=TL, nb=nb_last), reduce, inflate)
+            lmo_last = FrankWolfe.SymmetricLMO(BellCorrelationsLMO(lmo.lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last), reduce, inflate)
         else
-            lmo_last = BellCorrelationsLMO(lmo.lmo, vp_last; mode=mode_last, type=TL, nb=nb_last)
+            lmo_last = BellCorrelationsLMO(lmo.lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last)
         end
         ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose=verbose > 0)
     else
         if sym
-            ds = FrankWolfe.SymmetricArray(BellCorrelationsDS(ds.data; type=TL), TL.(ds.vec))
+            ds = FrankWolfe.SymmetricArray(BellCorrelationsDS(ds.data; T2=TL), TL.(ds.vec))
         else
-            ds = BellCorrelationsDS(ds; type=TL)
+            ds = BellCorrelationsDS(ds; T2=TL)
         end
     end
     # renormalise the inequality by its smalles element, neglecting entries smaller than epsilon_last
@@ -237,7 +237,7 @@ function local_bound_correlation(
     nb::Int=10^5,
     verbose=false,
 ) where {T <: Number} where {N}
-    ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M, M; marg=marg, mode=mode, nb=nb), -M; verbose=verbose)
+    ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M, M; marg, mode, nb), -M; verbose)
     return FrankWolfe.fast_dot(M, ds), ds
 end
 export local_bound_correlation
@@ -273,8 +273,8 @@ function nonlocality_threshold_correlation(
     verbose=-1,
     kwargs...,
 ) where {TB <: AbstractMatrix{T}} where {T <: Number}
-    p = correlation_tensor(vec, N; rho=rho, marg=marg)
-    shr2 = shrinking_squared(vec; verbose=verbose > 0)
+    p = correlation_tensor(vec, N; rho, marg)
+    shr2 = shrinking_squared(vec; verbose > 0)
     lower_bound = zero(T)
     upper_bound = one(T)
     local_model = nothing
@@ -282,11 +282,11 @@ function nonlocality_threshold_correlation(
     while upper_bound - lower_bound > 10.0^(-precision)
         res = bell_frank_wolfe_correlation(
             p;
-            v0=v0,
+            v0,
             verbose=verbose + (upper_bound == one(T)) / 2,
-            epsilon=epsilon,
-            shr2=shr2,
-            marg=marg,
+            epsilon,
+            shr2,
+            marg,
             sym=false,
             kwargs...,
         )

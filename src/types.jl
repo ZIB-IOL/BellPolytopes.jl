@@ -48,33 +48,38 @@ function BellCorrelationsLMO(
 end
 
 function BellCorrelationsLMO(
-    lmo::BellCorrelationsLMO{T, N, Mode, HasMarginals},
-    vp::IT;
-    type=T,
+    lmo::BellCorrelationsLMO{T1, N, Mode, HasMarginals, AT1, IT1},
+    vp::IT2;
+    T2=T1,
     mode=Mode,
     marg=HasMarginals,
     nb=lmo.nb,
     data=lmo.data,
-) where {T <: Number} where {N} where {Mode} where {HasMarginals} where {IT}
+) where {T1 <: Number} where {N} where {Mode} where {HasMarginals} where {AT1} where {IT1} where {IT2}
+    if T2 == T1 && mode == Mode && marg == HasMarginals && IT1 == IT2
+        lmo.nb = nb
+        lmo.data = data
+        return lmo
+    end
     if marg == HasMarginals
         m = lmo.m
-        tmp = broadcast.(type, lmo.tmp)
+        tmp = broadcast.(T2, lmo.tmp)
         ci = lmo.ci
     elseif HasMarginals
         m = lmo.m .- 1
-        tmp = [zeros(type, m[n]) for n in 1:N]
+        tmp = [zeros(T2, m[n]) for n in 1:N]
         ci = CartesianIndices(Tuple(m))
     else
         m = lmo.m .+ 1
-        tmp = [zeros(type, m[n]) for n in 1:N]
+        tmp = [zeros(T2, m[n]) for n in 1:N]
         ci = CartesianIndices(Tuple(m))
     end
-    if IT <: FrankWolfe.SymmetricArray
-        AT = FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, marg}, Vector{T}}
+    if IT2 <: FrankWolfe.SymmetricArray
+        AT2 = FrankWolfe.SymmetricArray{false, T2, BellCorrelationsDS{T2, N, marg}, Vector{T2}}
     else
-        AT = BellCorrelationsDS{T, N, marg}
+        AT2 = BellCorrelationsDS{T2, N, marg}
     end
-    return BellCorrelationsLMO{type, N, mode, marg, AT, IT}(
+    return BellCorrelationsLMO{T2, N, mode, marg, AT2, IT2}(
         m,
         vp,
         tmp,
@@ -132,23 +137,28 @@ function BellProbabilitiesLMO(
 end
 
 function BellProbabilitiesLMO(
-    lmo::BellProbabilitiesLMO{T, N2, Mode},
-    vp::IT;
-    type=T,
+    lmo::BellProbabilitiesLMO{T1, N2, Mode, AT1, IT1},
+    vp::IT2;
+    T2=T1,
     mode=Mode,
     nb=lmo.nb,
     data=lmo.data,
-) where {T <: Number} where {N2} where {Mode} where {IT}
-    if IT <: FrankWolfe.SymmetricArray
-        AT = FrankWolfe.SymmetricArray{false, type, BellProbabilitiesDS{type, N2}, Vector{type}}
-    else
-        AT = BellProbabilitiesDS{type, N2}
+) where {T1 <: Number} where {N2} where {Mode} where {AT1} where {IT1} where {IT2}
+    if T2 == T1 && mode == Mode && IT1 == IT2
+        lmo.nb = nb
+        lmo.data = data
+        return lmo
     end
-    return BellProbabilitiesLMO{type, N2, mode, AT, IT}(
+    if IT1 <: FrankWolfe.SymmetricArray
+        AT2 = FrankWolfe.SymmetricArray{false, T2, BellProbabilitiesDS{T2, N2}, Vector{T2}}
+    else
+        AT2 = BellProbabilitiesDS{T2, N2}
+    end
+    return BellProbabilitiesLMO{T2, N2, mode, AT2, IT2}(
         lmo.o,
         lmo.m,
         vp,
-        broadcast.(type, lmo.tmp),
+        broadcast.(T2, lmo.tmp),
         nb,
         lmo.cnt,
         lmo.ci,
@@ -184,20 +194,23 @@ function BellCorrelationsDS(
 end
 
 function BellCorrelationsDS(
-    ds::BellCorrelationsDS{T, N, HasMarginals};
-    type=T,
+    ds::BellCorrelationsDS{T1, N, HasMarginals};
+    T2=T1,
     marg=HasMarginals,
-) where {T <: Number} where {N} where {HasMarginals}
+) where {T1 <: Number} where {N} where {HasMarginals}
+    if T2 == T1 && marg == HasMarginals
+        return ds
+    end
     if marg == HasMarginals
         ax = ds.ax
     elseif HasMarginals
         ax = [axn[1:end-1] for axn in ds.ax]
     else
-        ax = [vcat(axn, one(T)) for axn in ax]
+        ax = [vcat(axn, one(T1)) for axn in ax]
     end
-    res = BellCorrelationsDS{type, N, marg}(
-        broadcast.(type, ax),
-        BellCorrelationsLMO(ds.lmo, zero(type); type=type, marg=marg),
+    res = BellCorrelationsDS{T2, N, marg}(
+        broadcast.(T2, ax),
+        BellCorrelationsLMO(ds.lmo, zero(T2); T2, marg),
     )
     return res
 end
@@ -209,7 +222,7 @@ function BellCorrelationsDS(
     ::Type{T2};
     marg=HasMarginals,
 ) where {T1 <: Number} where {N} where {HasMarginals} where {T2 <: Number}
-    lmo = BellCorrelationsLMO(zeros(T2, size(vds[1])); marg=marg)
+    lmo = BellCorrelationsLMO(zeros(T2, size(vds[1])); marg)
     res = BellCorrelationsDS{T2, N, marg}[]
     for ds in vds
         if marg == HasMarginals
@@ -440,14 +453,16 @@ function BellProbabilitiesDS(
 end
 
 function BellProbabilitiesDS(
-    ds::BellProbabilitiesDS{T, N2};
-    type=T,
-) where {T <: Number} where {N2}
-    ax = ds.ax
-    res = BellProbabilitiesDS{type, N2}(
-        ax,
-        BellProbabilitiesLMO(ds.lmo, zero(type); type=type),
-        zeros(type, zeros(Int, N2)...),
+    ds::BellProbabilitiesDS{T1, N2};
+    T2=T1,
+) where {T1 <: Number} where {N2}
+    if T2 == T1
+        return ds
+    end
+    res = BellProbabilitiesDS{T2, N2}(
+        ds.ax,
+        BellProbabilitiesLMO(ds.lmo, zero(T2); T2),
+        zeros(T2, zeros(Int, N2)...),
     )
     set_array!(res)
     return res
@@ -558,7 +573,7 @@ function load_active_set(
 ) where {T1 <: Number} where {N} where {HasMarginals} where {T2 <: Number}
     m = size.(ass.ax, (2,))
     p = zeros(T2, (marg ? m .+ 1 : m)...)
-    lmo = BellCorrelationsLMO(p; marg=marg, data=ass.data)
+    lmo = BellCorrelationsLMO(p; marg, data=ass.data)
     atoms = BellCorrelationsDS{T2, N, marg}[]
     @inbounds for i in eachindex(ass.weights)
         ax = [ones(T2, marg ? m[n] + 1 : m[n]) for n in 1:N]

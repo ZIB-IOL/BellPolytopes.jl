@@ -67,7 +67,7 @@ function FrankWolfe.compute_extreme_point(
             println(rpad(string([λa2]), 2 + ndigits(2^(sum(m)÷2))), " ", string(-scm))
         end
     end
-    dsm = BellCorrelationsDS(axm, lmo; initialise=initialise)
+    dsm = BellCorrelationsDS(axm, lmo; initialise)
     lmo.cnt += 1
     lmo.data[2] += 1
     return dsm
@@ -113,7 +113,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
     end
-    dsm = BellCorrelationsDS(axm, lmo; initialise=initialise)
+    dsm = BellCorrelationsDS(axm, lmo; initialise)
     lmo.cnt += 1
     lmo.data[2] += 1
     return dsm
@@ -163,7 +163,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
     end
-    dsm = BellCorrelationsDS(axm, lmo; initialise=initialise)
+    dsm = BellCorrelationsDS(axm, lmo; initialise)
     lmo.cnt += 1
     lmo.data[2] += 1
     return dsm
@@ -217,7 +217,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
     end
-    dsm = BellCorrelationsDS(axm, lmo; initialise=initialise)
+    dsm = BellCorrelationsDS(axm, lmo; initialise)
     lmo.cnt += 1
     lmo.data[2] += 1
     return dsm
@@ -276,7 +276,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
     end
-    dsm = BellCorrelationsDS(axm, lmo; initialise=initialise)
+    dsm = BellCorrelationsDS(axm, lmo; initialise)
     lmo.cnt += 1
     lmo.data[2] += 1
     return dsm
@@ -325,7 +325,7 @@ function FrankWolfe.compute_extreme_point(
             println(rpad(string(reverse(λa)), N * (2 + ndigits(2^(sum(m)÷N)))), " ", string(-scm))
         end
     end
-    dsm = BellCorrelationsDS(axm, lmo; initialise=initialise)
+    dsm = BellCorrelationsDS(axm, lmo; initialise)
     lmo.cnt += 1
     lmo.data[2] += 1
     return dsm
