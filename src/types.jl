@@ -446,7 +446,7 @@ function BellProbabilitiesDS(
     ax = ds.ax
     res = BellProbabilitiesDS{type, N2}(
         ax,
-        BellProbabilitiesLMO(ds.lmo, zero(T); type=type),
+        BellProbabilitiesLMO(ds.lmo, zero(type); type=type),
         zeros(type, zeros(Int, N2)...),
     )
     set_array!(res)
