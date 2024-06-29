@@ -287,20 +287,6 @@ Base.@propagate_inbounds function Base.getindex(
     return prd
 end
 
-function get_array(ds::BellCorrelationsDS{T, N}, lmo::BellCorrelationsLMO{T, N}) where {T <: Number} where {N}
-    aux = BellCorrelationsDS(ds.ax, lmo.lmofalse)
-    res = zeros(T, size(aux))
-    @inbounds for x in lmo.ci
-        res[x] = aux[x]
-        if T <: AbstractFloat
-            if abs(res[x]) < Base.rtoldefault(T)
-                res[x] = zero(T)
-            end
-        end
-    end
-    return res
-end
-
 # required for reinitialise! for now
 function set_array!(ds::BellCorrelationsDS{T, N}, lmo::BellCorrelationsLMO{T, N}) where {T <: Number} where {N}
 end

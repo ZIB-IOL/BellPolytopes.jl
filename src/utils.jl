@@ -432,7 +432,6 @@ end
 
 # associate a new lmo with all atoms
 function active_set_link_lmo!(as::FrankWolfe.ActiveSetQuadratic, lmo, p)
-    lmo.lmo.data = as.atoms[1].data.lmo.data
     @inbounds for i in eachindex(as)
         as.atoms[i].data.lmo = lmo.lmo
     end

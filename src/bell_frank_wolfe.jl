@@ -202,7 +202,7 @@ function bell_frank_wolfe(
         if sym
             lmo_last = FrankWolfe.SymmetricLMO(LMO(lmo.lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last), reduce, inflate)
         else
-            lmo_last = LMO(lmo.lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last)
+            lmo_last = LMO(lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last)
         end
         ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose=verbose > 0)
     else
