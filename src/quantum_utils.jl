@@ -12,11 +12,11 @@
 function qubit_proj(v::Vector{T}; mes::Bool=false, type=Complex{T}) where {T <: Number}
     if mes
         return [
-            (σI(; type=type) - v[1] * σX(; type=type) - v[2] * σY(; type=type) - v[3] * σZ(; type=type)) / 2;;;
-            (σI(; type=type) + v[1] * σX(; type=type) + v[2] * σY(; type=type) + v[3] * σZ(; type=type)) / 2
+            (σI(; type) - v[1] * σX(; type) - v[2] * σY(; type) - v[3] * σZ(; type)) / 2;;;
+            (σI(; type) + v[1] * σX(; type) + v[2] * σY(; type) + v[3] * σZ(; type)) / 2
         ]
     else
-        return (σI(; type=type) + v[1] * σX(; type=type) + v[2] * σY(; type=type) + v[3] * σZ(; type=type)) / 2
+        return (σI(; type) + v[1] * σX(; type) + v[2] * σY(; type) + v[3] * σZ(; type)) / 2
     end
 end
 
@@ -35,6 +35,7 @@ function rho_singlet(; type=Float64)
     psi = [zero(type), one(type), -one(type), zero(type)]
     return psi * psi' / type(2)
 end
+export rho_singlet
 
 function rho_GHZ(N::Int; d=2, type=Float64)
     aux = zeros(type, d*ones(Int, N)...)
@@ -44,6 +45,7 @@ function rho_GHZ(N::Int; d=2, type=Float64)
     psi = reshape(aux, d^N, 1)
     return psi * psi' / type(d)
 end
+export rho_GHZ
 
 function rho_W(N::Int; type=Float64)
     psi = zeros(type, 2^N)
@@ -52,6 +54,7 @@ function rho_W(N::Int; type=Float64)
     end
     return psi * psi' / type(N)
 end
+export rho_W
 
 function ketbra(phi::VecOrMat{T}) where {T <: Number}
     if size(phi, 2) > 1
@@ -63,6 +66,7 @@ function ketbra(phi::VecOrMat{T}) where {T <: Number}
     end
     phi * phi'
 end
+export ketbra
 
 ##################
 #  MEASUREMENTS  #
@@ -72,18 +76,25 @@ end
 function qubit_mes(v::Matrix{T}; type=Complex{T}) where {T <: Number}
     res = zeros(type, 2, 2, 2, size(v, 1))
     for i in 1:size(v, 1)
-        res[:, :, :, i] = qubit_proj(v[i, :]; mes=true, type=type)
+        res[:, :, :, i] = qubit_proj(v[i, :]; mes=true, type)
     end
     return res
 end
+export qubit_mes
 
 # platonic solids
 cube_vec() = [1 1 1; 1 -1 -1; -1 1 -1; -1 -1 1] / sqrt(3)
+export cube_vec
+
 octahedron_vec() = [1 0 0; 0 1 0; 0 0 1]
+export octahedron_vec
+
 function icosahedron_vec(; type=Float64)
     φ = (1 + sqrt(type(5))) / 2
     return [0 1 φ; 0 1 -φ; 1 φ 0; 1 -φ 0; φ 0 1; φ 0 -1] / sqrt(2 + φ)
 end
+export icosahedron_vec
+
 function dodecahedron_vec(; type=Float64)
     φ = (1 + sqrt(type(5))) / 2
     return [
@@ -99,6 +110,7 @@ function dodecahedron_vec(; type=Float64)
         φ 0 -1/φ
     ] / sqrt(type(3))
 end
+export dodecahedron_vec
 
 # measurements from arXiv:1609.05011 (regular polyhedron in the XY plane)
 function polygonXY_vec(m::Int; type=Float64)
@@ -118,6 +130,7 @@ function polygonXY_vec(m::Int; type=Float64)
         )
     end
 end
+export polygonXY_vec
 
 # measurements from arXiv:1609.06114 (rotated regular polyhedron)
 function HQVNB17_vec(n::Int; type=Float64)
@@ -148,6 +161,7 @@ function HQVNB17_vec(n::Int; type=Float64)
     end
     return res
 end
+export HQVNB17_vec
 
 #  create a set of (projective) POVMs out of a set of bases
 function povm(B::Array{T, 3}) where {T <: Number}
@@ -160,6 +174,7 @@ function povm(B::Array{T, 3}) where {T <: Number}
     end
     return res
 end
+export povm
 
 # construction of the measurements from Eqs. (5) and (6) from quant-ph/0605182
 # Barrett Kent Pironio
@@ -174,15 +189,9 @@ end
 # CONVERSION #
 ##############
 
-# convert a mx3 Bloch matrix into a mxm correlation matrix
-function correlation_matrix(vec::AbstractMatrix{T}) where {T <: Number}
-    @assert size(vec, 2) == 3
-    -vec * vec'
-end
-
 # convert a 2x...x2xmx...xm probability array into a mx...xm correlation array if marg = false (no marginals)
 # convert a 2x...x2xmx...xm probability array into a (m+1)x...x(m+1) correlation array if marg = true (marginals)
-function correlation_tensor(p::AbstractArray{T, N2}; marg::Bool=false) where {T <: Number} where {N2}
+function correlation_tensor(p::AbstractArray{T, N2}; marg::Bool=false) where {T <: Number, N2}
     @assert iseven(N2)
     N = N2 ÷ 2
     m = size(p)[end]
@@ -210,7 +219,7 @@ function correlation_tensor(
     marg::Bool=false,
     type=Complex{T},
 ) where {T <: Number}
-    correlation_tensor(probability_tensor(vec, N; rho=rho, type=type); marg=marg)
+    correlation_tensor(probability_tensor(vec, N; rho, type); marg)
 end
 
 function correlation_tensor(
@@ -220,14 +229,15 @@ function correlation_tensor(
     marg::Bool=false,
     type=Complex{T},
 ) where {TB <: AbstractMatrix{T}} where {T <: Number}
-    correlation_tensor(probability_tensor(vecs, N; rho=rho, type=type); marg=marg)
+    correlation_tensor(probability_tensor(vecs, N; rho, type); marg)
 end
+export correlation_tensor
 
 # convert a mx3 Bloch matrix into a 2x...x2xmx...xm probability array
 function probability_tensor(vec::AbstractMatrix{T}, N::Int; rho=rho_W(N; type=T), type=Complex{T}) where {T <: Number}
     @assert size(rho) == (2^N, 2^N)
     m = size(vec, 1)
-    Aax = qubit_mes(vec; type=type)
+    Aax = qubit_mes(vec; type)
     p = zeros(T, 2 * ones(Int, N)..., m * ones(Int, N)...)
     cia = CartesianIndices(Tuple(2 * ones(Int, N)))
     cix = CartesianIndices(Tuple(m * ones(Int, N)))
@@ -247,7 +257,7 @@ function probability_tensor(
     @assert length(vecs) == N
     @assert size(rho) == (2^N, 2^N)
     m = size(vecs[1], 1)
-    Aax = [qubit_mes(vec; type=type) for vec in vecs]
+    Aax = [qubit_mes(vec; type) for vec in vecs]
     p = zeros(T, 2 * ones(Int, N)..., m * ones(Int, N)...)
     cia = CartesianIndices(Tuple(2 * ones(Int, N)))
     cix = CartesianIndices(Tuple(m * ones(Int, N)))
@@ -274,3 +284,4 @@ function probability_tensor(
     end
     return p
 end
+export probability_tensor

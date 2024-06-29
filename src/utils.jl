@@ -6,31 +6,19 @@ function _normalize!(v::AbstractVector)
     rmul!(v, inv(sqrt(dot(v, v))))
 end
 
-function arguments_alternating_minimisation(
-    lmo::BellCorrelationsLMO{T, 2, D, 0, IsSymmetric},
-    A::Array{T, 2},
-) where {T <: Number} where {D} where {IsSymmetric}
-    return (A, IsSymmetric ? A : collect(A'))
-end
-
-function arguments_alternating_minimisation(lmo::BellCorrelationsLMO{T, N, D, 0}, A::Array{T, N}) where {T <: Number} where {N} where {D}
-    return (A,)
-end
-
 # Appendix A from arXiv:1609.06114 for correlation matrix
 # min_ab ∑_xy M_xy a_x b_y with a_x and b_y being ±1
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 2, 1, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 2, 1, 0, HasMarginals},
     A::Array{T, 2},
-    At::Array{T, 2},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
         # given a_x, min_b ∑_y b_y (∑_x A_xy a_x) so that b_y is the opposite sign of ∑_x A_xy a_x
-        mul!(lmo.tmp[2], At, ax[1])
+        mul!(lmo.tmp[2], A', ax[1])
         for x2 in 1:length(ax[2])-HasMarginals
             ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
@@ -46,10 +34,10 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Matrix{T}},
-    lmo::BellCorrelationsLMO{T, 2, D, 0, IsSymmetric, false},
+    lmo::BellCorrelationsLMO{T, 2, D, 0, false},
     A::Array{T, 2},
     At::Array{T, 2},
-) where {T <: Number} where {D} where {IsSymmetric}
+) where {T <: Number} where {D}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc2 - sc1 > 10Base.rtoldefault(T)
@@ -71,9 +59,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 3, 1, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 3, 1, 0, HasMarginals},
     A::Array{T, 3},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -100,9 +88,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 4, 1, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 4, 1, 0, HasMarginals},
     A::Array{T, 4},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -130,9 +118,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 5, 1, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 5, 1, 0, HasMarginals},
     A::Array{T, 5},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -164,9 +152,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 6, 1, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 6, 1, 0, HasMarginals},
     A::Array{T, 6},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -202,9 +190,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 7, 1, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 7, 1, 0, HasMarginals},
     A::Array{T, 7},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -251,9 +239,9 @@ end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 8, 1, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 8, 1, 0, HasMarginals},
     A::Array{T, 8},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
@@ -363,7 +351,7 @@ function alternating_minimisation!(
     ax::Vector{Vector{T}},
     lmo::BellCorrelationsLMO{T, N, 1, 0},
     A::Array{T, N},
-) where {T <: Number} where {N}
+) where {T <: Number, N}
     error("Number of parties (" * string(N) * ") not supported, please trivially adapt alternating_minimisation! in utils.jl")
 end
 
@@ -472,30 +460,19 @@ end
 ##############
 
 # associate a new lmo with all atoms
-function active_set_link_lmo!(
-    as::FrankWolfe.ActiveSetQuadratic{AT, T, IT},
-    lmo::LMO,
-) where {
-    AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}},
-} where {
-    IT <: Array{T},
-} where {LMO <: Union{BellCorrelationsLMO{T, N}, BellProbabilitiesLMO{T, N}}} where {T <: Number} where {N}
-    lmo.data = as.atoms[1].lmo.data
+function active_set_link_lmo!(as::FrankWolfe.ActiveSetQuadratic, lmo, p)
     @inbounds for i in eachindex(as)
-        as.atoms[i].lmo = lmo
+        as.atoms[i].data.lmo = lmo.lmo
     end
-    lmo.active_set = as
-    @. as.b = -lmo.p
+    lmo.lmo.active_set = as
+    @. as.b = p
     return as
 end
 
 # initialise an active set from a previously computed active set
-function active_set_reinitialise!(
-    as::FrankWolfe.ActiveSetQuadratic{AT, T, IT},
-) where {IT <: Array{T}} where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number} where {N}
+function active_set_reinitialise!(as::FrankWolfe.ActiveSetQuadratic)
     FrankWolfe.active_set_renormalize!(as)
     @inbounds for idx in eachindex(as)
-        set_array!(as.atoms[idx])
         for idy in 1:idx
             as.dots_A[idx][idy] = FrankWolfe.fast_dot(as.A * as.atoms[idx], as.atoms[idy])
         end
@@ -509,31 +486,202 @@ end
 # REYNOLDS #
 ############
 
-function reynolds_permutedims(A::Array{T, 2}, lmo::BellCorrelationsLMO{T, 2}) where {T <: Number}
+function reynolds_permutedims(A::Array{T, 2}) where {T <: Number}
     return (A + A') / 2
 end
 
-function reynolds_permutedims(
-    A::Array{T, N},
-    lmo::BellCorrelationsLMO{T, N},
-) where {T <: Number} where {N}
-    res = zeros(T, size(A))
-    for per in lmo.per
+function reynolds_permutedims(A::Array{T, N}) where {T <: Number, N}
+    res = zero(A)
+    for per in permutations(1:N)
         res .+= permutedims(A, per)
     end
-    return res / lmo.fac
+    return res / factorial(N)
 end
 
-function reynolds_permutelastdims(
-    A::Array{T, N},
-    lmo::BellProbabilitiesLMO{T, N},
-) where {T <: Number} where {N}
-    res = zeros(T, size(A))
-    for per in lmo.per
-        res .+= permutedims(A, per)
+function build_reduce_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
+    n = size(p, 1)
+    @assert n == size(p, 2)
+    dimension = (n * (n + 1)) ÷ 2
+    sqrt2 = sqrt(T(2))
+    function reduce(A::AbstractArray{S, 2}, lmo=nothing) where {S <: Number}
+        vec = Vector{S}(undef, dimension)
+        cnt = 0
+        @inbounds for i in 1:n
+            vec[i] = A[i, i]
+            cnt += n - i
+            for j in i+1:n
+                vec[cnt+j] = (A[i, j] + A[j, i]) / sqrt2
+            end
+        end
+        return FrankWolfe.SymmetricArray(A, vec)
     end
-    return res / lmo.fac
+    function inflate(x::FrankWolfe.SymmetricArray, lmo=nothing)
+        cnt = 0
+        @inbounds for i in 1:n
+            x.data[i, i] = x.vec[i]
+            cnt += n - i
+            for j in i+1:n
+                x.data[i, j] = x.vec[cnt+j] / sqrt2
+                x.data[j, i] = x.data[i, j]
+            end
+        end
+        return x.data
+    end
+    return reduce, inflate
 end
+
+function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
+    n = size(p, 1)
+    @assert n == size(p, 2) && n == size(p, 3)
+    dimension = (n * (n + 1) * (n + 2)) ÷ 6
+    sqrt3 = sqrt(T(3))
+    sqrt6 = sqrt(T(6))
+    function reduce(A::AbstractArray{S, 3}, lmo=nothing) where {S <: Number}
+        vec = Vector{S}(undef, dimension)
+        cnt = 0
+        @inbounds for i in 1:n
+            cnt += 1
+            vec[cnt] = A[i, i, i]
+            for j in i+1:n
+                cnt += 1
+                vec[cnt] = (A[i, i, j]
+                          + A[i, j, i]
+                          + A[j, i, i]) / sqrt3
+                cnt += 1
+                vec[cnt] = (A[i, j, j]
+                          + A[j, i, j]
+                          + A[j, j, i]) / sqrt3
+                for k in j+1:n
+                    cnt += 1
+                    vec[cnt] = (A[i, j, k]
+                              + A[i, k, j]
+                              + A[j, i, k]
+                              + A[j, k, i]
+                              + A[k, i, j]
+                              + A[k, j, i]) / sqrt6
+                end
+            end
+        end
+        return FrankWolfe.SymmetricArray(A, vec)
+    end
+    function inflate(x::FrankWolfe.SymmetricArray, lmo=nothing)
+        cnt = 0
+        @inbounds for i in 1:n
+            cnt += 1
+            x.data[i, i, i] = x.vec[cnt]
+            for j in i+1:n
+                cnt += 1
+                x.data[i, i, j] = x.vec[cnt] / sqrt3
+                x.data[i, j, i] = x.data[i, i, j]
+                x.data[j, i, i] = x.data[i, i, j]
+                cnt += 1
+                x.data[i, j, j] = x.vec[cnt] / sqrt3
+                x.data[j, i, j] = x.data[i, j, j]
+                x.data[j, j, i] = x.data[i, j, j]
+                for k in j+1:n
+                    cnt += 1
+                    x.data[i, j, k] = x.vec[cnt] / sqrt6
+                    x.data[i, k, j] = x.data[i, j, k]
+                    x.data[j, i, k] = x.data[i, j, k]
+                    x.data[j, k, i] = x.data[i, j, k]
+                    x.data[k, i, j] = x.data[i, j, k]
+                    x.data[k, j, i] = x.data[i, j, k]
+                end
+            end
+        end
+        return x.data
+    end
+    return reduce, inflate
+end
+
+function build_reduce_inflate_permutedims(p::Array{T, N}) where {T <: Number, N}
+    n = size(p, 1)
+    @assert all(n .== size(p))
+    orbs = [unique(permutations(c)) for c in with_replacement_combinations(Int8.(1:n), N)]
+    dimension = length(orbs) #prod(n + i for i in 0:N-1) ÷ factorial(N)
+    sqmul = sqrt.(length.(orbs))
+    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: Number}
+        vec = Vector{S}(undef, dimension)
+        for i in 1:dimension
+            vec[i] = sum(A[el...] for el in orbs[i]) / sqmul[i]
+        end
+        return FrankWolfe.SymmetricArray(A, vec)
+    end
+    function inflate(x::FrankWolfe.SymmetricArray, lmo=nothing)
+        for i in 1:dimension
+            x.data[orbs[i][1]...] = x.vec[i] / sqmul[i]
+            for j in 2:length(orbs[i])
+                x.data[orbs[i][j]...] = x.data[orbs[i][1]...]
+            end
+        end
+        return x.data
+    end
+    return reduce, inflate
+end
+
+function build_reduce_inflate_unique(p::Array{T, N}; digits=9) where {T <: Number, N}
+    ptol = round.(p; digits)
+    ptol[ptol .== zero(T)] .= zero(T) # transform -0.0 into 0.0 as isequal(0.0, -0.0) is false
+    uniquetol = unique(ptol[:])
+    dim = length(uniquetol) # reduced dimension
+    indices = [ptol .== u for u in uniquetol]
+    sqmul = [sqrt(sum(ind)) for ind in indices] # multiplicities, used to have matching scalar products
+    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: Number}
+        vec = zeros(T, dim)
+        for (i, ind) in enumerate(indices)
+            vec[i] = sum(A[ind]) / sqmul[i]
+        end
+        return FrankWolfe.SymmetricArray(A, vec)
+    end
+    function inflate(x::FrankWolfe.SymmetricArray, lmo=nothing)
+        for (i, ind) in enumerate(indices)
+            @view(x.data[ind]) .= x.vec[i] / sqmul[i]
+        end
+        return x.data
+    end
+    return reduce, inflate
+end
+
+function reynolds_permutelastdims(A::Array{T, N2}) where {T <: Number, N2}
+    N = N2 ÷ 2
+    res = zero(A)
+    for per in permutations(1:N)
+        res .+= permutedims(A, vcat(1:N, per .+ N))
+    end
+    return res / factorial(N)
+end
+
+# function build_reduce_inflate_permutelastdims(p::Array{T, 4}) where {T <: Number}
+    # n = size(p, 1)
+    # @assert n == size(p, 2)
+    # dimension = (n * (n + 1)) ÷ 2
+    # sqrt2 = sqrt(T(2))
+    # function reduce(A::AbstractArray{T, 2}, lmo=nothing)
+        # vec = Vector{T}(undef, dimension)
+        # cnt = 0
+        # @inbounds for i in 1:n
+            # vec[i] = A[i, i]
+            # cnt += n - i
+            # for j in i+1:n
+                # vec[cnt+j] = (A[i, j] + A[j, i]) / sqrt2
+            # end
+        # end
+        # return FrankWolfe.SymmetricArray(A, vec)
+    # end
+    # function inflate(x::FrankWolfe.SymmetricArray, lmo=nothing)
+        # cnt = 0
+        # @inbounds for i in 1:n
+            # x.data[i, i] = x.vec[i]
+            # cnt += n - i
+            # for j in i+1:n
+                # x.data[i, j] = x.vec[cnt+j] / sqrt2
+                # x.data[j, i] = x.data[i, j]
+            # end
+        # end
+        # return x.data
+    # end
+    # return reduce, inflate
+# end
 
 #############
 # POLYHEDRA #
@@ -560,6 +708,7 @@ function polyhedronisme(f::String, m::Int)
     @assert length(res) == m
     return vertices
 end
+export polyhedronisme
 
 # acos handling floating point imprecision
 function _unsafe_acos(x::T) where {T <: Number}
@@ -618,7 +767,7 @@ function shrinking_squared(vec::AbstractMatrix{T}; verbose=true) where {T <: Num
     return eta2
 end
 
-function shrinking_squared(vecs::Vector{TB}; verbose=true) where {TB <: AbstractMatrix{T}} where {T <: Number}
+function shrinking_squared(vecs::Vector{<:AbstractMatrix{T}}; verbose=true) where {T <: Number}
     eta2 = typemax(T)
     for i in 1:length(vecs)
         eta2 = min(eta2, shrinking_squared(vecs[i]; verbose=false))
@@ -628,3 +777,4 @@ function shrinking_squared(vecs::Vector{TB}; verbose=true) where {TB <: Abstract
     end
     return eta2
 end
+export shrinking_squared
