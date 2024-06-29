@@ -588,9 +588,12 @@ struct ActiveSetStorageMapsto{T, N, D, HasMarginals} <: AbstractActiveSetStorage
 end
 
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSetQuadratic{BellCorrelationsDS{T, N, D, HasMarginals}, T, Array{T, N}},
-) where {T <: Number, N, D, HasMarginals}
-    return ActiveSetStorageMapsto{T, N, D, HasMarginals}(as.weights, [as.atoms[i].ax for i in eachindex(as)], [as.atoms[1].data.lmo.cnt])
+    as::FrankWolfe.ActiveSetQuadratic{AT},
+) where {
+    AT <: Union{FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, D, HasMarginals}, Vector{T}},
+                BellCorrelationsDS{T, N, D, HasMarginals}},
+} where {T <: Number, N, D, HasMarginals}
+    return ActiveSetStorageMapsto{T, N, D, HasMarginals}(as.weights, [as.atoms[i].data.ax for i in eachindex(as)], [as.atoms[1].data.lmo.cnt])
 end
 
 function load_active_set(
@@ -604,12 +607,12 @@ function load_active_set(
     lmo = BellCorrelationsLMO(p, reduce(p); d=D, marg)
     atoms = BellCorrelationsDS{T2, N, D, marg}[]
     @inbounds for i in eachindex(ass.weights)
-        atom = BellCorrelationsDS(ass.ax[i], lmo)
+        atom = BellCorrelationsDS(broadcast.(T2, ass.ax[i]), lmo)
         push!(atoms, atom)
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadratic([(weights[i], atoms[i]) for i in eachindex(ass.weights)], I, reduce(p))
+    res = FrankWolfe.ActiveSetQuadratic([(weights[i], reduce(atoms[i])) for i in eachindex(ass.weights)], I, reduce(p))
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
