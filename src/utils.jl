@@ -565,6 +565,36 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
     return reduce, inflate
 end
 
+function build_reduce_inflate_permutedims(p::Array{T, N}) where {T <: Number, N}
+    n = size(p, 1)
+    @assert all(n .== size(p))
+    dimension = prod(n + i for i in 0:N-1) ÷ factorial(N)
+    orbs = Vector{Vector{Int8}}[]
+    for i in 1:N
+        for c in combinations(1:n, i)
+            push!(orbs, unique(permutations(vcat(c, c[end] * ones(Int8, N-i)))))
+        end
+    end
+    sqmul = sqrt.(length.(orbs))
+    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: Number}
+        vec = Vector{S}(undef, dimension)
+        @inbounds for i in 1:dimension
+            vec[i] = sum(A[el...] for el in orbs[i]) / sqmul[i]
+        end
+        return FrankWolfe.SymmetricArray(A, vec)
+    end
+    function inflate(x::FrankWolfe.SymmetricArray, lmo=nothing)
+        @inbounds for i in 1:dimension
+            x.data[orbs[i][1]...] = x.vec[i] / sqmul[i]
+            for j in 2:length(orbs[i])
+                x.data[orbs[i][j]...] = x.data[orbs[i][1]...]
+            end
+        end
+        return x.data
+    end
+    return reduce, inflate
+end
+
 function build_reduce_inflate_unique(p::Array{T, N}; digits=9) where {T <: Number, N}
     ptol = round.(p; digits)
     ptol[ptol .== zero(T)] .= zero(T) # transform -0.0 into 0.0 as isequal(0.0, -0.0) is false
