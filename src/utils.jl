@@ -544,8 +544,8 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
             for j in i+1:n
                 cnt += 1
                 x.data[i, i, j] = x.vec[cnt] / sqrt3
-                x.data[i, j, i] = x.data[i, j, j]
-                x.data[j, i, i] = x.data[i, j, j]
+                x.data[i, j, i] = x.data[i, i, j]
+                x.data[j, i, i] = x.data[i, i, j]
                 cnt += 1
                 x.data[i, j, j] = x.vec[cnt] / sqrt3
                 x.data[j, i, j] = x.data[i, j, j]

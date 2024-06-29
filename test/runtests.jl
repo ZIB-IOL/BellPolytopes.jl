@@ -85,11 +85,11 @@ end
             marg=false,
         )[3] - 5.89838,
     ) < 1e-5
-    # HQVNB17 with symmetry TODO
-    # @test abs(
-        # bell_frank_wolfe(correlation_tensor(HQVNB17_vec(3), 3; rho=rho_W(3), marg=false); marg=false)[3] -
-        # 5.89838,
-    # ) < 1e-5
+    # HQVNB17 with symmetry
+    @test abs(
+        bell_frank_wolfe(correlation_tensor(HQVNB17_vec(3), 3; rho=rho_W(3), marg=false); marg=false)[3] -
+        5.89838,
+    ) < 1e-5
 end
 
 println()
