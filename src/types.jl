@@ -12,11 +12,10 @@ mutable struct BellCorrelationsLMO{T, N, Mode, HasMarginals, AT, IT} <: FrankWol
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
-    data::Vector # store information about the computation
     active_set::FrankWolfe.ActiveSetQuadratic{AT, T, IT, FrankWolfe.Identity{Bool}}
     lmo::BellCorrelationsLMO{T, N, Mode, HasMarginals, AT}
-    function BellCorrelationsLMO{T, N, Mode, HasMarginals, AT, IT}(m::Vector{Int}, vp::IT, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {HasMarginals} where {AT} where {IT}
-        lmo = new(m, tmp, nb, cnt, ci, data, FrankWolfe.ActiveSetQuadratic{AT}(vp))
+    function BellCorrelationsLMO{T, N, Mode, HasMarginals, AT, IT}(m::Vector{Int}, vp::IT, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}) where {T <: Number} where {N} where {Mode} where {HasMarginals} where {AT} where {IT}
+        lmo = new(m, tmp, nb, cnt, ci, FrankWolfe.ActiveSetQuadratic{AT}(vp))
         lmo.lmo = lmo
         return lmo
     end
@@ -29,7 +28,6 @@ function BellCorrelationsLMO(
     mode::Int=0,
     nb::Int=100,
     marg::Bool=false,
-    data=[0, 0],
     kwargs...
 ) where {T <: Number} where {N} where {IT}
     if IT <: FrankWolfe.SymmetricArray
@@ -44,7 +42,6 @@ function BellCorrelationsLMO(
         nb,
         0,
         CartesianIndices(p),
-        data,
     )
 end
 
@@ -55,12 +52,10 @@ function BellCorrelationsLMO(
     mode=Mode,
     marg=HasMarginals,
     nb=lmo.nb,
-    data=lmo.data,
     kwargs...
 ) where {T1 <: Number} where {N} where {Mode} where {HasMarginals} where {AT1} where {IT1} where {IT2}
     if T2 == T1 && mode == Mode && marg == HasMarginals && IT1 == IT2
         lmo.nb = nb
-        lmo.data = data
         return lmo
     end
     if marg == HasMarginals
@@ -88,7 +83,6 @@ function BellCorrelationsLMO(
         nb,
         lmo.cnt,
         lmo.ci,
-        data,
     )
 end
 
@@ -102,11 +96,10 @@ mutable struct BellProbabilitiesLMO{T, N2, Mode, AT, IT} <: FrankWolfe.LinearMin
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
     const ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
-    data::Vector # store information about the computation
     active_set::FrankWolfe.ActiveSetQuadratic{AT, T, IT, FrankWolfe.Identity{Bool}}
     lmo::BellProbabilitiesLMO{T, N2, Mode, AT, IT}
-    function BellProbabilitiesLMO{T, N2, Mode, AT, IT}(o::Vector{Int}, m::Vector{Int}, vp::IT, tmp::Vector{Matrix{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N2} where {Mode} where {AT} where {IT}
-        lmo = new(o, m, tmp, nb, cnt, ci, data, FrankWolfe.ActiveSetQuadratic{AT}(vp))
+    function BellProbabilitiesLMO{T, N2, Mode, AT, IT}(o::Vector{Int}, m::Vector{Int}, vp::IT, tmp::Vector{Matrix{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}}) where {T <: Number} where {N2} where {Mode} where {AT} where {IT}
+        lmo = new(o, m, tmp, nb, cnt, ci, FrankWolfe.ActiveSetQuadratic{AT}(vp))
         lmo.lmo = lmo
         return lmo
     end
@@ -118,7 +111,6 @@ function BellProbabilitiesLMO(
     vp::IT;
     mode::Int=0,
     nb::Int=100,
-    data=[0, 0],
     kwargs...
 ) where {T <: Number} where {N2} where {IT}
     N = N2 ÷ 2
@@ -135,7 +127,6 @@ function BellProbabilitiesLMO(
         nb,
         0,
         CartesianIndices(p),
-        data,
     )
 end
 
@@ -145,12 +136,10 @@ function BellProbabilitiesLMO(
     T2=T1,
     mode=Mode,
     nb=lmo.nb,
-    data=lmo.data,
     kwargs...
 ) where {T1 <: Number} where {N2} where {Mode} where {AT1} where {IT1} where {IT2}
     if T2 == T1 && mode == Mode && IT1 == IT2
         lmo.nb = nb
-        lmo.data = data
         return lmo
     end
     if IT1 <: FrankWolfe.SymmetricArray
@@ -166,7 +155,6 @@ function BellProbabilitiesLMO(
         nb,
         lmo.cnt,
         lmo.ci,
-        data,
     )
 end
 
@@ -577,7 +565,7 @@ function ActiveSetStorage(
             @view(ax[n][i, :]) .= as.atoms[i].data.ax[n][1:m[n]] .> zero(T)
         end
     end
-    return ActiveSetStorage{T, N, HasMarginals}(as.weights, ax, as.atoms[1].data.lmo.data)
+    return ActiveSetStorage{T, N, HasMarginals}(as.weights, ax, [as.atoms[1].data.lmo.cnt])
 end
 
 function load_active_set(
@@ -589,7 +577,7 @@ function load_active_set(
 ) where {T1 <: Number} where {N} where {HasMarginals} where {T2 <: Number}
     m = size.(ass.ax, (2,))
     p = zeros(T2, (marg ? m .+ 1 : m)...)
-    lmo = BellCorrelationsLMO(p, reduce(p); marg, data=ass.data)
+    lmo = BellCorrelationsLMO(p, reduce(p); marg)
     atoms = BellCorrelationsDS{T2, N, marg}[]
     @inbounds for i in eachindex(ass.weights)
         ax = [ones(T2, marg ? m[n] + 1 : m[n]) for n in 1:N]
@@ -627,7 +615,7 @@ function ActiveSetStorage(
             @view(ax[n][i, :]) .= as.atoms[i].data.ax[n]
         end
     end
-    return ActiveSetStorageMulti{T, N}(as.atoms[1].data.lmo.o, as.weights, ax, as.atoms[1].data.lmo.data)
+    return ActiveSetStorageMulti{T, N}(as.atoms[1].data.lmo.o, as.weights, ax, [as.atoms[1].data.lmo.cnt])
 end
 
 function load_active_set(
@@ -639,7 +627,7 @@ function load_active_set(
     o = ass.o
     m = [size(ass.ax[n], 2) for n in 1:N]
     p = zeros(T2, vcat(o, m)...)
-    lmo = BellProbabilitiesLMO(p, reduce(p); data=ass.data)
+    lmo = BellProbabilitiesLMO(p, reduce(p))
     atoms = BellProbabilitiesDS{T2, 2N}[]
     @inbounds for i in 1:length(ass.weights)
         ax = [ones(Int, m[n]) for n in 1:N]

@@ -51,12 +51,12 @@ function bell_frank_wolfe(
     lazy::Bool=true, # default in FW package is false
     max_iteration::Int=10^7, # default in FW package is 10^4
     recompute_last_vertex=false, # default in FW package is true
-    callback_interval::Int=verbose > 0 ? 10^4 : typemax(Int),
     renorm_interval::Int=10^3,
+    nb_increment_interval::Int=10^4,
+    callback_interval::Int=verbose > 0 ? 10^4 : typemax(Int),
     hyperplane_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     bound_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
-    nb_increment_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
-    save_interval::Int=verbose > 0 ? 100callback_interval : typemax(Int),
+    save_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     save::Bool=false,
     file=nothing,
     seed::Int=0,
@@ -70,11 +70,13 @@ function bell_frank_wolfe(
         # center of the polytope
         o = zeros(T, size(p))
         o[end] = marg
-        if sym === nothing && all(diff(m) .== 0) && p ≈ reynolds_permutedims(p)
-            reduce, inflate = build_reduce_inflate_permutedims(p)
-            sym = true
-        else
-            sym = false
+        if sym === nothing
+            if all(diff(m) .== 0) && p ≈ reynolds_permutedims(p)
+                reduce, inflate = build_reduce_inflate_permutedims(p)
+                sym = true
+            else
+                sym = false
+            end
         end
     else
         LMO = BellProbabilitiesLMO
@@ -82,11 +84,13 @@ function bell_frank_wolfe(
         m = collect(size(p)[N÷2+1:end])
         # center of the polytope
         o = ones(T, size(p)) / prod(size(p)[1:N÷2])
-        if sym === nothing && all(diff(m) .== 0) && p ≈ reynolds_permutelastdims(p)
-            reduce, inflate = build_reduce_inflate_permutelastdims(p)
-            sym = true
-        else
-            sym = false
+        if sym === nothing
+            if all(diff(m) .== 0) && p ≈ reynolds_permutelastdims(p)
+                reduce, inflate = build_reduce_inflate_permutelastdims(p)
+                sym = true
+            else
+                sym = false
+            end
         end
     end
     if verbose > 0
@@ -145,11 +149,11 @@ function bell_frank_wolfe(
         shr2^(iseven(N) ? N ÷ 2 : N / 2),
         verbose,
         epsilon,
-        callback_interval,
         renorm_interval,
+        nb_increment_interval,
+        callback_interval,
         hyperplane_interval,
         bound_interval,
-        nb_increment_interval,
         save,
         file,
         save_interval,
@@ -176,7 +180,7 @@ function bell_frank_wolfe(
         @printf("Primal: %.2e\n", primal)
         @printf("FW gap: %.2e\n", dual_gap)
         @printf("#Atoms: %d\n", length(as))
-        @printf("  #LMO: %d\n", lmo.lmo.data[2])
+        @printf("  #LMO: %d\n", lmo.lmo.cnt)
     end
     if sym
         atoms = [FrankWolfe.SymmetricArray(DS(atom.data; T2=TL), TL.(atom.vec)) for atom in as.atoms]
@@ -235,5 +239,13 @@ function bell_frank_wolfe(
     else
         return x, ds, primal, dual_gap, as, M, β
     end
+end
+function bell_frank_wolfe(
+    p::Array{T, N},
+    build_reduce_inflate::Function;
+    kwargs...,
+) where {T <: Number} where {N}
+    reduce, inflate = build_reduce_inflate(p)
+    return bell_frank_wolfe(p; sym=true, reduce, inflate, kwargs...)
 end
 export bell_frank_wolfe

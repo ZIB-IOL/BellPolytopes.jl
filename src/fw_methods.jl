@@ -29,7 +29,6 @@ function FrankWolfe.compute_extreme_point(
     end
     dsm = BellCorrelationsDS(axm, lmo)
     lmo.cnt += 1
-    lmo.data[2] += 1
     return dsm
 end
 
@@ -69,7 +68,6 @@ function FrankWolfe.compute_extreme_point(
     end
     dsm = BellCorrelationsDS(axm, lmo; initialise)
     lmo.cnt += 1
-    lmo.data[2] += 1
     return dsm
 end
 
@@ -115,7 +113,6 @@ function FrankWolfe.compute_extreme_point(
     end
     dsm = BellCorrelationsDS(axm, lmo; initialise)
     lmo.cnt += 1
-    lmo.data[2] += 1
     return dsm
 end
 
@@ -165,7 +162,6 @@ function FrankWolfe.compute_extreme_point(
     end
     dsm = BellCorrelationsDS(axm, lmo; initialise)
     lmo.cnt += 1
-    lmo.data[2] += 1
     return dsm
 end
 
@@ -219,7 +215,6 @@ function FrankWolfe.compute_extreme_point(
     end
     dsm = BellCorrelationsDS(axm, lmo; initialise)
     lmo.cnt += 1
-    lmo.data[2] += 1
     return dsm
 end
 
@@ -278,7 +273,6 @@ function FrankWolfe.compute_extreme_point(
     end
     dsm = BellCorrelationsDS(axm, lmo; initialise)
     lmo.cnt += 1
-    lmo.data[2] += 1
     return dsm
 end
 
@@ -327,7 +321,6 @@ function FrankWolfe.compute_extreme_point(
     end
     dsm = BellCorrelationsDS(axm, lmo; initialise)
     lmo.cnt += 1
-    lmo.data[2] += 1
     return dsm
 end
 
@@ -355,7 +348,6 @@ function FrankWolfe.compute_extreme_point(
     end
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
-    lmo.data[2] += 1
     return dsm
 end
 
@@ -400,7 +392,6 @@ function FrankWolfe.compute_extreme_point(
     end
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
-    lmo.data[2] += 1
     return dsm
 end
 
@@ -445,7 +436,6 @@ function FrankWolfe.compute_extreme_point(
     end
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
-    lmo.data[2] += 1
     return dsm
 end
 
@@ -495,7 +485,6 @@ function FrankWolfe.compute_extreme_point(
     end
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
-    lmo.data[2] += 1
     return dsm
 end
 

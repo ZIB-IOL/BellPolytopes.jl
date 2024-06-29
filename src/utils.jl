@@ -566,6 +566,29 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
     return reduce, inflate
 end
 
+function build_reduce_inflate_unique(p::Array{T, N}; digits=9) where {T <: Number} where {N}
+    ptol = round.(p; digits)
+    ptol[ptol .== zero(T)] .= zero(T) # transform -0.0 into 0.0 as isequal(0.0, -0.0) is false
+    uniquetol = unique(ptol[:])
+    dim = length(uniquetol) # reduced dimension
+    indices = [ptol .== u for u in uniquetol]
+    sqmul = [sqrt(sum(ind)) for ind in indices] # multiplicities, used to have matching scalar products
+    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: Number}
+        vec = zeros(T, dim)
+        for (i, ind) in enumerate(indices)
+            vec[i] = sum(A[ind]) / sqmul[i]
+        end
+        return FrankWolfe.SymmetricArray(A, vec)
+    end
+    function inflate(x::FrankWolfe.SymmetricArray, lmo=nothing)
+        for (i, ind) in enumerate(indices)
+            @view(x.data[ind]) .= x.vec[i] / sqmul[i]
+        end
+        return x.data
+    end
+    return reduce, inflate
+end
+
 function reynolds_permutelastdims(A::Array{T, N2}) where {T <: Number} where {N2}
     N = N2 ÷ 2
     res = zero(A)
