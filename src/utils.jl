@@ -445,7 +445,6 @@ end
 function active_set_reinitialise!(as::FrankWolfe.ActiveSetQuadratic)
     FrankWolfe.active_set_renormalize!(as)
     @inbounds for idx in eachindex(as)
-        set_array!(as.atoms[idx].data)
         for idy in 1:idx
             as.dots_A[idx][idy] = FrankWolfe.fast_dot(as.A * as.atoms[idx], as.atoms[idy])
         end
@@ -496,6 +495,70 @@ function build_reduce_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
             for j in i+1:n
                 x.data[i, j] = x.vec[cnt+j] / sqrt2
                 x.data[j, i] = x.data[i, j]
+            end
+        end
+        return x.data
+    end
+    return reduce, inflate
+end
+
+function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
+    n = size(p, 1)
+    @assert n == size(p, 2) && n == size(p, 3)
+    dimension = (n * (n + 1) * (n + 2)) ÷ 6
+    sqrt3 = sqrt(T(3))
+    sqrt6 = sqrt(T(6))
+    function reduce(A::AbstractArray{S, 3}, lmo=nothing) where {S <: Number}
+        vec = Vector{S}(undef, dimension)
+        cnt = 0
+        @inbounds for i in 1:n
+            cnt += 1
+            vec[cnt] = A[i, i, i]
+            for j in i+1:n
+                cnt += 1
+                vec[cnt] = (A[i, i, j]
+                          + A[i, j, i]
+                          + A[j, i, i]) / sqrt3
+                cnt += 1
+                vec[cnt] = (A[i, j, j]
+                          + A[j, i, j]
+                          + A[j, j, i]) / sqrt3
+                for k in j+1:n
+                    cnt += 1
+                    vec[cnt] = (A[i, j, k]
+                              + A[i, k, j]
+                              + A[j, i, k]
+                              + A[j, k, i]
+                              + A[k, i, j]
+                              + A[k, j, i]) / sqrt6
+                end
+            end
+        end
+        return FrankWolfe.SymmetricArray(A, vec)
+    end
+    function inflate(x::FrankWolfe.SymmetricArray, lmo=nothing)
+        cnt = 0
+        @inbounds for i in 1:n
+            cnt += 1
+            x.data[i, i, i] = x.vec[cnt]
+            for j in i+1:n
+                cnt += 1
+                x.data[i, i, j] = x.vec[cnt] / sqrt3
+                x.data[i, j, i] = x.data[i, j, j]
+                x.data[j, i, i] = x.data[i, j, j]
+                cnt += 1
+                x.data[i, j, j] = x.vec[cnt] / sqrt3
+                x.data[j, i, j] = x.data[i, j, j]
+                x.data[j, j, i] = x.data[i, j, j]
+                for k in j+1:n
+                    cnt += 1
+                    x.data[i, j, k] = x.vec[cnt] / sqrt6
+                    x.data[i, k, j] = x.data[i, j, k]
+                    x.data[j, i, k] = x.data[i, j, k]
+                    x.data[j, k, i] = x.data[i, j, k]
+                    x.data[k, i, j] = x.data[i, j, k]
+                    x.data[k, j, i] = x.data[i, j, k]
+                end
             end
         end
         return x.data

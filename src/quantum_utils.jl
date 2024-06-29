@@ -189,12 +189,6 @@ end
 # CONVERSION #
 ##############
 
-# convert a mx3 Bloch matrix into a mxm correlation matrix
-function correlation_matrix(vec::AbstractMatrix{T}) where {T <: Number}
-    @assert size(vec, 2) == 3
-    -vec * vec'
-end
-
 # convert a 2x...x2xmx...xm probability array into a mx...xm correlation array if marg = false (no marginals)
 # convert a 2x...x2xmx...xm probability array into a (m+1)x...x(m+1) correlation array if marg = true (marginals)
 function correlation_tensor(p::AbstractArray{T, N2}; marg::Bool=false) where {T <: Number} where {N2}

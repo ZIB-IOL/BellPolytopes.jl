@@ -127,7 +127,7 @@ function bell_frank_wolfe(
         lmo.lmo.active_set = active_set
     else
         if active_set isa AbstractActiveSetStorage
-            active_set = load_active_set(active_set, T; sym, marg)
+            active_set = load_active_set(active_set, T; marg, reduce)
         end
         active_set_link_lmo!(active_set, lmo, -vp)
         active_set_reinitialise!(active_set)

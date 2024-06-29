@@ -313,6 +313,10 @@ function get_array(ds::BellCorrelationsDS{T, N}, lmo::BellCorrelationsLMO{T, N})
     return res
 end
 
+# required for reinitialise! for now
+function set_array!(ds::BellCorrelationsDS{T, N}, lmo::BellCorrelationsLMO{T, N}) where {T <: Number} where {N}
+end
+
 FrankWolfe.fast_dot(A::Array, ds::BellCorrelationsDS) = conj(FrankWolfe.fast_dot(ds, A))
 
 function FrankWolfe.fast_dot(
@@ -580,11 +584,12 @@ function load_active_set(
     ass::ActiveSetStorage{T1, N, HasMarginals},
     ::Type{T2};
     marg=HasMarginals,
+    reduce=identity,
     kwargs...
 ) where {T1 <: Number} where {N} where {HasMarginals} where {T2 <: Number}
     m = size.(ass.ax, (2,))
     p = zeros(T2, (marg ? m .+ 1 : m)...)
-    lmo = BellCorrelationsLMO(p; marg, data=ass.data)
+    lmo = BellCorrelationsLMO(p, reduce(p); marg, data=ass.data)
     atoms = BellCorrelationsDS{T2, N, marg}[]
     @inbounds for i in eachindex(ass.weights)
         ax = [ones(T2, marg ? m[n] + 1 : m[n]) for n in 1:N]
@@ -596,7 +601,7 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadratic([(weights[i], atoms[i]) for i in eachindex(ass.weights)], I, p)
+    res = FrankWolfe.ActiveSetQuadratic([(weights[i], reduce(atoms[i])) for i in eachindex(ass.weights)], I, reduce(p))
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
@@ -628,12 +633,13 @@ end
 function load_active_set(
     ass::ActiveSetStorageMulti{T1, N},
     ::Type{T2};
+    reduce=identity,
     kwargs...
 ) where {T1 <: Number} where {N} where {T2 <: Number}
     o = ass.o
     m = [size(ass.ax[n], 2) for n in 1:N]
     p = zeros(T2, vcat(o, m)...)
-    lmo = BellProbabilitiesLMO(p; data=ass.data)
+    lmo = BellProbabilitiesLMO(p, reduce(p); data=ass.data)
     atoms = BellProbabilitiesDS{T2, 2N}[]
     @inbounds for i in 1:length(ass.weights)
         ax = [ones(Int, m[n]) for n in 1:N]
@@ -645,7 +651,7 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadratic([(weights[i], atoms[i]) for i in eachindex(ass.weights)], I, p)
+    res = FrankWolfe.ActiveSetQuadratic([(weights[i], reduce(atoms[i])) for i in eachindex(ass.weights)], I, p)
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
