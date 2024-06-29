@@ -545,7 +545,7 @@ function _unsafe_find_atom(active_set, atom)
 end
 
 # avoid broadcast by using the stored data
-function _muladd_memory_mode(as, d, a, v)
+function _muladd_memory_mode(as, d::AbstractArray{T}, a, v) where {T <: Number}
     idx_a = _unsafe_find_atom(as, a)
     idx_v = _unsafe_find_atom(as, v)
     d[1] = typemax(T)
