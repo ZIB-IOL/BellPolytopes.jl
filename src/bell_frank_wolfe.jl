@@ -33,9 +33,9 @@ Optional arguments:
 function bell_frank_wolfe(
     p::Array{T, N};
     prob::Bool=false,
-    marg::Bool=N != 2,
+    marg::Bool=false,
     v0=one(T),
-    epsilon=1e-7,
+    epsilon=10Base.rtoldefault(T),
     verbose::Int=0,
     shr2=NaN,
     d::Int=1,
@@ -43,14 +43,14 @@ function bell_frank_wolfe(
     nb::Int=10^2,
     TL::DataType=T,
     mode_last::Int=mode,
-    nb_last::Int=10^5,
-    epsilon_last=0,
+    nb_last::Int=10^3,
+    epsilon_last=Base.rtoldefault(T),
     sym::Union{Nothing, Bool}=nothing,
     reduce::Function=identity,
     inflate::Function=identity,
     active_set=nothing, # warm start
     lazy::Bool=true, # default in FW package is false
-    max_iteration::Int=10^7, # default in FW package is 10^4
+    max_iteration::Int=10^9, # default in FW package is 10^4
     recompute_last_vertex::Bool=false, # default in FW package is true
     renorm_interval::Int=10^3,
     nb_increment_interval::Int=10^4,
