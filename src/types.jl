@@ -581,7 +581,7 @@ function load_active_set(
     return res
 end
 
-struct ActiveSetStorageMapsto{T, N, D, HasMarginals}
+struct ActiveSetStorageMapsto{T, N, D, HasMarginals} <: AbstractActiveSetStorage
     weights::Vector{T}
     ax::Vector{Vector{Matrix{T}}}
     data::Vector{Any}
