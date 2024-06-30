@@ -2,10 +2,6 @@
 # HEURISTIC #
 #############
 
-function _normalize!(v::AbstractVector)
-    rmul!(v, inv(sqrt(dot(v, v))))
-end
-
 # Appendix A from arXiv:1609.06114 for correlation matrix
 # min_ab ∑_xy M_xy a_x b_y with a_x and b_y being ±1
 function alternating_minimisation!(
@@ -686,6 +682,38 @@ end
 # POLYHEDRA #
 #############
 
+function _normalize!(v::AbstractVector{T}) where {T <: AbstractFloat}
+    rmul!(v, inv(sqrt(dot(v, v))))
+end
+
+# acos handling floating point imprecision
+function _unsafe_acos(x::T) where {T <: AbstractFloat}
+    if x ≥ one(T)
+        return zero(T)
+    elseif x ≤ -one(T)
+        return T(pi)
+    else
+        return acos(x)
+    end
+end
+
+# intended for T = Rational{BigInt}
+# assumes the vector is already normalised up to numerical precision
+function _normalize!(v::AbstractVector{T}, a::T = one(T)) where {T <: Number}
+    if dot(v, v) == one(T) # to avoid numerical issues for [0, 1]
+        return
+    else
+        φ = _unsafe_acos(float(v[1] / a))
+        tφh = T(tan(φ / 2))
+        v[1] = a * (1 - tφh^2) / (1 + tφh^2)
+        if length(v) == 2
+            v[2] = a * sign(v[2]) * 2tφh / (1 + tφh^2)
+        else
+            _normalize!(view(v, 2:length(v)), a * 2tφh / (1 + tφh^2))
+        end
+    end
+end
+
 function polyhedronisme(f::String, m::Int)
     tab = readlines(f)[4:3+2m]
     res = Vector{Float64}[]
@@ -708,44 +736,6 @@ function polyhedronisme(f::String, m::Int)
     return vertices
 end
 export polyhedronisme
-
-# acos handling floating point imprecision
-function _unsafe_acos(x::T) where {T <: Number}
-    if x > one(T)
-        return 0.0
-    elseif x < -one(T)
-        return pi
-    else
-        return acos(x)
-    end
-end
-
-"""
-Compute a rational approximation of a `m × 3` Bloch matrix.
-"""
-function pythagorean_approximation(vecfloat::Matrix{T}; epsilon=1e-16) where {T <: Number}
-    m = size(vecfloat, 1)
-    vecfloat[abs.(vecfloat).<epsilon] .= zero(T) # remove the elements that are almost zero
-    res = zeros(Rational{BigInt}, m, 3)
-    for i in 1:m
-        x, y, z = vecfloat[i, :]
-        @assert x^2 + y^2 + z^2 ≈ one(T)
-        if norm([x, y, z], 1) == one(T) # avoid a numerical imprecision causing [0, 0, 1] to be match to [1e-16, 1e-16, 1]
-            a, b, c = Rational{BigInt}.([x, y, z])
-        else
-            φ = _unsafe_acos(z)
-            θ = (φ == 0.0) ? 0.0 : _unsafe_acos(x / sin(φ))
-            tφ2 = Rational{BigInt}(tan(φ / 2))
-            tθ2 = Rational{BigInt}(tan(θ / 2))
-            a = 2tφ2 / (1 + tφ2^2) * (1 - tθ2^2) / (1 + tθ2^2)
-            b = (y < 0 ? -1 : 1) * 2tφ2 / (1 + tφ2^2) * 2tθ2 / (1 + tθ2^2)
-            c = (1 - tφ2^2) / (1 + tφ2^2)
-        end
-        @assert a^2 + b^2 + c^2 == 1
-        res[i, :] = [a, b, c]
-    end
-    return res
-end
 
 """
 Compute the shrinking factor of a `m × 3` Bloch matrix, symmetrising it to account for antipodal vectors.

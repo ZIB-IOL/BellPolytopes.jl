@@ -607,7 +607,13 @@ function load_active_set(
     lmo = BellCorrelationsLMO(p, reduce(p); d=D, marg)
     atoms = BellCorrelationsDS{T2, N, D, marg}[]
     @inbounds for i in eachindex(ass.weights)
-        atom = BellCorrelationsDS(broadcast.(T2, ass.ax[i]), lmo)
+        ax = broadcast.(T2, ass.ax[i])
+        if T1 != T2
+            for n in 1:N
+                foreach(_normalize!, eachrow(ax[n]))
+            end
+        end
+        atom = BellCorrelationsDS(ax, lmo)
         push!(atoms, atom)
     end
     weights = T2.(ass.weights)
