@@ -70,27 +70,24 @@ function bell_frank_wolfe(
         # center of the polytope
         o = zeros(T, size(p))
         o[end] = marg
-        if sym === nothing
-            if all(diff(m) .== 0) && p ≈ reynolds_permutedims(p)
-                reduce, inflate = build_reduce_inflate_permutedims(p)
-                sym = true
-            else
-                sym = false
-            end
-        end
+        reynolds = reynolds_permutedims
+        build_reduce_inflate = build_reduce_inflate_permutedims
     else
         LMO = BellProbabilitiesLMO
         DS = BellProbabilitiesDS
         m = collect(size(p)[N÷2+1:end])
         # center of the polytope
         o = ones(T, size(p)) / prod(size(p)[1:N÷2])
-        if sym === nothing
-            if all(diff(m) .== 0) && p ≈ reynolds_permutelastdims(p)
-                reduce, inflate = build_reduce_inflate_permutelastdims(p)
-                sym = true
-            else
-                sym = false
-            end
+        reynolds = reynolds_permutelastdims
+        build_reduce_inflate = build_reduce_inflate_permutelastdims # TODO
+    end
+    # symmetry detection
+    if sym === nothing
+        if all(diff(m) .== 0) && p ≈ reynolds(p)
+            reduce, inflate = build_reduce_inflate(p)
+            sym = true
+        else
+            sym = false
         end
     end
     if verbose > 0
