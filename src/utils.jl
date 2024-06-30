@@ -653,7 +653,8 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
                 end
             end
         end
-        function inflate(x::FrankWolfe.SymmetricArray{true}, lmo=nothing)
+    end
+    function inflate(x::FrankWolfe.SymmetricArray{true}, lmo=nothing)
         cnt = 0
         @inbounds for i in 1:n
             cnt += 1
