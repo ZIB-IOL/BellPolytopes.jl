@@ -191,7 +191,7 @@ function bell_frank_wolfe(
     x = as.x
     tmp = abs(FrankWolfe.fast_dot(vp - x, p))
     if sym
-        M = FrankWolfe.SymmetricArray(TL.(vp.data - x.data) / (tmp == 0 ? 1 : tmp), TL.(vp.vec - x.vec) / (tmp == 0 ? 1 : tmp))
+        M = FrankWolfe.SymmetricArray(TL.(vp.data - inflate(x)) / (tmp == 0 ? 1 : tmp), TL.(vp.vec - x.vec) / (tmp == 0 ? 1 : tmp))
     else
         M = TL.((vp - x) / (tmp == 0 ? 1 : tmp))
     end
