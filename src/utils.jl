@@ -473,8 +473,9 @@ function build_reduce_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
     n = size(p, 1)
     @assert n == size(p, 2)
     dimension = (n * (n + 1)) ÷ 2
+    mul = vcat(ones(Int, n), 2ones(Int, dimension - n))
     sqrt2 = sqrt(T(2))
-    function reduce(A::AbstractArray{S, 2}, lmo=nothing) where {S <: Number}
+    function reduce(A::AbstractArray{S, 2}, lmo=nothing) where {S <: AbstractFloat}
         vec = Vector{S}(undef, dimension)
         cnt = 0
         @inbounds for i in 1:n
@@ -486,13 +487,37 @@ function build_reduce_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
         end
         return FrankWolfe.SymmetricArray(A, vec)
     end
-    function inflate(x::FrankWolfe.SymmetricArray, lmo=nothing)
+    function reduce(A::AbstractArray{S, 2}, lmo=nothing) where {S <: Number}
+        vec = Vector{S}(undef, dimension)
+        cnt = 0
+        @inbounds for i in 1:n
+            vec[i] = A[i, i]
+            cnt += n - i
+            for j in i+1:n
+                vec[cnt+j] = (A[i, j] + A[j, i]) / S(2)
+            end
+        end
+        return FrankWolfe.SymmetricArray(A, vec, mul)
+    end
+    function inflate(x::FrankWolfe.SymmetricArray{false}, lmo=nothing)
         cnt = 0
         @inbounds for i in 1:n
             x.data[i, i] = x.vec[i]
             cnt += n - i
             for j in i+1:n
                 x.data[i, j] = x.vec[cnt+j] / sqrt2
+                x.data[j, i] = x.data[i, j]
+            end
+        end
+        return x.data
+    end
+    function inflate(x::FrankWolfe.SymmetricArray{true}, lmo=nothing)
+        cnt = 0
+        @inbounds for i in 1:n
+            x.data[i, i] = x.vec[i]
+            cnt += n - i
+            for j in i+1:n
+                x.data[i, j] = x.vec[cnt+j]
                 x.data[j, i] = x.data[i, j]
             end
         end
@@ -505,9 +530,25 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
     n = size(p, 1)
     @assert n == size(p, 2) && n == size(p, 3)
     dimension = (n * (n + 1) * (n + 2)) ÷ 6
+    mul = Vector{Int}(undef, dimension)
+    cnt = 0
+    for i in 1:n
+        cnt += 1
+        mul[cnt] = 1
+        for j in i+1:n
+            cnt += 1
+            mul[cnt] = 3
+            cnt += 1
+            mul[cnt] = 3
+            for k in j+1:n
+                cnt += 1
+                vec[cnt] = 6
+            end
+        end
+    end
     sqrt3 = sqrt(T(3))
     sqrt6 = sqrt(T(6))
-    function reduce(A::AbstractArray{S, 3}, lmo=nothing) where {S <: Number}
+    function reduce(A::AbstractArray{S, 3}, lmo=nothing) where {S <: AbstractFloat}
         vec = Vector{S}(undef, dimension)
         cnt = 0
         @inbounds for i in 1:n
@@ -535,7 +576,35 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
         end
         return FrankWolfe.SymmetricArray(A, vec)
     end
-    function inflate(x::FrankWolfe.SymmetricArray, lmo=nothing)
+    function reduce(A::AbstractArray{S, 3}, lmo=nothing) where {S <: Number}
+        vec = Vector{S}(undef, dimension)
+        cnt = 0
+        @inbounds for i in 1:n
+            cnt += 1
+            vec[cnt] = A[i, i, i]
+            for j in i+1:n
+                cnt += 1
+                vec[cnt] = (A[i, i, j]
+                          + A[i, j, i]
+                          + A[j, i, i]) / S(3)
+                cnt += 1
+                vec[cnt] = (A[i, j, j]
+                          + A[j, i, j]
+                          + A[j, j, i]) / S(3)
+                for k in j+1:n
+                    cnt += 1
+                    vec[cnt] = (A[i, j, k]
+                              + A[i, k, j]
+                              + A[j, i, k]
+                              + A[j, k, i]
+                              + A[k, i, j]
+                              + A[k, j, i]) / S(6)
+                end
+            end
+        end
+        return FrankWolfe.SymmetricArray(A, vec, mul)
+    end
+    function inflate(x::FrankWolfe.SymmetricArray{false}, lmo=nothing)
         cnt = 0
         @inbounds for i in 1:n
             cnt += 1
@@ -560,6 +629,31 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
                 end
             end
         end
+        function inflate(x::FrankWolfe.SymmetricArray{true}, lmo=nothing)
+        cnt = 0
+        @inbounds for i in 1:n
+            cnt += 1
+            x.data[i, i, i] = x.vec[cnt]
+            for j in i+1:n
+                cnt += 1
+                x.data[i, i, j] = x.vec[cnt]
+                x.data[i, j, i] = x.data[i, i, j]
+                x.data[j, i, i] = x.data[i, i, j]
+                cnt += 1
+                x.data[i, j, j] = x.vec[cnt]
+                x.data[j, i, j] = x.data[i, j, j]
+                x.data[j, j, i] = x.data[i, j, j]
+                for k in j+1:n
+                    cnt += 1
+                    x.data[i, j, k] = x.vec[cnt]
+                    x.data[i, k, j] = x.data[i, j, k]
+                    x.data[j, i, k] = x.data[i, j, k]
+                    x.data[j, k, i] = x.data[i, j, k]
+                    x.data[k, i, j] = x.data[i, j, k]
+                    x.data[k, j, i] = x.data[i, j, k]
+                end
+            end
+        end
         return x.data
     end
     return reduce, inflate
@@ -570,19 +664,35 @@ function build_reduce_inflate_permutedims(p::Array{T, N}) where {T <: Number, N}
     @assert all(n .== size(p))
     orbs = [unique(permutations(c)) for c in with_replacement_combinations(Int8.(1:n), N)]
     dimension = length(orbs) #prod(n + i for i in 0:N-1) ÷ factorial(N)
-    sqmul = sqrt.(length.(orbs))
-    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: Number}
+    mul = length.(orbs)
+    sqmul = sqrt.(mul)
+    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: AbstractFloat}
         vec = Vector{S}(undef, dimension)
         for i in 1:dimension
             vec[i] = sum(A[el...] for el in orbs[i]) / sqmul[i]
         end
         return FrankWolfe.SymmetricArray(A, vec)
     end
-    function inflate(x::FrankWolfe.SymmetricArray, lmo=nothing)
+    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: Number}
+        vec = Vector{S}(undef, dimension)
+        for i in 1:dimension
+            vec[i] = sum(A[el...] for el in orbs[i]) / S(mul[i])
+        end
+        return FrankWolfe.SymmetricArray(A, vec, mul)
+    end
+    function inflate(x::FrankWolfe.SymmetricArray{false}, lmo=nothing)
         for i in 1:dimension
             x.data[orbs[i][1]...] = x.vec[i] / sqmul[i]
             for j in 2:length(orbs[i])
                 x.data[orbs[i][j]...] = x.data[orbs[i][1]...]
+            end
+        end
+        return x.data
+    end
+    function inflate(x::FrankWolfe.SymmetricArray{true}, lmo=nothing)
+        for i in 1:dimension
+            for j in 1:length(orbs[i])
+                x.data[orbs[i][j]...] = x.vec[i]
             end
         end
         return x.data
@@ -596,17 +706,31 @@ function build_reduce_inflate_unique(p::Array{T, N}; digits=9) where {T <: Numbe
     uniquetol = unique(ptol[:])
     dim = length(uniquetol) # reduced dimension
     indices = [ptol .== u for u in uniquetol]
-    sqmul = [sqrt(sum(ind)) for ind in indices] # multiplicities, used to have matching scalar products
-    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: Number}
-        vec = zeros(T, dim)
+    mul = [sum(ind) for ind in indices] # multiplicities, used to have matching scalar products
+    sqmul = sqrt.(mul) # precomputed for speed
+    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: AbstractFloat}
+        vec = zeros(S, dim)
         for (i, ind) in enumerate(indices)
             vec[i] = sum(A[ind]) / sqmul[i]
         end
         return FrankWolfe.SymmetricArray(A, vec)
     end
-    function inflate(x::FrankWolfe.SymmetricArray, lmo=nothing)
+    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: Number}
+        vec = zeros(S, dim)
+        for (i, ind) in enumerate(indices)
+            vec[i] = sum(A[ind]) / S(mul[i])
+        end
+        return FrankWolfe.SymmetricArray(A, vec, mul)
+    end
+    function inflate(x::FrankWolfe.SymmetricArray{false}, lmo=nothing)
         for (i, ind) in enumerate(indices)
             @view(x.data[ind]) .= x.vec[i] / sqmul[i]
+        end
+        return x.data
+    end
+    function inflate(x::FrankWolfe.SymmetricArray{true}, lmo=nothing)
+        for (i, ind) in enumerate(indices)
+            @view(x.data[ind]) .= x.vec[i]
         end
         return x.data
     end
