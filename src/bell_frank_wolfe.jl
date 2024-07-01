@@ -80,7 +80,7 @@ function bell_frank_wolfe(
         # center of the polytope
         o = ones(T, size(p)) / prod(size(p)[1:N÷2])
         reynolds = reynolds_permutelastdims
-        build_reduce_inflate = build_reduce_inflate_permutelastdims # TODO
+        build_reduce_inflate = build_reduce_inflate_permutelastdims
     end
     # symmetry detection
     if sym === nothing
