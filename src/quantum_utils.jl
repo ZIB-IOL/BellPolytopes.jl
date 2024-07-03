@@ -132,6 +132,12 @@ function polygonXY_vec(m::Int; type=Float64)
 end
 export polygonXY_vec
 
+# http://neilsloane.com/grass/index.html
+function grassc(d::Int, n::Int)
+    v = reshape(parse.(Float64, readlines("../grassc/grassc."*string(d)*".1."*string(n)*".txt")), d, n)'
+    return collect(hcat([v[i, :]/norm(v[i, :]) for i in 1:size(v, 1)]...)')
+end
+
 # measurements from arXiv:1609.06114 (rotated regular polyhedron)
 function HQVNB17_vec(n::Int; type=Float64)
     m = isodd(n) ? n^2 : n^2 - n + 1
