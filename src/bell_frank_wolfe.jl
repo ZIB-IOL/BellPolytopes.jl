@@ -43,7 +43,7 @@ function bell_frank_wolfe(
     nb::Int=10^2,
     TL::DataType=T,
     mode_last::Int=mode,
-    nb_last::Int=10^3,
+    nb_last::Int=10nb,
     epsilon_last=Base.rtoldefault(T),
     sym::Union{Nothing, Bool}=nothing,
     reduce::Function=identity,

@@ -30,7 +30,7 @@ function local_bound_probability(
     nb::Int=10^4,
     verbose=false,
 ) where {T <: Number} where {N}
-    ds = FrankWolfe.compute_extreme_point(BellProbabilitiesLMO(M; mode, nb), -M; verbose)
+    ds = FrankWolfe.compute_extreme_point(BellProbabilitiesLMO(M, M; mode, nb), -M; verbose)
     return FrankWolfe.fast_dot(M, ds), ds
 end
 export local_bound_probability
