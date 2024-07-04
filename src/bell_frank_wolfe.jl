@@ -36,7 +36,7 @@ function bell_frank_wolfe(
     marg::Bool=false,
     v0=one(T),
     epsilon=10Base.rtoldefault(T),
-    verbose::Int=0,
+    verbose=0,
     shr2=NaN,
     d::Int=1,
     mode::Int=0,
@@ -51,7 +51,6 @@ function bell_frank_wolfe(
     active_set=nothing, # warm start
     lazy::Bool=true, # default in FW package is false
     max_iteration::Int=10^9, # default in FW package is 10^4
-    recompute_last_vertex::Bool=false, # default in FW package is true
     renorm_interval::Int=10^3,
     nb_increment_interval::Int=10^4,
     callback_interval::Int=verbose > 0 ? 10^4 : typemax(Int),
