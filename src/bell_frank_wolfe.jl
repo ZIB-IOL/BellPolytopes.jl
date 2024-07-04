@@ -166,7 +166,6 @@ function bell_frank_wolfe(
         lazy,
         line_search=FrankWolfe.Shortstep(one(T)),
         max_iteration,
-        recompute_last_vertex,
         renorm_interval=typemax(Int),
         trajectory=false,
         verbose=false,
