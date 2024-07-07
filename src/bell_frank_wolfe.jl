@@ -48,6 +48,8 @@ function bell_frank_wolfe(
     reduce::Function=identity,
     inflate::Function=identity,
     active_set=nothing, # warm start
+    reset_dots_A::Bool=false, # warm start (technical)
+    reset_dots_b::Bool=true, # warm start (technical)
     lazy::Bool=true, # default in FW package is false
     max_iteration::Int=10^9, # default in FW package is 10^4
     renorm_interval::Int=10^3,
@@ -128,9 +130,11 @@ function bell_frank_wolfe(
     else
         if active_set isa AbstractActiveSetStorage
             active_set = load_active_set(active_set, T; marg, reduce)
+            reset_dots_A = true
+            reset_dots_b = true
         end
         active_set_link_lmo!(active_set, lmo, -vp)
-        active_set_reinitialise!(active_set)
+        active_set_reinitialise!(active_set; reset_dots_A, reset_dots_b)
         if verbose > 1
             println("Active set initialised")
         end

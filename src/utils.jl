@@ -441,13 +441,17 @@ function active_set_link_lmo!(as::FrankWolfe.ActiveSetQuadratic, lmo, p)
 end
 
 # initialise an active set from a previously computed active set
-function active_set_reinitialise!(as::FrankWolfe.ActiveSetQuadratic)
+function active_set_reinitialise!(as::FrankWolfe.ActiveSetQuadratic; reset_dots_A=false, reset_dots_b=true)
     FrankWolfe.active_set_renormalize!(as)
     @inbounds for idx in eachindex(as)
-        for idy in 1:idx
-            as.dots_A[idx][idy] = FrankWolfe.fast_dot(as.A * as.atoms[idx], as.atoms[idy])
+        if reset_dots_A
+            for idy in 1:idx
+                as.dots_A[idx][idy] = FrankWolfe.fast_dot(as.A * as.atoms[idx], as.atoms[idy])
+            end
         end
-        as.dots_b[idx] = FrankWolfe.fast_dot(as.b, as.atoms[idx])
+        if reset_dots_b
+            as.dots_b[idx] = FrankWolfe.fast_dot(as.b, as.atoms[idx])
+        end
     end
     FrankWolfe.compute_active_set_iterate!(as)
     return nothing
