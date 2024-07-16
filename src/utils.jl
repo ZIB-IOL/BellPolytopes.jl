@@ -546,7 +546,7 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
             mul[cnt] = 3
             for z in y+1:m
                 cnt += 1
-                vec[cnt] = 6
+                mul[cnt] = 6
             end
         end
     end
