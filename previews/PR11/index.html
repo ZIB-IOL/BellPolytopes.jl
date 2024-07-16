@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Home · BellPolytopes.jl</title><script data-outdated-warner src="assets/warner.js"></script><link rel="canonical" href="https://zib-iol.github.io/BellPolytopes.jl/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href>BellPolytopes.jl</a></span></div><form class="docs-search" action="search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>Home</a><ul class="internal"><li><a class="tocitem" href="#Installation"><span>Installation</span></a></li><li><a class="tocitem" href="#Getting-started"><span>Getting started</span></a></li><li><a class="tocitem" href="#Under-the-hood"><span>Under the hood</span></a></li><li><a class="tocitem" href="#Going-further"><span>Going further</span></a></li></ul></li><li><a class="tocitem" href="api/">API reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Home</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Home</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/ZIB-IOL/BellPolytopes.jl/blob/master/README.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="BellPolytopes.jl"><a class="docs-heading-anchor" href="#BellPolytopes.jl">BellPolytopes.jl</a><a id="BellPolytopes.jl-1"></a><a class="docs-heading-anchor-permalink" href="#BellPolytopes.jl" title="Permalink"></a></h1><p><a href="https://zib-iol.github.io/BellPolytopes.jl/dev/"><img src="https://img.shields.io/badge/docs-dev-blue.svg" alt="Dev"/></a> <a href="https://github.com/zib-iol/BellPolytopes.jl/actions/workflows/CI.yml?query=branch%3Amain"><img src="https://github.com/zib-iol/BellPolytopes.jl/actions/workflows/CI.yml/badge.svg?branch=main" alt="Build Status"/></a></p><p>This package addresses the membership problem for local polytopes: it constructs Bell inequalities and local models in multipartite Bell scenarios with binary outcomes.</p><p>The original article for which it was written can be found here:</p><blockquote><p><a href="http://arxiv.org/abs/2302.04721">Improved local models and new Bell inequalities via Frank-Wolfe algorithms</a>.</p></blockquote><h2 id="Installation"><a class="docs-heading-anchor" href="#Installation">Installation</a><a id="Installation-1"></a><a class="docs-heading-anchor-permalink" href="#Installation" title="Permalink"></a></h2><p>The most recent release is available via the julia package manager, e.g., with</p><pre><code class="language-julia hljs">using Pkg
+Pkg.add(&quot;BellPolytopes&quot;)</code></pre><p>or the main branch:</p><pre><code class="language-julia hljs">Pkg.add(url=&quot;https://github.com/ZIB-IOL/BellPolytopes.jl&quot;, rev=&quot;main&quot;)</code></pre><h2 id="Getting-started"><a class="docs-heading-anchor" href="#Getting-started">Getting started</a><a id="Getting-started-1"></a><a class="docs-heading-anchor-permalink" href="#Getting-started" title="Permalink"></a></h2><p>Let&#39;s say we want to characterise the nonlocality threshold obtained with the two-qubit maximally entangled state and measurements whose Bloch vectors form an icosahedron. Using <code>BellPolytopes.jl</code>, here is what the code looks like.</p><pre><code class="language-julia hljs">julia&gt; using BellPolytopes, LinearAlgebra
+
+julia&gt; N = 2; # bipartite scenario
+
+julia&gt; rho = rho_GHZ(N) # two-qubit maximally entangled state
+4×4 Matrix{Float64}:
+ 0.5  0.0  0.0  0.5
+ 0.0  0.0  0.0  0.0
+ 0.0  0.0  0.0  0.0
+ 0.5  0.0  0.0  0.5
+
+julia&gt; measurements_vec = icosahedron_vec() # Bloch vectors forming an icosahedron
+6×3 Matrix{Float64}:
+ 0.0        0.525731   0.850651
+ 0.0        0.525731  -0.850651
+ 0.525731   0.850651   0.0
+ 0.525731  -0.850651   0.0
+ 0.850651   0.0        0.525731
+ 0.850651   0.0       -0.525731
+
+julia&gt; _, lower_bound, upper_bound, local_model, bell_inequality, _ =
+       nonlocality_threshold(measurements_vec, N; rho = rho);
+
+julia&gt; println([lower_bound, upper_bound])
+[0.7784, 0.7784]
+
+julia&gt; p = correlation_tensor(measurements_vec, N; rho = rho)
+6×6 Matrix{Float64}:
+  0.447214  -1.0       -0.447214   0.447214   0.447214  -0.447214
+ -1.0        0.447214  -0.447214   0.447214  -0.447214   0.447214
+ -0.447214  -0.447214  -0.447214   1.0        0.447214   0.447214
+  0.447214   0.447214   1.0       -0.447214   0.447214   0.447214
+  0.447214  -0.447214   0.447214   0.447214   1.0        0.447214
+ -0.447214   0.447214   0.447214   0.447214   0.447214   1.0
+
+julia&gt; final_iterate = sum(local_model.weights[i] * local_model.atoms[i] for i in 1:length(local_model));
+
+julia&gt; norm(final_iterate - lower_bound * p) &lt; 1e-3 # checking local model
+true
+
+julia&gt; local_bound(bell_inequality)[1] / dot(bell_inequality, p) # checking the Bell inequality
+0.7783914488195466</code></pre><h2 id="Under-the-hood"><a class="docs-heading-anchor" href="#Under-the-hood">Under the hood</a><a id="Under-the-hood-1"></a><a class="docs-heading-anchor-permalink" href="#Under-the-hood" title="Permalink"></a></h2><p>The computation is based on an efficient variant of the Frank-Wolfe algorithm to iteratively find the local point closest to the input correlation tensor. See this recent <a href="https://arxiv.org/abs/2211.14103">review</a> for an introduction to the method and the package <a href="https://github.com/ZIB-IOL/FrankWolfe.jl">FrankWolfe.jl</a> for the implementation on which this package relies.</p><p>In a nutshell, each step gets closer to the objective point:</p><ul><li>either by moving towards a <em>good</em> vertex of the local polytope,</li><li>or by astutely combining the vertices (or atoms) already found and stored in the <em>active set</em>.</li></ul><pre><code class="language-julia hljs">julia&gt; res = bell_frank_wolfe(p; v0=0.8, verbose=3, callback_interval=10^2, mode_last=-1);
+
+Visibility: 0.8
+ Symmetric: true
+   #Inputs: 6
+ Dimension: 21
+
+Intervals
+    Print: 100
+   Renorm: 100
+   Reduce: 10000
+    Upper: 1000
+Increment: 1000
+
+   Iteration        Primal      Dual gap    Time (sec)       #It/sec    #Atoms       #LMO
+         100    8.7570e-03    6.0089e-02    6.9701e-04    1.4347e+05        11         26
+         200    5.9241e-03    5.4948e-02    9.4910e-04    2.1073e+05        16         33
+         300    3.5594e-03    3.4747e-02    1.1942e-03    2.5122e+05        18         40
+         400    1.9068e-03    3.4747e-02    1.3469e-03    2.9697e+05        16         42
+         500    1.8093e-03    5.7632e-06    1.5409e-03    3.2448e+05        14         48
+
+    Primal: 1.81e-03
+  Dual gap: 2.60e-08
+      Time: 1.63e-03
+    It/sec: 3.28e+05
+    #Atoms: 14
+
+v_c ≤ 0.778392</code></pre><h2 id="Going-further"><a class="docs-heading-anchor" href="#Going-further">Going further</a><a id="Going-further-1"></a><a class="docs-heading-anchor-permalink" href="#Going-further" title="Permalink"></a></h2><p>More examples can be found in the corresponding folder of the package. They include the construction of a Bell inequality with a higher tolerance to noise as CHSH as well as multipartite instances.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="api/">API reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Tuesday 16 July 2024 14:03">Tuesday 16 July 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
