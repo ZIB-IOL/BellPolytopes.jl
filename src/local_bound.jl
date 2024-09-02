@@ -17,9 +17,9 @@ function local_bound_correlation(
     d::Int=1,
     mode::Int=0,
     nb::Int=10^4,
-    verbose=false,
+    kwargs...
 ) where {T <: Number} where {N}
-    ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M, M; marg, mode, nb, d), -M; verbose)
+    ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M, M; marg, mode, nb, d), -M; kwargs...)
     return FrankWolfe.fast_dot(M, ds), ds
 end
 export local_bound_correlation
@@ -28,9 +28,9 @@ function local_bound_probability(
     M::Array{T, N};
     mode::Int=0,
     nb::Int=10^4,
-    verbose=false,
+    kwargs...
 ) where {T <: Number} where {N}
-    ds = FrankWolfe.compute_extreme_point(BellProbabilitiesLMO(M, M; mode, nb), -M; verbose)
+    ds = FrankWolfe.compute_extreme_point(BellProbabilitiesLMO(M, M; mode, nb), -M; kwargs...)
     return FrankWolfe.fast_dot(M, ds), ds
 end
 export local_bound_probability

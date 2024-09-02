@@ -381,12 +381,15 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellProbabilitiesLMO{T, 4, 1},
     A::Array{T, 4};
     verbose=false,
+    count=false,
     kwargs...,
 ) where {T <: Number}
     ax = [ones(Int, lmo.m[n]) for n in 1:2]
     sc = zero(T)
     axm = [zeros(Int, lmo.m[n]) for n in 1:2]
     scm = typemax(T)
+    # set containing all optimal strategies when count=true
+    setm = Set{Array{T, 4}}()
     for λa2 in 0:lmo.o[2]^lmo.m[2]-1
         digits!(ax[2], λa2; base=lmo.o[2])
         ax[2] .+= 1
@@ -411,10 +414,17 @@ function FrankWolfe.compute_extreme_point(
             for n in 1:2
                 axm[n] .= ax[n]
             end
+            empty!(setm)
         end
         if verbose && sc ≈ scm
-            println(rpad(string([λa2]), 2 + ndigits(2^(sum(lmo.m)÷2))), " ", string(-scm))
+            println(rpad(string([λa2]), 2 + ndigits(lmo.o[2]^lmo.m[2])), " ", string(-scm))
         end
+        if count && sc ≈ scm
+            push!(setm, collect(BellProbabilitiesDS(ax, lmo)))
+        end
+    end
+    if count
+        println(length(setm))
     end
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
@@ -425,12 +435,15 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellProbabilitiesLMO{T, 4, 2},
     A::Array{T, 4};
     verbose=false,
+    count=false,
     kwargs...,
 ) where {T <: Number}
     ax = [ones(Int, lmo.m[n]) for n in 1:2]
     sc = zero(T)
     axm = [zeros(Int, lmo.m[n]) for n in 1:2]
     scm = typemax(T)
+    # set containing all optimal strategies when count=true
+    setm = Set{Array{T, 4}}()
     for λa1 in 0:lmo.o[1]^lmo.m[1]-1
         digits!(ax[1], λa1; base=lmo.o[1])
         ax[1] .+= 1
@@ -455,10 +468,17 @@ function FrankWolfe.compute_extreme_point(
             for n in 1:2
                 axm[n] .= ax[n]
             end
+            empty!(setm)
         end
         if verbose && sc ≈ scm
-            println(rpad(string([λa2]), 2 + ndigits(2^(sum(lmo.m)÷2))), " ", string(-scm))
+            println(rpad(string([λa2]), 2 + ndigits(lmo.o[1]^lmo.m[1])), " ", string(-scm))
         end
+        if count && sc ≈ scm
+            push!(setm, collect(BellProbabilitiesDS(ax, lmo)))
+        end
+    end
+    if count
+        println(length(setm))
     end
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
@@ -469,13 +489,16 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellProbabilitiesLMO{T, 6, 1},
     A::Array{T, 6};
     verbose=false,
-    sym = false,
+    count=false,
+    sym=false,
     kwargs...,
 ) where {T <: Number}
     ax = [ones(Int, lmo.m[n]) for n in 1:3]
     sc = zero(T)
     axm = [zeros(Int, lmo.m[n]) for n in 1:3]
     scm = typemax(T)
+    # set containing all optimal strategies when count=true
+    setm = Set{Array{T, 4}}()
     for λa3 in 0:lmo.o[3]^lmo.m[3]-1
         digits!(ax[3], λa3; base=lmo.o[3])
         ax[3] .+= 1
@@ -503,11 +526,18 @@ function FrankWolfe.compute_extreme_point(
                 for n in 1:3
                     axm[n] .= ax[n]
                 end
+                empty!(setm)
             end
             if verbose && sc ≈ scm
-                println(rpad(string([λa3, λa2]), 4 + 2ndigits(2^(sum(lmo.m)÷3))), " ", string(-scm))
+                println(rpad(string([λa3, λa2]), 4 + ndigits(lmo.o[3]^lmo.m[3]) + ndigits(lmo.o[2]^lmo.m[2])), " ", string(-scm))
+            end
+            if count && sc ≈ scm
+                push!(setm, collect(BellProbabilitiesDS(ax, lmo)))
             end
         end
+    end
+    if count
+        println(length(setm))
     end
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
