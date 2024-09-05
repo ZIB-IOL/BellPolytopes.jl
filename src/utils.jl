@@ -671,7 +671,7 @@ function build_reduce_inflate_permutedims(p::Array{T, N}) where {T <: Number, N}
     orbs = [unique(permutations(c)) for c in with_replacement_combinations(Int8.(1:m), N)]
     dimension = length(orbs)
     mul = length.(orbs)
-    sqmul = sqrt.(mul)
+    sqmul = sqrt.(T.(mul))
     function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: AbstractFloat}
         vec = Vector{S}(undef, dimension)
         @inbounds for i in 1:dimension
@@ -713,7 +713,7 @@ function build_reduce_inflate_unique(p::Array{T, N}; digits=9) where {T <: Numbe
     dim = length(uniquetol) # reduced dimension
     indices = [ptol .== u for u in uniquetol]
     mul = [sum(ind) for ind in indices] # multiplicities, used to have matching scalar products
-    sqmul = sqrt.(mul) # precomputed for speed
+    sqmul = sqrt.(T.(mul)) # precomputed for speed
     function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: AbstractFloat}
         vec = zeros(S, dim)
         @inbounds for (i, ind) in enumerate(indices)
