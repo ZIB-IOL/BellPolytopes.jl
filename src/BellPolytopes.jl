@@ -1,8 +1,11 @@
+__precompile__(false)
 module BellPolytopes
 
 using Combinatorics
+using CyclotomicNumbers
 using FrankWolfe
 using LinearAlgebra
+using Polyester
 using Polyhedra
 using Printf
 using Random

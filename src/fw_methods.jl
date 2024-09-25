@@ -38,7 +38,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 2, 1, HasMarginals},
     A::Array{T, 2};
     verbose=false,
-    last=false,
     initialise=true,
     kwargs...,
 ) where {T <: Number, HasMarginals}
@@ -77,7 +76,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 3, 1, HasMarginals},
     A::Array{T, 3};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
@@ -122,7 +120,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 4, 1, HasMarginals},
     A::Array{T, 4};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
@@ -171,7 +168,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 5, 1, HasMarginals},
     A::Array{T, 5};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
@@ -224,7 +220,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 6, 1, HasMarginals},
     A::Array{T, 6};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
@@ -282,7 +277,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, N, 1, HasMarginals},
     A::Array{T, N};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
@@ -561,6 +555,46 @@ function FrankWolfe.active_set_update_iterate_pairwise!(
         xit[x] += lambda * (fw_atom[x] - away_atom[x])
     end
     return xit
+end
+
+function FrankWolfe.active_set_argminmax(active_set::FrankWolfe.ActiveSetQuadratic, direction; Φ=0.5)
+    valm = typemax(eltype(direction))
+    valM = typemin(eltype(direction))
+    idxm = -1
+    idxM = -1
+    idx_modified = findall(active_set.modified)
+    @inbounds for idx in idx_modified
+        weights_diff = active_set.weights[idx] - active_set.weights_prev[idx]
+        @batch minbatch = 1000 for i in 1:idx
+            active_set.dots_x[i] += weights_diff * active_set.dots_A[idx][i]
+        end
+        @batch minbatch = 1000 for i in idx+1:length(active_set)
+            active_set.dots_x[i] += weights_diff * active_set.dots_A[i][idx]
+        end
+    end
+    @inbounds for i in eachindex(active_set)
+        # direction is not used and assumed to be Ax+b
+        val = active_set.dots_x[i] + active_set.dots_b[i]
+        # @assert abs(fast_dot(active_set.atoms[i], direction) - val) < Base.rtoldefault(eltype(direction))
+        if val < valm
+            valm = val
+            idxm = i
+        end
+        if valM < val
+            valM = val
+            idxM = i
+        end
+    end
+    @inbounds for idx in idx_modified
+        active_set.weights_prev[idx] = active_set.weights[idx]
+        active_set.modified[idx] = false
+    end
+    # if idxm == -1 || idxM == -1
+        # error("Infinite minimum $valm or maximum $valM in the active set. Does the gradient contain invalid (NaN / Inf) entries?")
+    # end
+    active_set.modified[idxm] = true
+    active_set.modified[idxM] = true
+    return (active_set[idxm]..., idxm, valm, active_set[idxM]..., idxM, valM, valM - valm ≥ Φ)
 end
 
 ##########

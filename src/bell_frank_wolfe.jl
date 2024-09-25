@@ -43,7 +43,7 @@ function bell_frank_wolfe(
     TL::DataType=T,
     mode_last::Int=mode,
     nb_last::Int=10nb,
-    epsilon_last=Base.rtoldefault(T),
+    cutoff_last=10,
     sym::Union{Nothing, Bool}=nothing,
     reduce::Function=identity,
     inflate::Function=identity,
@@ -60,6 +60,10 @@ function bell_frank_wolfe(
     save_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
     save::Bool=false,
     file=nothing,
+    fista_maxiter=10^3,
+    fista_accelerated=true,
+    fista_printstep=10,
+    fista_interval=10^3,
     seed::Int=0,
     kwargs...,
 ) where {T <: Number, N}
@@ -159,7 +163,7 @@ function bell_frank_wolfe(
         save_interval,
     )
     # main call to FW
-    x, ds, primal, dual_gap, _, as = FrankWolfe.blended_pairwise_conditional_gradient(
+    x, ds, primal, dual_gap, _, as = FrankWolfe.blended_pairwise_conditional_gradient_fista(
         f,
         grad!,
         lmo,
@@ -172,6 +176,11 @@ function bell_frank_wolfe(
         renorm_interval=typemax(Int),
         trajectory=false,
         verbose=false,
+        fista_interval,
+        fista_maxiter,
+        fista_accelerated,
+        fista_verbose=true,
+        fista_printstep,
         kwargs...,
     )
     if verbose ≥ 2
@@ -213,7 +222,7 @@ function bell_frank_wolfe(
     end
     # renormalise the inequality by its smalles element, neglecting entries smaller than epsilon_last
     if epsilon_last > 0
-        M[abs.(M) .< epsilon_last] .= zero(TL)
+        M[log.(abs.(M)) .< maximum(log.(abs.(M))) - cutoff_last] .= zero(TL)
         M ./= minimum(abs.(M[abs.(M) .> zero(TL)]))
     end
     β = FrankWolfe.fast_dot(M, ds) / FrankWolfe.fast_dot(M, p) # local/global max found by the LMO
