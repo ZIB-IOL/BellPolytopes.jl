@@ -1,19 +1,19 @@
 function build_callback(
-    p,
-    v,
-    o,
-    shr2,
-    verbose,
-    epsilon,
-    renorm_interval,
-    nb_increment_interval,
-    callback_interval,
-    hyperplane_interval,
-    bound_interval,
-    save,
-    file,
-    save_interval,
-)
+        p,
+        v,
+        o,
+        shr2,
+        verbose,
+        epsilon,
+        renorm_interval,
+        nb_increment_interval,
+        callback_interval,
+        hyperplane_interval,
+        bound_interval,
+        save,
+        file,
+        save_interval,
+    )
     if isnan(shr2)
         bound_interval = typemax(Int)
     end
@@ -61,16 +61,16 @@ function build_callback(
         end
         if verbose && mod(state.t, callback_interval) == 0
             @printf(
-                    stdout,
-                    "%s    %.4e    %.4e    %.4e    %.4e   %s    %s\n",
-                    lpad(state.t, 12),
-                    state.primal,
-                    state.dual_gap,
-                    state.time,
-                    state.t / state.time,
-                    lpad(length(active_set), 7),
-                    lpad(state.lmo.lmo.cnt, 7)
-                   )
+                stdout,
+                "%s    %.4e    %.4e    %.4e    %.4e   %s    %s\n",
+                lpad(state.t, 12),
+                state.primal,
+                state.dual_gap,
+                state.time,
+                state.t / state.time,
+                lpad(length(active_set), 7),
+                lpad(state.lmo.lmo.cnt, 7)
+            )
         end
         if verbose_hyperplane && mod(state.t, hyperplane_interval) == 0
             a = -state.gradient # v*p+(1-v)*o-active_set.x

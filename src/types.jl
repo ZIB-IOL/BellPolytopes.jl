@@ -23,13 +23,13 @@ end
 
 # constructor with predefined values
 function BellCorrelationsLMO(
-    p::Array{T, N},
-    vp::IT;
-    mode::Int=0,
-    nb::Int=100,
-    marg::Bool=false,
-    kwargs...
-) where {T <: Number, N, IT}
+        p::Array{T, N},
+        vp::IT;
+        mode::Int = 0,
+        nb::Int = 100,
+        marg::Bool = false,
+        kwargs...
+    ) where {T <: Number, N, IT}
     if IT <: FrankWolfe.SymmetricArray
         AT = FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, marg}, Vector{T}}
     else
@@ -46,14 +46,14 @@ function BellCorrelationsLMO(
 end
 
 function BellCorrelationsLMO(
-    lmo::BellCorrelationsLMO{T1, N, Mode, HasMarginals, AT1, IT1},
-    vp::IT2;
-    T2=T1,
-    mode=Mode,
-    marg=HasMarginals,
-    nb=lmo.nb,
-    kwargs...
-) where {T1 <: Number, N, Mode, HasMarginals, AT1, IT1, IT2}
+        lmo::BellCorrelationsLMO{T1, N, Mode, HasMarginals, AT1, IT1},
+        vp::IT2;
+        T2 = T1,
+        mode = Mode,
+        marg = HasMarginals,
+        nb = lmo.nb,
+        kwargs...
+    ) where {T1 <: Number, N, Mode, HasMarginals, AT1, IT1, IT2}
     if T2 == T1 && mode == Mode && marg == HasMarginals && IT1 == IT2
         lmo.nb = nb
         return lmo
@@ -107,12 +107,12 @@ end
 
 # constructor with predefined values
 function BellProbabilitiesLMO(
-    p::Array{T, N2},
-    vp::IT;
-    mode::Int=0,
-    nb::Int=100,
-    kwargs...
-) where {T <: Number, N2, IT}
+        p::Array{T, N2},
+        vp::IT;
+        mode::Int = 0,
+        nb::Int = 100,
+        kwargs...
+    ) where {T <: Number, N2, IT}
     N = N2 ÷ 2
     if IT <: FrankWolfe.SymmetricArray
         AT = FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}
@@ -121,9 +121,9 @@ function BellProbabilitiesLMO(
     end
     return BellProbabilitiesLMO{T, N2, mode, AT, IT}(
         collect(size(p)[1:N]),
-        collect(size(p)[N+1:end]),
+        collect(size(p)[(N + 1):end]),
         vp,
-        [zeros(T, size(p, N+n), size(p, n)) for n in 1:N],
+        [zeros(T, size(p, N + n), size(p, n)) for n in 1:N],
         nb,
         0,
         CartesianIndices(p),
@@ -131,13 +131,13 @@ function BellProbabilitiesLMO(
 end
 
 function BellProbabilitiesLMO(
-    lmo::BellProbabilitiesLMO{T1, N2, Mode, AT1, IT1},
-    vp::IT2;
-    T2=T1,
-    mode=Mode,
-    nb=lmo.nb,
-    kwargs...
-) where {T1 <: Number, N2, Mode, AT1, IT1, IT2}
+        lmo::BellProbabilitiesLMO{T1, N2, Mode, AT1, IT1},
+        vp::IT2;
+        T2 = T1,
+        mode = Mode,
+        nb = lmo.nb,
+        kwargs...
+    ) where {T1 <: Number, N2, Mode, AT1, IT1, IT2}
     if T2 == T1 && mode == Mode && IT1 == IT2
         lmo.nb = nb
         return lmo
@@ -177,27 +177,27 @@ end
 Base.size(ds::BellCorrelationsDS) = Tuple(length.(ds.ax))
 
 function BellCorrelationsDS(
-    ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, N, Mode, HasMarginals};
-    initialise=true,
-) where {T <: Number, N, Mode, HasMarginals}
+        ax::Vector{Vector{T}},
+        lmo::BellCorrelationsLMO{T, N, Mode, HasMarginals};
+        initialise = true,
+    ) where {T <: Number, N, Mode, HasMarginals}
     res = BellCorrelationsDS{T, N, HasMarginals}(ax, lmo)
     return res
 end
 
 function BellCorrelationsDS(
-    ds::BellCorrelationsDS{T1, N, HasMarginals};
-    T2=T1,
-    marg=HasMarginals,
-    kwargs...
-) where {T1 <: Number, N, HasMarginals}
+        ds::BellCorrelationsDS{T1, N, HasMarginals};
+        T2 = T1,
+        marg = HasMarginals,
+        kwargs...
+    ) where {T1 <: Number, N, HasMarginals}
     if T2 == T1 && marg == HasMarginals
         return ds
     end
     if marg == HasMarginals
         ax = ds.ax
     elseif HasMarginals
-        ax = [axn[1:end-1] for axn in ds.ax]
+        ax = [axn[1:(end - 1)] for axn in ds.ax]
     else
         ax = [vcat(axn, one(T1)) for axn in ax]
     end
@@ -211,18 +211,18 @@ end
 # method used to convert active_set.atoms into a desired type (intended Rational{BigInt})
 # to recompute the last iterate
 function BellCorrelationsDS(
-    vds::Vector{BellCorrelationsDS{T1, N, HasMarginals}},
-    ::Type{T2};
-    marg=HasMarginals,
-    kwargs...
-) where {T1 <: Number, N, HasMarginals, T2 <: Number}
+        vds::Vector{BellCorrelationsDS{T1, N, HasMarginals}},
+        ::Type{T2};
+        marg = HasMarginals,
+        kwargs...
+    ) where {T1 <: Number, N, HasMarginals, T2 <: Number}
     lmo = BellCorrelationsLMO(zeros(T2, size(vds[1])); marg)
     res = BellCorrelationsDS{T2, N, marg}[]
     for ds in vds
         if marg == HasMarginals
             ax = ds.ax
         elseif HasMarginals
-            ax = [axn[1:end-1] for axn in ds.ax]
+            ax = [axn[1:(end - 1)] for axn in ds.ax]
         else
             ax = [vcat(axn, one(T)) for axn in ax]
         end
@@ -268,17 +268,17 @@ end
 
 # specialised method for performance
 Base.@propagate_inbounds function Base.getindex(
-    ds::BellCorrelationsDS{T, 2, HasMarginals},
-    x::Vararg{Int, 2},
-) where {T <: Number, HasMarginals}
+        ds::BellCorrelationsDS{T, 2, HasMarginals},
+        x::Vararg{Int, 2},
+    ) where {T <: Number, HasMarginals}
     @boundscheck (checkbounds(ds, x...))
     return @inbounds ds.ax[1][x[1]] * ds.ax[2][x[2]]
 end
 
 Base.@propagate_inbounds function Base.getindex(
-    ds::BellCorrelationsDS{T, N, HasMarginals},
-    x::Vararg{Int, N},
-) where {T <: Number, N, HasMarginals}
+        ds::BellCorrelationsDS{T, N, HasMarginals},
+        x::Vararg{Int, N},
+    ) where {T <: Number, N, HasMarginals}
     @boundscheck (checkbounds(ds, x...))
     prd = one(T)
     @inbounds for n in 1:N
@@ -294,44 +294,44 @@ end
 FrankWolfe.fast_dot(A::Array, ds::BellCorrelationsDS) = conj(FrankWolfe.fast_dot(ds, A))
 
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 2, HasMarginals},
-    A::Array{T, 2},
-) where {T <: Number, HasMarginals}
+        ds::BellCorrelationsDS{T, 2, HasMarginals},
+        A::Array{T, 2},
+    ) where {T <: Number, HasMarginals}
     mul!(ds.lmo.tmp[1], A, ds.ax[2])
     return dot(ds.ax[1], ds.lmo.tmp[1]) - HasMarginals * A[end]
 end
 
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 3, HasMarginals},
-    A::Array{T, 3},
-) where {T <: Number, HasMarginals}
+        ds::BellCorrelationsDS{T, 3, HasMarginals},
+        A::Array{T, 3},
+    ) where {T <: Number, HasMarginals}
     res = zero(T)
     @tullio res = A[x1, x2, x3] * ds.ax[1][x1] * ds.ax[2][x2] * ds.ax[3][x3]
     return res - HasMarginals * A[end]
 end
 
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 4, HasMarginals},
-    A::Array{T, 4},
-) where {T <: Number, HasMarginals}
+        ds::BellCorrelationsDS{T, 4, HasMarginals},
+        A::Array{T, 4},
+    ) where {T <: Number, HasMarginals}
     res = zero(T)
     @tullio res = A[x1, x2, x3, x4] * ds.ax[1][x1] * ds.ax[2][x2] * ds.ax[3][x3] * ds.ax[4][x4]
     return res - HasMarginals * A[end]
 end
 
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 5, HasMarginals},
-    A::Array{T, 5},
-) where {T <: Number, HasMarginals}
+        ds::BellCorrelationsDS{T, 5, HasMarginals},
+        A::Array{T, 5},
+    ) where {T <: Number, HasMarginals}
     res = zero(T)
     @tullio res = A[x1, x2, x3, x4, x5] * ds.ax[1][x1] * ds.ax[2][x2] * ds.ax[3][x3] * ds.ax[4][x4] * ds.ax[5][x5]
     return res - HasMarginals * A[end]
 end
 
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 6, HasMarginals},
-    A::Array{T, 6},
-) where {T <: Number, HasMarginals}
+        ds::BellCorrelationsDS{T, 6, HasMarginals},
+        A::Array{T, 6},
+    ) where {T <: Number, HasMarginals}
     res = zero(T)
     @tullio res =
         A[x1, x2, x3, x4, x5, x6] * ds.ax[1][x1] * ds.ax[2][x2] * ds.ax[3][x3] * ds.ax[4][x4] * ds.ax[5][x5] * ds.ax[6][x6]
@@ -339,9 +339,9 @@ function FrankWolfe.fast_dot(
 end
 
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 7, HasMarginals},
-    A::Array{T, 7},
-) where {T <: Number, HasMarginals}
+        ds::BellCorrelationsDS{T, 7, HasMarginals},
+        A::Array{T, 7},
+    ) where {T <: Number, HasMarginals}
     res = zero(T)
     @tullio res =
         A[x1, x2, x3, x4, x5, x6, x7] *
@@ -356,9 +356,9 @@ function FrankWolfe.fast_dot(
 end
 
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, 8, HasMarginals},
-    A::Array{T, 8},
-) where {T <: Number, HasMarginals}
+        ds::BellCorrelationsDS{T, 8, HasMarginals},
+        A::Array{T, 8},
+    ) where {T <: Number, HasMarginals}
     res = zero(T)
     @tullio res =
         A[x1, x2, x3, x4, x5, x6, x7, x8] *
@@ -374,9 +374,9 @@ function FrankWolfe.fast_dot(
 end
 
 function FrankWolfe.fast_dot(
-    ds::BellCorrelationsDS{T, N, HasMarginals},
-    A::Array{T, N},
-) where {T <: Number, N, HasMarginals}
+        ds::BellCorrelationsDS{T, N, HasMarginals},
+        A::Array{T, N},
+    ) where {T <: Number, N, HasMarginals}
     error(
         "Combination of parameters not supported yet, please copy, paste, and trivially adapt fast_dot in types.jl",
     )
@@ -384,16 +384,16 @@ end
 
 # specialised method for performance
 function FrankWolfe.fast_dot(
-    ds1::BellCorrelationsDS{T, 2, HasMarginals},
-    ds2::BellCorrelationsDS{T, 2, HasMarginals},
-) where {T <: Number, HasMarginals}
+        ds1::BellCorrelationsDS{T, 2, HasMarginals},
+        ds2::BellCorrelationsDS{T, 2, HasMarginals},
+    ) where {T <: Number, HasMarginals}
     return dot(ds1.ax[1], ds2.ax[1]) * dot(ds1.ax[2], ds2.ax[2]) - HasMarginals
 end
 
 function FrankWolfe.fast_dot(
-    ds1::BellCorrelationsDS{T, N, HasMarginals},
-    ds2::BellCorrelationsDS{T, N, HasMarginals},
-) where {T <: Number, N, HasMarginals}
+        ds1::BellCorrelationsDS{T, N, HasMarginals},
+        ds2::BellCorrelationsDS{T, N, HasMarginals},
+    ) where {T <: Number, N, HasMarginals}
     prd = one(T)
     @inbounds for n in 1:N
         prd *= dot(ds1.ax[n], ds2.ax[n])
@@ -421,10 +421,10 @@ end
 Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.o, length.(ds.ax)))
 
 function BellProbabilitiesDS(
-    ax::Vector{Vector{Int}},
-    lmo::BellProbabilitiesLMO{T, N2, Mode};
-    initialise=true,
-) where {T <: Number, N2, Mode}
+        ax::Vector{Vector{Int}},
+        lmo::BellProbabilitiesLMO{T, N2, Mode};
+        initialise = true,
+    ) where {T <: Number, N2, Mode}
     res = BellProbabilitiesDS{T, N2}(
         ax,
         lmo,
@@ -437,10 +437,10 @@ function BellProbabilitiesDS(
 end
 
 function BellProbabilitiesDS(
-    ds::BellProbabilitiesDS{T1, N2};
-    T2=T1,
-    kwargs...
-) where {T1 <: Number, N2}
+        ds::BellProbabilitiesDS{T1, N2};
+        T2 = T1,
+        kwargs...
+    ) where {T1 <: Number, N2}
     if T2 == T1
         return ds
     end
@@ -456,10 +456,10 @@ end
 # method used to convert active_set.atoms into a desired type (intended Rational{BigInt})
 # to recompute the last iterate
 function BellProbabilitiesDS(
-    vds::Vector{BellProbabilitiesDS{T1, N2}},
-    ::Type{T2};
-    kwargs...
-) where {T1 <: Number, N2, T2 <: Number}
+        vds::Vector{BellProbabilitiesDS{T1, N2}},
+        ::Type{T2};
+        kwargs...
+    ) where {T1 <: Number, N2, T2 <: Number}
     array = zeros(T2, size(vds[1]))
     lmo = BellProbabilitiesLMO(array)
     res = BellProbabilitiesDS{T2, N2}[]
@@ -491,9 +491,9 @@ Base.@propagate_inbounds function Base.getindex(ds::BellProbabilitiesDS{T, N2}, 
 end
 
 Base.@propagate_inbounds function Base.getindex(
-    ds::BellProbabilitiesDS{T, N2},
-    x::Vararg{Int, N2},
-) where {T <: Number, N2}
+        ds::BellProbabilitiesDS{T, N2},
+        x::Vararg{Int, N2},
+    ) where {T <: Number, N2}
     @boundscheck (checkbounds(ds, x...))
     return @inbounds getindex(ds.array, x...)
 end
@@ -513,16 +513,16 @@ end
 FrankWolfe.fast_dot(A::Array, ds::BellProbabilitiesDS) = conj(FrankWolfe.fast_dot(ds, A))
 
 function FrankWolfe.fast_dot(
-    ds::BellProbabilitiesDS{T, N2},
-    A::Array{T, N2},
-) where {T <: Number, N2}
+        ds::BellProbabilitiesDS{T, N2},
+        A::Array{T, N2},
+    ) where {T <: Number, N2}
     return dot(ds.array, A)
 end
 
 function FrankWolfe.fast_dot(
-    ds1::BellProbabilitiesDS{T, N2},
-    ds2::BellProbabilitiesDS{T, N2},
-) where {T <: Number, N2}
+        ds1::BellProbabilitiesDS{T, N2},
+        ds2::BellProbabilitiesDS{T, N2},
+    ) where {T <: Number, N2}
     return dot(ds1.array, ds2.array)
 end
 
@@ -539,11 +539,13 @@ struct ActiveSetStorage{T, N, HasMarginals} <: AbstractActiveSetStorage
 end
 
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSetQuadratic{AT},
-) where {
-    AT <: Union{FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, HasMarginals}, Vector{T}},
-                BellCorrelationsDS{T, N, HasMarginals}},
-} where {T <: Number, N, HasMarginals}
+        as::FrankWolfe.ActiveSetQuadratic{AT},
+    ) where {
+        AT <: Union{
+            FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, HasMarginals}, Vector{T}},
+            BellCorrelationsDS{T, N, HasMarginals},
+        },
+    } where {T <: Number, N, HasMarginals}
     m = HasMarginals ? as.atoms[1].data.lmo.m .- 1 : as.atoms[1].data.lmo.m
     ax = [BitArray(undef, length(as), m[n]) for n in 1:N]
     for i in eachindex(as)
@@ -555,12 +557,12 @@ function ActiveSetStorage(
 end
 
 function load_active_set(
-    ass::ActiveSetStorage{T1, N, HasMarginals},
-    ::Type{T2};
-    marg=HasMarginals,
-    reduce=identity,
-    kwargs...
-) where {T1 <: Number, N, HasMarginals, T2 <: Number}
+        ass::ActiveSetStorage{T1, N, HasMarginals},
+        ::Type{T2};
+        marg = HasMarginals,
+        reduce = identity,
+        kwargs...
+    ) where {T1 <: Number, N, HasMarginals, T2 <: Number}
     m = size.(ass.ax, (2,))
     p = zeros(T2, (marg ? m .+ 1 : m)...)
     lmo = BellCorrelationsLMO(p, reduce(p); marg)
@@ -589,8 +591,8 @@ struct ActiveSetStorageMulti{T, N} <: AbstractActiveSetStorage
 end
 
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSetQuadratic{FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}, T, FrankWolfe.SymmetricArray{false, T, Array{T, N2}, Vector{T}}},
-) where {T <: Number, N2}
+        as::FrankWolfe.ActiveSetQuadratic{FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}, T, FrankWolfe.SymmetricArray{false, T, Array{T, N2}, Vector{T}}},
+    ) where {T <: Number, N2}
     N = N2 ÷ 2
     omax = maximum(as.atoms[1].data.lmo.o)
     m = as.atoms[1].data.lmo.m
@@ -605,11 +607,11 @@ function ActiveSetStorage(
 end
 
 function load_active_set(
-    ass::ActiveSetStorageMulti{T1, N},
-    ::Type{T2};
-    reduce=identity,
-    kwargs...
-) where {T1 <: Number, N, T2 <: Number}
+        ass::ActiveSetStorageMulti{T1, N},
+        ::Type{T2};
+        reduce = identity,
+        kwargs...
+    ) where {T1 <: Number, N, T2 <: Number}
     o = ass.o
     m = [size(ass.ax[n], 2) for n in 1:N]
     p = zeros(T2, vcat(o, m)...)
