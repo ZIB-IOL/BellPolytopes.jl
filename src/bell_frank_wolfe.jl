@@ -240,12 +240,4 @@ function bell_frank_wolfe(
         return x, ds, primal, dual_gap, as, M, β
     end
 end
-function bell_frank_wolfe(
-    p::Array{T, N},
-    build_reduce_inflate::Function;
-    kwargs...,
-) where {T <: Number, N}
-    reduce, inflate = build_reduce_inflate(p)
-    return bell_frank_wolfe(p; sym=true, reduce, inflate, kwargs...)
-end
 export bell_frank_wolfe

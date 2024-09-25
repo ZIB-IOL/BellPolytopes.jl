@@ -3,7 +3,7 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://zib-iol.github.io/BellPolytopes.jl/dev/)
 [![Build Status](https://github.com/zib-iol/BellPolytopes.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/zib-iol/BellPolytopes.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
-This package addresses the membership problem for local polytopes: it constructs Bell inequalities and local models in multipartite Bell scenarios with binary outcomes.
+This package addresses the membership problem for local polytopes: it constructs Bell inequalities and local models in multipartite Bell scenarios with arbitrary settings.
 
 The original article for which it was written can be found here:
 
