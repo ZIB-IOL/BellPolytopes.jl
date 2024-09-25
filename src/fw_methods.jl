@@ -5,14 +5,16 @@
 function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, N, 0, HasMarginals},
     A::Array{T, N};
+    current=zero(T),
     kwargs...,
 ) where {T <: Number, N, HasMarginals}
     ax = [ones(T, lmo.m[n]) for n in 1:N]
     sc = zero(T)
     axm = [zeros(T, lmo.m[n]) for n in 1:N]
     scm = typemax(T)
-    # precompute arguments for speed
-    for i in 1:lmo.nb
+    i = 0
+    while i < lmo.nb || current < scm
+        i += 1
         for n in 1:N-1
             rand!(ax[n], [-one(T), one(T)])
             if HasMarginals
