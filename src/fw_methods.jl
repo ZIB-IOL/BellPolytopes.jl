@@ -62,7 +62,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 2, 1, 1, HasMarginals},
     A::Array{T, 2};
     verbose=false,
-    last=false,
     initialise=true,
     kwargs...,
 ) where {T <: Number, HasMarginals}
@@ -101,7 +100,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 3, 1, 1, HasMarginals},
     A::Array{T, 3};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
@@ -146,7 +144,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 4, 1, 1, HasMarginals},
     A::Array{T, 4};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
@@ -195,7 +192,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 5, 1, 1, HasMarginals},
     A::Array{T, 5};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
@@ -248,7 +244,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 6, 1, 1, HasMarginals},
     A::Array{T, 6};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
@@ -306,7 +301,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, N, 1, 1, HasMarginals},
     A::Array{T, N};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
