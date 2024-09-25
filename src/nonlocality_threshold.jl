@@ -19,18 +19,18 @@ Optional arguments:
  - for the other optional arguments, see `bell_frank_wolfe`.
 """
 function nonlocality_threshold(
-    vec::Union{TB, Vector{TB}},
-    N::Int;
-    rho=N == 2 ? rho_singlet(; type=T) : rho_GHZ(N; type=T),
-    epsilon=1e-8,
-    marg::Bool=false,
-    v0=one(T),
-    precision=4,
-    verbose=-1,
-    kwargs...,
-) where {TB <: AbstractMatrix{T}} where {T <: Number}
+        vec::Union{TB, Vector{TB}},
+        N::Int;
+        rho = N == 2 ? rho_singlet(; type = T) : rho_GHZ(N; type = T),
+        epsilon = 1.0e-8,
+        marg::Bool = false,
+        v0 = one(T),
+        precision = 4,
+        verbose = -1,
+        kwargs...,
+    ) where {TB <: AbstractMatrix{T}} where {T <: Number}
     p = correlation_tensor(vec, N; rho, marg)
-    shr2 = shrinking_squared(vec; verbose=verbose > 0)
+    shr2 = shrinking_squared(vec; verbose = verbose > 0)
     lower_bound = zero(T)
     upper_bound = one(T)
     local_model = nothing
@@ -39,11 +39,11 @@ function nonlocality_threshold(
         res = bell_frank_wolfe(
             p;
             v0,
-            verbose=verbose + (upper_bound == one(T)) / 2,
+            verbose = verbose + (upper_bound == one(T)) / 2,
             epsilon,
             shr2,
             marg,
-            sym=false,
+            sym = false,
             kwargs...,
         )
         x, ds, primal, dual_gap, as, M, β = res
@@ -52,12 +52,12 @@ function nonlocality_threshold(
         end
         if dual_gap < primal
             if β < upper_bound
-                upper_bound = round(β; digits=precision)
+                upper_bound = round(β; digits = precision)
                 bell_inequality = M
-                if v0 == round(β; digits=precision)
-                    v0 = round(β - 10.0^(-precision); digits=precision)
+                if v0 == round(β; digits = precision)
+                    v0 = round(β - 10.0^(-precision); digits = precision)
                 else
-                    v0 = round(β; digits=precision)
+                    v0 = round(β; digits = precision)
                 end
             else
                 @warn "Unexpected output"
@@ -67,7 +67,7 @@ function nonlocality_threshold(
             lower_bound = v0
             local_model = as
             if upper_bound < lower_bound
-                upper_bound = round(v0 + 2 * 10.0^(-precision); digits=precision)
+                upper_bound = round(v0 + 2 * 10.0^(-precision); digits = precision)
             end
             v0 = (lower_bound + upper_bound) / 2
         end

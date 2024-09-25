@@ -3,13 +3,13 @@
 #############
 
 #  Pauli matrices
-σI(; type=ComplexF64) = Matrix{type}([1 0; 0 1])
-σX(; type=ComplexF64) = Matrix{type}([0 1; 1 0])
-σY(; type=ComplexF64) = Matrix{type}([0 -im; im 0])
-σZ(; type=ComplexF64) = Matrix{type}([1 0; 0 -1])
+σI(; type = ComplexF64) = Matrix{type}([1 0; 0 1])
+σX(; type = ComplexF64) = Matrix{type}([0 1; 1 0])
+σY(; type = ComplexF64) = Matrix{type}([0 -im; im 0])
+σZ(; type = ComplexF64) = Matrix{type}([1 0; 0 -1])
 
 # projector onto a direction in the Bloch sphere
-function qubit_proj(v::Vector{T}; mes::Bool=false, type=Complex{T}) where {T <: Number}
+function qubit_proj(v::Vector{T}; mes::Bool = false, type = Complex{T}) where {T <: Number}
     if mes
         return [
             (σI(; type) - v[1] * σX(; type) - v[2] * σY(; type) - v[3] * σZ(; type)) / 2;;;
@@ -31,26 +31,26 @@ end
 #  STATES  #
 ############
 
-function rho_singlet(; type=Float64)
+function rho_singlet(; type = Float64)
     psi = [zero(type), one(type), -one(type), zero(type)]
     return psi * psi' / type(2)
 end
 export rho_singlet
 
-function rho_GHZ(N::Int; d=2, type=Float64)
-    aux = zeros(type, d*ones(Int, N)...)
+function rho_GHZ(N::Int; d = 2, type = Float64)
+    aux = zeros(type, d * ones(Int, N)...)
     for i in 1:d
-        aux[i*ones(Int, N)...] = one(type)
+        aux[i * ones(Int, N)...] = one(type)
     end
     psi = reshape(aux, d^N, 1)
     return psi * psi' / type(d)
 end
 export rho_GHZ
 
-function rho_W(N::Int; type=Float64)
+function rho_W(N::Int; type = Float64)
     psi = zeros(type, 2^N)
     for n in 1:N
-        psi[2^(n-1)+1] = one(type)
+        psi[2^(n - 1) + 1] = one(type)
     end
     return psi * psi' / type(N)
 end
@@ -73,10 +73,10 @@ export ketbra
 ##################
 
 # create a set of qubit measurements from an array of Bloch coordinates
-function qubit_mes(v::Matrix{T}; type=Complex{T}) where {T <: Number}
+function qubit_mes(v::Matrix{T}; type = Complex{T}) where {T <: Number}
     res = zeros(type, 2, 2, 2, size(v, 1))
     for i in 1:size(v, 1)
-        res[:, :, :, i] = qubit_proj(v[i, :]; mes=true, type)
+        res[:, :, :, i] = qubit_proj(v[i, :]; mes = true, type)
     end
     return res
 end
@@ -89,31 +89,31 @@ export cube_vec
 octahedron_vec() = [1 0 0; 0 1 0; 0 0 1]
 export octahedron_vec
 
-function icosahedron_vec(; type=Float64)
+function icosahedron_vec(; type = Float64)
     φ = (1 + sqrt(type(5))) / 2
     return [0 1 φ; 0 1 -φ; 1 φ 0; 1 -φ 0; φ 0 1; φ 0 -1] / sqrt(2 + φ)
 end
 export icosahedron_vec
 
-function dodecahedron_vec(; type=Float64)
+function dodecahedron_vec(; type = Float64)
     φ = (1 + sqrt(type(5))) / 2
     return [
         1 1 1
         1 -1 -1
         -1 1 -1
         -1 -1 1
-        0 1/φ φ
-        0 1/φ -φ
-        1/φ φ 0
-        1/φ -φ 0
-        φ 0 1/φ
-        φ 0 -1/φ
+        0 1 / φ φ
+        0 1 / φ -φ
+        1 / φ φ 0
+        1 / φ -φ 0
+        φ 0 1 / φ
+        φ 0 -1 / φ
     ] / sqrt(type(3))
 end
 export dodecahedron_vec
 
 # measurements from arXiv:1609.05011 (regular polyhedron in the XY plane)
-function polygonXY_vec(m::Int; type=Float64)
+function polygonXY_vec(m::Int; type = Float64)
     if type <: AbstractFloat
         return collect(hcat([[cos((x - 1) * type(pi) / m), sin((x - 1) * type(pi) / m), zero(type)] for x in 1:m]...)')
     elseif type <: Real
@@ -134,30 +134,30 @@ export polygonXY_vec
 
 # http://neilsloane.com/grass/index.html
 function grassc(d::Int, n::Int)
-    v = reshape(parse.(Float64, readlines("../grassc/grassc."*string(d)*".1."*string(n)*".txt")), d, n)'
-    return collect(hcat([v[i, :]/norm(v[i, :]) for i in 1:size(v, 1)]...)')
+    v = reshape(parse.(Float64, readlines("../grassc/grassc." * string(d) * ".1." * string(n) * ".txt")), d, n)'
+    return collect(hcat([v[i, :] / norm(v[i, :]) for i in 1:size(v, 1)]...)')
 end
 
 # measurements from arXiv:1609.06114 (rotated regular polyhedron)
-function HQVNB17_vec(n::Int; type=Float64)
+function HQVNB17_vec(n::Int; type = Float64)
     m = isodd(n) ? n^2 : n^2 - n + 1
     res = zeros(type, m, 3)
     if iseven(n)
         tabv = [
             (
-                cos(i1 * type(pi) / n) * cos(i2 * type(pi) / n),
-                sin(i1 * type(pi) / n) * cos(i2 * type(pi) / n),
-                sin(i2 * type(pi) / n),
-            ) for i1 in 0:n-1, i2 in 0:n-1 if i2 != n ÷ 2
+                    cos(i1 * type(pi) / n) * cos(i2 * type(pi) / n),
+                    sin(i1 * type(pi) / n) * cos(i2 * type(pi) / n),
+                    sin(i2 * type(pi) / n),
+                ) for i1 in 0:(n - 1), i2 in 0:(n - 1) if i2 != n ÷ 2
         ][:]
         push!(tabv, (0.0, 0.0, 1.0))
     else
         tabv = [
             (
-                cos(i1 * type(pi) / n) * cos(i2 * type(pi) / n),
-                sin(i1 * type(pi) / n) * cos(i2 * type(pi) / n),
-                sin(i2 * type(pi) / n),
-            ) for i1 in 0:n-1, i2 in 0:n-1
+                    cos(i1 * type(pi) / n) * cos(i2 * type(pi) / n),
+                    sin(i1 * type(pi) / n) * cos(i2 * type(pi) / n),
+                    sin(i2 * type(pi) / n),
+                ) for i1 in 0:(n - 1), i2 in 0:(n - 1)
         ][:]
     end
     for i in 1:m
@@ -175,8 +175,8 @@ function povm(B::Array{T, 3}) where {T <: Number}
     n = size(B, 2)
     k = size(B, 3)
     res = zeros(ComplexF64, d, d, n, k)
-    for a = 1:n, x = 1:k
-        res[:, :, a, x] = B[:, a, x]*B[:, a, x]'
+    for a in 1:n, x in 1:k
+        res[:, :, a, x] = B[:, a, x] * B[:, a, x]'
     end
     return res
 end
@@ -185,9 +185,9 @@ export povm
 # construction of the measurements from Eqs. (5) and (6) from quant-ph/0605182
 # Barrett Kent Pironio
 function BKP_mes(d::Int, N::Int)
-    omega = exp(2*im*pi/d)
-    rA = [omega^(q*(r-(k-1/2)/N))/sqrt(d) for q = 0:d-1, r = 0:d-1, k = 1:N]
-    rB = [omega^(-q*(r-l/N))/sqrt(d) for q = 0:d-1, r = 0:d-1, l = 1:N]
+    omega = exp(2 * im * pi / d)
+    rA = [omega^(q * (r - (k - 1 / 2) / N)) / sqrt(d) for q in 0:(d - 1), r in 0:(d - 1), k in 1:N]
+    rB = [omega^(-q * (r - l / N)) / sqrt(d) for q in 0:(d - 1), r in 0:(d - 1), l in 1:N]
     return povm(rA), povm(rB)
 end
 
@@ -197,7 +197,7 @@ end
 
 # convert a 2x...x2xmx...xm probability array into a mx...xm correlation array if marg = false (no marginals)
 # convert a 2x...x2xmx...xm probability array into a (m+1)x...x(m+1) correlation array if marg = true (marginals)
-function correlation_tensor(p::AbstractArray{T, N2}; marg::Bool=false) where {T <: Number, N2}
+function correlation_tensor(p::AbstractArray{T, N2}; marg::Bool = false) where {T <: Number, N2}
     @assert iseven(N2)
     N = N2 ÷ 2
     m = size(p)[end]
@@ -219,28 +219,28 @@ function correlation_tensor(p::AbstractArray{T, N2}; marg::Bool=false) where {T 
 end
 
 function correlation_tensor(
-    vec::AbstractMatrix{T},
-    N::Int;
-    rho=rho_W(N; type=T),
-    marg::Bool=false,
-    type=Complex{T},
-) where {T <: Number}
+        vec::AbstractMatrix{T},
+        N::Int;
+        rho = rho_W(N; type = T),
+        marg::Bool = false,
+        type = Complex{T},
+    ) where {T <: Number}
     correlation_tensor(probability_tensor(vec, N; rho, type); marg)
 end
 
 function correlation_tensor(
-    vecs::Vector{TB},
-    N::Int;
-    rho=rho_W(N; type=TB),
-    marg::Bool=false,
-    type=Complex{T},
-) where {TB <: AbstractMatrix{T}} where {T <: Number}
+        vecs::Vector{TB},
+        N::Int;
+        rho = rho_W(N; type = TB),
+        marg::Bool = false,
+        type = Complex{T},
+    ) where {TB <: AbstractMatrix{T}} where {T <: Number}
     correlation_tensor(probability_tensor(vecs, N; rho, type); marg)
 end
 export correlation_tensor
 
 # convert a mx3 Bloch matrix into a 2x...x2xmx...xm probability array
-function probability_tensor(vec::AbstractMatrix{T}, N::Int; rho=rho_W(N; type=T), type=Complex{T}) where {T <: Number}
+function probability_tensor(vec::AbstractMatrix{T}, N::Int; rho = rho_W(N; type = T), type = Complex{T}) where {T <: Number}
     @assert size(rho) == (2^N, 2^N)
     m = size(vec, 1)
     Aax = qubit_mes(vec; type)
@@ -255,11 +255,11 @@ end
 
 # convert a mx3 Bloch matrix into a 2x...x2xmx...xm probability array
 function probability_tensor(
-    vecs::Vector{TB},
-    N::Int;
-    rho=rho_W(N; type=TB),
-    type=Complex{T},
-) where {TB <: AbstractMatrix{T}} where {T <: Number}
+        vecs::Vector{TB},
+        N::Int;
+        rho = rho_W(N; type = TB),
+        type = Complex{T},
+    ) where {TB <: AbstractMatrix{T}} where {T <: Number}
     @assert length(vecs) == N
     @assert size(rho) == (2^N, 2^N)
     m = size(vecs[1], 1)
@@ -275,10 +275,10 @@ end
 
 # convert a N sets of m d-outcome POVMs acting on C^e into a ex...xexmx...xm probability array
 function probability_tensor(
-    Aax::Vector{TB},
-    N::Int;
-    rho=rho_GHZ(N; d=size(Aax[1], 1), type=T),
-) where {TB <: AbstractArray{Complex{T}, 4}} where {T <: Number}
+        Aax::Vector{TB},
+        N::Int;
+        rho = rho_GHZ(N; d = size(Aax[1], 1), type = T),
+    ) where {TB <: AbstractArray{Complex{T}, 4}} where {T <: Number}
     e, _, d, m = size(Aax[1])
     @assert length(Aax) == N
     @assert size(rho) == (e^N, e^N)

@@ -31,40 +31,40 @@ Optional arguments:
  - `seed`: an integer, the initial random seed.
 """
 function bell_frank_wolfe(
-    p::Array{T, N};
-    prob::Bool=false,
-    marg::Bool=false,
-    v0=one(T),
-    epsilon=10Base.rtoldefault(T),
-    verbose=0,
-    shr2=NaN,
-    d::Int=1,
-    mode::Int=0,
-    nb::Int=10^2,
-    TL::DataType=T,
-    mode_last::Int=mode,
-    nb_last::Int=10nb,
-    cutoff_last=10,
-    sym::Union{Nothing, Bool}=nothing,
-    inflate_output::Bool=true,
-    reduce::Function=identity,
-    inflate::Function=identity,
-    active_set=nothing, # warm start
-    reset_dots_A::Bool=false, # warm start (technical)
-    reset_dots_b::Bool=true, # warm start (technical)
-    lazy::Bool=true, # default in FW package is false
-    max_iteration::Int=10^9, # default in FW package is 10^4
-    renorm_interval::Int=10^3,
-    nb_increment_interval::Int=10^4,
-    callback_interval::Int=verbose > 0 ? 10^4 : typemax(Int),
-    hyperplane_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
-    bound_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
-    save_interval::Int=verbose > 0 ? 10callback_interval : typemax(Int),
-    save::Bool=false,
-    file=nothing,
-    seed::Int=0,
-    kwargs...,
-) where {T <: Number, N}
+        p::Array{T, N};
+        prob::Bool = false,
+        marg::Bool = false,
+        v0 = one(T),
+        epsilon = 10Base.rtoldefault(T),
+        verbose = 0,
+        shr2 = NaN,
+        d::Int = 1,
+        mode::Int = 0,
+        nb::Int = 10^2,
+        TL::DataType = T,
+        mode_last::Int = mode,
+        nb_last::Int = 10nb,
+        cutoff_last = 10,
+        sym::Union{Nothing, Bool} = nothing,
+        inflate_output::Bool = true,
+        reduce::Function = identity,
+        inflate::Function = identity,
+        active_set = nothing, # warm start
+        reset_dots_A::Bool = false, # warm start (technical)
+        reset_dots_b::Bool = true, # warm start (technical)
+        lazy::Bool = true, # default in FW package is false
+        max_iteration::Int = 10^9, # default in FW package is 10^4
+        renorm_interval::Int = 10^3,
+        nb_increment_interval::Int = 10^4,
+        callback_interval::Int = verbose > 0 ? 10^4 : typemax(Int),
+        hyperplane_interval::Int = verbose > 0 ? 10callback_interval : typemax(Int),
+        bound_interval::Int = verbose > 0 ? 10callback_interval : typemax(Int),
+        save_interval::Int = verbose > 0 ? 10callback_interval : typemax(Int),
+        save::Bool = false,
+        file = nothing,
+        seed::Int = 0,
+        kwargs...,
+    ) where {T <: Number, N}
     Random.seed!(seed)
     if !prob
         LMO = BellCorrelationsLMO
@@ -78,9 +78,9 @@ function bell_frank_wolfe(
     else
         LMO = BellProbabilitiesLMO
         DS = BellProbabilitiesDS
-        m = collect(size(p)[N÷2+1:end])
+        m = collect(size(p)[(N ÷ 2 + 1):end])
         # center of the polytope
-        o = ones(T, size(p)) / prod(size(p)[1:N÷2])
+        o = ones(T, size(p)) / prod(size(p)[1:(N ÷ 2)])
         reynolds = reynolds_permutelastdims
         build_reduce_inflate = build_reduce_inflate_permutelastdims
     end
@@ -170,11 +170,11 @@ function bell_frank_wolfe(
         callback,
         epsilon,
         lazy,
-        line_search=FrankWolfe.Shortstep(one(T)),
+        line_search = FrankWolfe.Shortstep(one(T)),
         max_iteration,
-        renorm_interval=typemax(Int),
-        trajectory=false,
-        verbose=false,
+        renorm_interval = typemax(Int),
+        trajectory = false,
+        verbose = false,
         kwargs...,
     )
     if verbose ≥ 2
@@ -185,10 +185,10 @@ function bell_frank_wolfe(
         @printf("  #LMO: %d\n", lmo.lmo.cnt)
     end
     if sym
-        atoms = [FrankWolfe.SymmetricArray(DS(atom.data; T2=TL), TL.(atom.vec)) for atom in as.atoms]
+        atoms = [FrankWolfe.SymmetricArray(DS(atom.data; T2 = TL), TL.(atom.vec)) for atom in as.atoms]
         vp_last = FrankWolfe.SymmetricArray(TL.(vp.data), TL.(vp.vec))
     else
-        atoms = [DS(atom; T2=TL) for atom in as.atoms]
+        atoms = [DS(atom; T2 = TL) for atom in as.atoms]
         vp_last = TL.(vp)
     end
     as = T == TL ? as : FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
@@ -202,16 +202,16 @@ function bell_frank_wolfe(
     end
     if mode_last ≥ 0 # bypass the last LMO with a negative mode
         if sym
-            lmo_last = FrankWolfe.SymmetricLMO(LMO(lmo.lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last), reduce, inflate)
+            lmo_last = FrankWolfe.SymmetricLMO(LMO(lmo.lmo, vp_last; mode = mode_last, T2 = TL, nb = nb_last), reduce, inflate)
         else
-            lmo_last = LMO(lmo, vp_last; mode=mode_last, T2=TL, nb=nb_last)
+            lmo_last = LMO(lmo, vp_last; mode = mode_last, T2 = TL, nb = nb_last)
         end
-        ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose=verbose > 0)
+        ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose = verbose > 0)
     else
         if sym
-            ds = FrankWolfe.SymmetricArray(DS(ds.data; T2=TL), TL.(ds.vec))
+            ds = FrankWolfe.SymmetricArray(DS(ds.data; T2 = TL), TL.(ds.vec))
         else
-            ds = DS(ds; T2=TL)
+            ds = DS(ds; T2 = TL)
         end
     end
     # renormalise the inequality by its smallest element, neglecting entries orders of magnitude smaller than the maximum
