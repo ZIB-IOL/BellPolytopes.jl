@@ -220,12 +220,12 @@ function bell_frank_wolfe(
             ds = DS(ds; T2=TL)
         end
     end
-    # renormalise the inequality by its smalles element, neglecting entries smaller than epsilon_last
-    if epsilon_last > 0
+    # renormalise the inequality by its smalles element, neglecting entries orders of magnitude smaller than the maximum
+    if cutoff_last > 0
         M[log.(abs.(M)) .< maximum(log.(abs.(M))) - cutoff_last] .= zero(TL)
         M ./= minimum(abs.(M[abs.(M) .> zero(TL)]))
     end
-    β = FrankWolfe.fast_dot(M, ds) / FrankWolfe.fast_dot(M, p) # local/global max found by the LMO
+    β = (FrankWolfe.fast_dot(M, ds) - FrankWolfe.fast_dot(M, o)) / (FrankWolfe.fast_dot(M, p) - FrankWolfe.fast_dot(M, o)) # local/global max found by the LMO
     dual_gap = FrankWolfe.fast_dot(x - vp, x) - FrankWolfe.fast_dot(x - vp, ds)
     if verbose > 0
         if verbose ≥ 2 && mode_last ≥ 0
