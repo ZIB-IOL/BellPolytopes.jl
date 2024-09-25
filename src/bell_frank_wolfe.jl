@@ -165,7 +165,11 @@ function bell_frank_wolfe(
         save_interval,
     )
     # main call to FW
+<<<<<<< HEAD
     x, ds, primal, dual_gap, _, as = FrankWolfe.blended_pairwise_conditional_gradient_fista(
+=======
+    x, ds, primal, dual_gap, _, as = FrankWolfe.blended_pairwise_conditional_gradient(
+>>>>>>> main
         f,
         grad!,
         lmo,
@@ -178,11 +182,14 @@ function bell_frank_wolfe(
         renorm_interval = typemax(Int),
         trajectory = false,
         verbose = false,
+<<<<<<< HEAD
         fista_interval,
         fista_maxiter,
         fista_accelerated,
         fista_verbose = true,
         fista_printstep,
+=======
+>>>>>>> main
         kwargs...,
     )
     if verbose ≥ 2
