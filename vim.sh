@@ -1,0 +1,9 @@
+#/bin/bash
+vim\
+  src/BellPolytopes.jl\
+  src/bell_frank_wolfe.jl\
+  src/callback.jl\
+  src/types.jl\
+  src/fw_methods.jl\
+  src/utils.jl\
+  src/quantum_utils.jl\
