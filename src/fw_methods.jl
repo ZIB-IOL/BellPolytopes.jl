@@ -11,7 +11,6 @@ function FrankWolfe.compute_extreme_point(
     sc = zero(T)
     axm = [zeros(T, lmo.m[n]) for n in 1:N]
     scm = typemax(T)
-    # precompute arguments for speed
     for i in 1:lmo.nb
         for n in 1:N-1
             rand!(ax[n], [-one(T), one(T)])
@@ -36,7 +35,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 2, 1, HasMarginals},
     A::Array{T, 2};
     verbose=false,
-    last=false,
     initialise=true,
     kwargs...,
 ) where {T <: Number, HasMarginals}
@@ -75,7 +73,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 3, 1, HasMarginals},
     A::Array{T, 3};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
@@ -120,7 +117,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 4, 1, HasMarginals},
     A::Array{T, 4};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
@@ -169,7 +165,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 5, 1, HasMarginals},
     A::Array{T, 5};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
@@ -222,7 +217,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, 6, 1, HasMarginals},
     A::Array{T, 6};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,
@@ -280,7 +274,6 @@ function FrankWolfe.compute_extreme_point(
     lmo::BellCorrelationsLMO{T, N, 1, HasMarginals},
     A::Array{T, N};
     verbose=false,
-    last=false,
     initialise=true,
     sym = false,
     kwargs...,

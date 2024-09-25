@@ -43,8 +43,9 @@ function bell_frank_wolfe(
     TL::DataType=T,
     mode_last::Int=mode,
     nb_last::Int=10nb,
-    epsilon_last=Base.rtoldefault(T),
+    cutoff_last=10,
     sym::Union{Nothing, Bool}=nothing,
+    inflate_output::Bool=true,
     reduce::Function=identity,
     inflate::Function=identity,
     active_set=nothing, # warm start
@@ -95,7 +96,9 @@ function bell_frank_wolfe(
         println("Visibility: ", v0)
     end
     # choosing the point on the line between o and p according to the visibility v0
-    vp = reduce(v0 * p + (one(T) - v0) * o)
+    ro = reduce(o)
+    rp = reduce(p)
+    vp = v0 * rp + (one(T) - v0) * ro
     if verbose > 1
         println("   #Inputs: ", all(diff(m) .== 0) ? m[end] - (marg && !prob) : m .- (marg && !prob))
         println(" Symmetric: ", sym)
@@ -107,8 +110,7 @@ function bell_frank_wolfe(
     else
         lmo = LMO(p, vp; mode, nb, marg)
     end
-    o = reduce(o)
-    p = reduce(p)
+    # from now on, only uses reduced vectors
     # useful to make f efficient
     normp2 = dot(vp, vp) / 2
     # weird syntax to enable the compiler to correctly understand the type
@@ -123,8 +125,8 @@ function bell_frank_wolfe(
         end
     end
     if active_set === nothing
-        # run the LMO once from the center o to get a vertex
-        x0 = FrankWolfe.compute_extreme_point(lmo, o - vp)
+        # run the LMO once from the center ro to get a vertex
+        x0 = FrankWolfe.compute_extreme_point(lmo, ro - vp)
         active_set = FrankWolfe.ActiveSetQuadratic([(one(T), x0)], I, -vp)
         lmo.lmo.active_set = active_set
     else
@@ -143,9 +145,9 @@ function bell_frank_wolfe(
         println()
     end
     callback = build_callback(
-        p,
+        rp,
         v0,
-        o,
+        ro,
         shr2^(iseven(N) ? N ÷ 2 : N / 2),
         verbose,
         epsilon,
@@ -191,7 +193,7 @@ function bell_frank_wolfe(
     as = T == TL ? as : FrankWolfe.ActiveSetQuadratic([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
     FrankWolfe.compute_active_set_iterate!(as)
     x = as.x
-    tmp = abs(FrankWolfe.fast_dot(vp - x, p))
+    tmp = abs(FrankWolfe.fast_dot(vp - x, rp))
     if sym
         M = FrankWolfe.SymmetricArray(TL.(vp.data - inflate(x)) / (tmp == 0 ? 1 : tmp), TL.(vp.vec - x.vec) / (tmp == 0 ? 1 : tmp))
     else
@@ -211,12 +213,12 @@ function bell_frank_wolfe(
             ds = DS(ds; T2=TL)
         end
     end
-    # renormalise the inequality by its smalles element, neglecting entries smaller than epsilon_last
-    if epsilon_last > 0
-        M[abs.(M) .< epsilon_last] .= zero(TL)
+    # renormalise the inequality by its smallest element, neglecting entries orders of magnitude smaller than the maximum
+    if cutoff_last > 0
+        M[log.(abs.(M)) .< maximum(log.(abs.(M))) - cutoff_last] .= zero(TL)
         M ./= minimum(abs.(M[abs.(M) .> zero(TL)]))
     end
-    β = FrankWolfe.fast_dot(M, ds) / FrankWolfe.fast_dot(M, p) # local/global max found by the LMO
+    β = (FrankWolfe.fast_dot(M, ds) - FrankWolfe.fast_dot(M, ro)) / (FrankWolfe.fast_dot(M, rp) - FrankWolfe.fast_dot(M, ro)) # local/global max found by the LMO
     dual_gap = FrankWolfe.fast_dot(x - vp, x) - FrankWolfe.fast_dot(x - vp, ds)
     if verbose > 0
         if verbose ≥ 2 && mode_last ≥ 0
@@ -233,7 +235,7 @@ function bell_frank_wolfe(
     if save
         serialize(file * ".dat", ActiveSetStorage(as))
     end
-    if sym
+    if sym && inflate_output
         return inflate(x), ds.data, primal, dual_gap, as, inflate(M), β
     else
         return x, ds, primal, dual_gap, as, M, β

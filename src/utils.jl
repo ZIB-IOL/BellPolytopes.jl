@@ -442,6 +442,7 @@ end
 
 # initialise an active set from a previously computed active set
 function active_set_reinitialise!(as::FrankWolfe.ActiveSetQuadratic; reset_dots_A=false, reset_dots_b=true)
+    FrankWolfe.active_set_cleanup!(as; update=false)
     FrankWolfe.active_set_renormalize!(as)
     @inbounds for idx in eachindex(as)
         if reset_dots_A
