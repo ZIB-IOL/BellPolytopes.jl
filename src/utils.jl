@@ -2,234 +2,222 @@
 # HEURISTIC #
 #############
 
-function arguments_alternating_minimisation(
-    lmo::BellCorrelationsLMO{T, 2, 0, IsSymmetric},
-    A::Array{T, 2},
-) where {T <: Number} where {IsSymmetric}
-    return (A, IsSymmetric ? A : collect(A'))
-end
-
-function arguments_alternating_minimisation(lmo::BellCorrelationsLMO{T, N, 0}, A::Array{T, N}) where {T <: Number} where {N}
-    return (A,)
-end
-
 # Appendix A from arXiv:1609.06114 for correlation matrix
 # min_ab ∑_xy M_xy a_x b_y with a_x and b_y being ±1
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 2, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 2, 0, HasMarginals},
     A::Array{T, 2},
-    At::Array{T, 2},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
         # given a_x, min_b ∑_y b_y (∑_x A_xy a_x) so that b_y is the opposite sign of ∑_x A_xy a_x
-        mul!(lmo.tmp, At, ax[1])
+        mul!(lmo.tmp[2], A', ax[1])
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
         # given b_y, min_a ∑_x a_x (∑_y A_xy b_y) so that a_x is the opposite sign of ∑_y A_xy b_y
-        mul!(lmo.tmp, A, ax[2])
+        mul!(lmo.tmp[1], A, ax[2])
         for x2 in 1:length(ax[1])-HasMarginals
-            ax[1][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[1][x2] = lmo.tmp[1][x2] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 3, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 3, 0, HasMarginals},
     A::Array{T, 3},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
         # given a_x and b_y, min_c ∑_z c_z (∑_xy A_xyz a_x b_y) so that c_z is the opposite sign of ∑_xy A_xyz a_x b_y
-        @tullio lmo.tmp[x3] = A[x1, x2, x3] * ax[1][x1] * ax[2][x2]
+        @tullio lmo.tmp[3][x3] = A[x1, x2, x3] * ax[1][x1] * ax[2][x2]
         for x3 in 1:length(ax[3])-HasMarginals
-            ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
+            ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
         # given a_x and c_z, min_b ∑_y b_y (∑_xz A_xyz a_x c_z) so that b_y is the opposite sign of ∑_xz A_xyz a_x c_z
-        @tullio lmo.tmp[x2] = A[x1, x2, x3] * ax[1][x1] * ax[3][x3]
+        @tullio lmo.tmp[2][x2] = A[x1, x2, x3] * ax[1][x1] * ax[3][x3]
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
         # given b_y and c_z, min_a ∑_x a_x (∑_yz A_xyz b_y c_z) so that a_x is the opposite sign of ∑_yz A_xyz b_y c_z
-        @tullio lmo.tmp[x1] = A[x1, x2, x3] * ax[2][x2] * ax[3][x3]
+        @tullio lmo.tmp[1][x1] = A[x1, x2, x3] * ax[2][x2] * ax[3][x3]
         for x1 in 1:length(ax[1])-HasMarginals
-            ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+            ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 4, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 4, 0, HasMarginals},
     A::Array{T, 4},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
-        @tullio lmo.tmp[x4] = A[x1, x2, x3, x4] * ax[1][x1] * ax[2][x2] * ax[3][x3]
+        @tullio lmo.tmp[4][x4] = A[x1, x2, x3, x4] * ax[1][x1] * ax[2][x2] * ax[3][x3]
         for x4 in 1:length(ax[4])-HasMarginals
-            ax[4][x4] = lmo.tmp[x4] > zero(T) ? -one(T) : one(T)
+            ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x3] = A[x1, x2, x3, x4] * ax[1][x1] * ax[2][x2] * ax[4][x4]
+        @tullio lmo.tmp[3][x3] = A[x1, x2, x3, x4] * ax[1][x1] * ax[2][x2] * ax[4][x4]
         for x3 in 1:length(ax[3])-HasMarginals
-            ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
+            ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x2] = A[x1, x2, x3, x4] * ax[1][x1] * ax[3][x3] * ax[4][x4]
+        @tullio lmo.tmp[2][x2] = A[x1, x2, x3, x4] * ax[1][x1] * ax[3][x3] * ax[4][x4]
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x1] = A[x1, x2, x3, x4] * ax[2][x2] * ax[3][x3] * ax[4][x4]
+        @tullio lmo.tmp[1][x1] = A[x1, x2, x3, x4] * ax[2][x2] * ax[3][x3] * ax[4][x4]
         for x1 in 1:length(ax[1])-HasMarginals
-            ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+            ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 5, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 5, 0, HasMarginals},
     A::Array{T, 5},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
-        @tullio lmo.tmp[x5] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4]
+        @tullio lmo.tmp[5][x5] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4]
         for x5 in 1:length(ax[5])-HasMarginals
-            ax[5][x5] = lmo.tmp[x5] > zero(T) ? -one(T) : one(T)
+            ax[5][x5] = lmo.tmp[5][x5] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x4] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5]
+        @tullio lmo.tmp[4][x4] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5]
         for x4 in 1:length(ax[4])-HasMarginals
-            ax[4][x4] = lmo.tmp[x4] > zero(T) ? -one(T) : one(T)
+            ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x3] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5]
+        @tullio lmo.tmp[3][x3] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5]
         for x3 in 1:length(ax[3])-HasMarginals
-            ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
+            ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x2] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5]
+        @tullio lmo.tmp[2][x2] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5]
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x1] = A[x1, x2, x3, x4, x5] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
+        @tullio lmo.tmp[1][x1] = A[x1, x2, x3, x4, x5] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
         for x1 in 1:length(ax[1])-HasMarginals
-            ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+            ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 6, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 6, 0, HasMarginals},
     A::Array{T, 6},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
-        @tullio lmo.tmp[x6] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
+        @tullio lmo.tmp[6][x6] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
         for x6 in 1:length(ax[6])-HasMarginals
-            ax[6][x6] = lmo.tmp[x6] > zero(T) ? -one(T) : one(T)
+            ax[6][x6] = lmo.tmp[6][x6] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x5] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[6][x6]
+        @tullio lmo.tmp[5][x5] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[6][x6]
         for x5 in 1:length(ax[5])-HasMarginals
-            ax[5][x5] = lmo.tmp[x5] > zero(T) ? -one(T) : one(T)
+            ax[5][x5] = lmo.tmp[5][x5] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x4] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5] * ax[6][x6]
+        @tullio lmo.tmp[4][x4] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5] * ax[6][x6]
         for x4 in 1:length(ax[4])-HasMarginals
-            ax[4][x4] = lmo.tmp[x4] > zero(T) ? -one(T) : one(T)
+            ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x3] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+        @tullio lmo.tmp[3][x3] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5] * ax[6][x6]
         for x3 in 1:length(ax[3])-HasMarginals
-            ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
+            ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x2] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+        @tullio lmo.tmp[2][x2] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x1] = A[x1, x2, x3, x4, x5, x6] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+        @tullio lmo.tmp[1][x1] = A[x1, x2, x3, x4, x5, x6] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
         for x1 in 1:length(ax[1])-HasMarginals
-            ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+            ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 7, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 7, 0, HasMarginals},
     A::Array{T, 7},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
-        @tullio lmo.tmp[x7] =
+        @tullio lmo.tmp[7][x7] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
         for x7 in 1:length(ax[7])-HasMarginals
-            ax[7][x7] = lmo.tmp[x7] > zero(T) ? -one(T) : one(T)
+            ax[7][x7] = lmo.tmp[7][x7] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x6] =
+        @tullio lmo.tmp[6][x6] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[7][x7]
         for x6 in 1:length(ax[6])-HasMarginals
-            ax[6][x6] = lmo.tmp[x6] > zero(T) ? -one(T) : one(T)
+            ax[6][x6] = lmo.tmp[6][x6] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x5] =
+        @tullio lmo.tmp[5][x5] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[6][x6] * ax[7][x7]
         for x5 in 1:length(ax[5])-HasMarginals
-            ax[5][x5] = lmo.tmp[x5] > zero(T) ? -one(T) : one(T)
+            ax[5][x5] = lmo.tmp[5][x5] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x4] =
+        @tullio lmo.tmp[4][x4] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5] * ax[6][x6] * ax[7][x7]
         for x4 in 1:length(ax[4])-HasMarginals
-            ax[4][x4] = lmo.tmp[x4] > zero(T) ? -one(T) : one(T)
+            ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x3] =
+        @tullio lmo.tmp[3][x3] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5] * ax[6][x6] * ax[7][x7]
         for x3 in 1:length(ax[3])-HasMarginals
-            ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
+            ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x2] =
+        @tullio lmo.tmp[2][x2] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6] * ax[7][x7]
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x1] =
+        @tullio lmo.tmp[1][x1] =
             A[x1, x2, x3, x4, x5, x6, x7] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6] * ax[7][x7]
         for x1 in 1:length(ax[1])-HasMarginals
-            ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+            ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
 
 function alternating_minimisation!(
     ax::Vector{Vector{T}},
-    lmo::BellCorrelationsLMO{T, 8, 0, IsSymmetric, HasMarginals},
+    lmo::BellCorrelationsLMO{T, 8, 0, HasMarginals},
     A::Array{T, 8},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals}
+) where {T <: Number, HasMarginals}
     sc1 = zero(T)
     sc2 = one(T)
     @inbounds while sc1 < sc2
         sc2 = sc1
-        @tullio lmo.tmp[x8] =
+        @tullio lmo.tmp[8][x8] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
@@ -239,9 +227,9 @@ function alternating_minimisation!(
             ax[6][x6] *
             ax[7][x7]
         for x8 in 1:length(ax[8])-HasMarginals
-            ax[8][x8] = lmo.tmp[x8] > zero(T) ? -one(T) : one(T)
+            ax[8][x8] = lmo.tmp[8][x8] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x7] =
+        @tullio lmo.tmp[7][x7] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
@@ -251,9 +239,9 @@ function alternating_minimisation!(
             ax[6][x6] *
             ax[8][x8]
         for x7 in 1:length(ax[7])-HasMarginals
-            ax[7][x7] = lmo.tmp[x7] > zero(T) ? -one(T) : one(T)
+            ax[7][x7] = lmo.tmp[7][x7] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x6] =
+        @tullio lmo.tmp[6][x6] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
@@ -263,9 +251,9 @@ function alternating_minimisation!(
             ax[7][x7] *
             ax[8][x8]
         for x6 in 1:length(ax[6])-HasMarginals
-            ax[6][x6] = lmo.tmp[x6] > zero(T) ? -one(T) : one(T)
+            ax[6][x6] = lmo.tmp[6][x6] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x5] =
+        @tullio lmo.tmp[5][x5] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
@@ -275,9 +263,9 @@ function alternating_minimisation!(
             ax[7][x7] *
             ax[8][x8]
         for x5 in 1:length(ax[5])-HasMarginals
-            ax[5][x5] = lmo.tmp[x5] > zero(T) ? -one(T) : one(T)
+            ax[5][x5] = lmo.tmp[5][x5] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x4] =
+        @tullio lmo.tmp[4][x4] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
@@ -287,9 +275,9 @@ function alternating_minimisation!(
             ax[7][x7] *
             ax[8][x8]
         for x4 in 1:length(ax[4])-HasMarginals
-            ax[4][x4] = lmo.tmp[x4] > zero(T) ? -one(T) : one(T)
+            ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x3] =
+        @tullio lmo.tmp[3][x3] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[2][x2] *
@@ -299,9 +287,9 @@ function alternating_minimisation!(
             ax[7][x7] *
             ax[8][x8]
         for x3 in 1:length(ax[3])-HasMarginals
-            ax[3][x3] = lmo.tmp[x3] > zero(T) ? -one(T) : one(T)
+            ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x2] =
+        @tullio lmo.tmp[2][x2] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[1][x1] *
             ax[3][x3] *
@@ -311,9 +299,9 @@ function alternating_minimisation!(
             ax[7][x7] *
             ax[8][x8]
         for x2 in 1:length(ax[2])-HasMarginals
-            ax[2][x2] = lmo.tmp[x2] > zero(T) ? -one(T) : one(T)
+            ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[x1] =
+        @tullio lmo.tmp[1][x1] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
             ax[2][x2] *
             ax[3][x3] *
@@ -323,9 +311,9 @@ function alternating_minimisation!(
             ax[7][x7] *
             ax[8][x8]
         for x1 in 1:length(ax[1])-HasMarginals
-            ax[1][x1] = lmo.tmp[x1] > zero(T) ? -one(T) : one(T)
+            ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
-        sc1 = dot(ax[1], lmo.tmp)
+        sc1 = dot(ax[1], lmo.tmp[1])
     end
     return sc1
 end
@@ -334,12 +322,108 @@ function alternating_minimisation!(
     ax::Vector{Vector{T}},
     lmo::BellCorrelationsLMO{T, N, 0},
     A::Array{T, N},
-) where {T <: Number} where {N}
-    error(
-        "Number of parties (" *
-        string(N) *
-        ") not supported yet, please copy, paste, and trivially adapt alternating_minimisation! in utils.jl",
-    )
+) where {T <: Number, N}
+    error("Number of parties (" * string(N) * ") not supported, please trivially adapt alternating_minimisation! in utils.jl")
+end
+
+# Algorithm 2 from arXiv:1609.06269 for probability array
+# min_ab ∑_xy A[a_x, b_y, x, y] with a_x and b_y being 1..d
+function alternating_minimisation!(
+    ax::Vector{Vector{Int}},
+    lmo::BellProbabilitiesLMO{T, 4, 0},
+    A::Array{T, 4},
+) where {T <: Number}
+    sc1 = zero(T)
+    sc2 = one(T)
+    @inbounds while sc1 < sc2
+        sc2 = sc1
+        # given a_x, b_y is argmin_b ∑_x A[a_x, b, x, y]
+        for x2 in 1:length(ax[2])
+            for a2 in 1:lmo.o[2]
+                s = zero(T)
+                for x1 in 1:length(ax[1])
+                    s += A[ax[1][x1], a2, x1, x2]
+                end
+                lmo.tmp[2][x2, a2] = s
+            end
+        end
+        for x2 in 1:length(ax[2])
+            ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
+        end
+        # given b_y, a_x is argmin_a ∑_x A[a, b_y, x, y]
+        for x1 in 1:length(ax[1])
+            for a1 in 1:lmo.o[1]
+                s = zero(T)
+                for x2 in 1:length(ax[2])
+                    s += A[a1, ax[2][x2], x1, x2]
+                end
+                lmo.tmp[1][x1, a1] = s
+            end
+        end
+        for x1 in 1:length(ax[1])
+            ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+        end
+        # uses the precomputed sum of lines to compute the scalar product
+        sc1 = zero(T)
+        for x1 in 1:length(ax[1])
+            sc1 += lmo.tmp[1][x1, ax[1][x1]]
+        end
+    end
+    return sc1
+end
+
+function alternating_minimisation!(
+    ax::Vector{Vector{Int}},
+    lmo::BellProbabilitiesLMO{T, 6, 0},
+    A::Array{T, 6},
+) where {T <: Number}
+    sc1 = zero(T)
+    sc2 = one(T)
+    @inbounds while sc1 < sc2
+        sc2 = sc1
+        for x3 in 1:length(ax[3])
+            for a3 in 1:lmo.o[3]
+                s = zero(T)
+                for x1 in 1:length(ax[1]), x2 in 1:length(ax[2])
+                    s += A[ax[1][x1], ax[2][x2], a3, x1, x2, x3]
+                end
+                lmo.tmp[3][x3, a3] = s
+            end
+        end
+        for x3 in 1:length(ax[3])
+            ax[3][x3] = argmin(lmo.tmp[3][x3, :])[1]
+        end
+        for x2 in 1:length(ax[2])
+            for a2 in 1:lmo.o[2]
+                s = zero(T)
+                for x1 in 1:length(ax[1]), x3 in 1:length(ax[3])
+                    s += A[ax[1][x1], a2, ax[3][x3], x1, x2, x3]
+                end
+                lmo.tmp[2][x2, a2] = s
+            end
+        end
+        for x2 in 1:length(ax[2])
+            ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
+        end
+        for x1 in 1:length(ax[1])
+            for a1 in 1:lmo.o[1]
+                s = zero(T)
+                for x2 in 1:length(ax[2]), x3 in 1:length(ax[3])
+                    s += A[a1, ax[2][x2], ax[3][x3], x1, x2, x3]
+                end
+                lmo.tmp[1][x1, a1] = s
+            end
+        end
+        for x1 in 1:length(ax[1])
+            ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+        end
+        # uses the precomputed sum of lines to compute the scalar product
+        sc1 = zero(T)
+        for x1 in 1:length(ax[1])
+            sc1 += lmo.tmp[1][x1, ax[1][x1]]
+        end
+    end
+    return sc1
 end
 
 ##############
@@ -347,67 +431,29 @@ end
 ##############
 
 # associate a new lmo with all atoms
-function active_set_link_lmo!(
-    as::FrankWolfe.ActiveSet{AT, T, IT},
-    lmo::LMO,
-) where {
-    AT <: BellCorrelationsDS{T, N},
-} where {IT <: Array{T}} where {LMO <: BellCorrelationsLMO{T, N}} where {T <: Number} where {N}
-    lmo.data = as.atoms[1].lmo.data
+function active_set_link_lmo!(as::FrankWolfe.ActiveSetQuadratic, lmo, p)
     @inbounds for i in eachindex(as)
-        as.atoms[i].lmo = lmo
+        as.atoms[i].data.lmo = lmo.lmo
     end
+    lmo.lmo.active_set = as
+    @. as.b = p
     return as
 end
 
 # initialise an active set from a previously computed active set
-function active_set_reinitialise!(
-    as::FrankWolfe.ActiveSet{AT, T, IT},
-) where {IT <: Array{T}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
+function active_set_reinitialise!(as::FrankWolfe.ActiveSetQuadratic; reset_dots_A=false, reset_dots_b=true)
     FrankWolfe.active_set_renormalize!(as)
-    @inbounds for i in eachindex(as)
-        set_array!(as.atoms[i])
-        as.atoms[i].dotp = FrankWolfe.fast_dot(as.atoms[i].lmo.p, as.atoms[i])
-        as.atoms[i].dot = zeros(T, i)
-        for j in 1:i
-            as.atoms[i].dot[j] = FrankWolfe.fast_dot(as.atoms[j], as.atoms[i])
+    @inbounds for idx in eachindex(as)
+        if reset_dots_A
+            for idy in 1:idx
+                as.dots_A[idx][idy] = FrankWolfe.fast_dot(as.A * as.atoms[idx], as.atoms[idy])
+            end
         end
-        as.atoms[i].hash = i
-        as.atoms[i].modified = false
-        as.atoms[i].weight = as.weights[i]
-        as.atoms[i].gap = as.weights[i] * as.atoms[i].dot[i]
-        for j in 1:i-1
-            as.atoms[j].gap += as.weights[i] * as.atoms[i].dot[j]
-            as.atoms[i].gap += as.weights[j] * as.atoms[i].dot[j]
+        if reset_dots_b
+            as.dots_b[idx] = FrankWolfe.fast_dot(as.b, as.atoms[idx])
         end
     end
-    as.atoms[end].lmo.cnt = as.atoms[end].hash + 1
     FrankWolfe.compute_active_set_iterate!(as)
-    return nothing
-end
-
-# reduce the hash to reduce the size of the dot vector
-function active_set_reduce_dot!(
-    as::FrankWolfe.ActiveSet{AT, T, IT},
-    v::AT,
-) where {IT <: Array{T}} where {AT <: BellCorrelationsDS{T, N}} where {T <: Number} where {N}
-    @inbounds for i in eachindex(as)
-        new_dot = zeros(T, i)
-        for j in 1:i
-            new_dot[j] = as.atoms[i].dot[as.atoms[j].hash]
-        end
-        as.atoms[i].dot = new_dot
-    end
-    @inbounds for i in eachindex(as)
-        as.atoms[i].hash = i
-    end
-    if FrankWolfe.find_atom(as, v) == -1
-        new_dot = zeros(T, length(as) + 1)
-        new_dot[length(as)+1] = v.dot[v.hash]
-        v.dot = new_dot
-        v.hash = length(as) + 1
-    end
-    as.atoms[1].lmo.cnt = length(as) + 2
     return nothing
 end
 
@@ -415,16 +461,386 @@ end
 # REYNOLDS #
 ############
 
-function reynolds_permutedims(A::Array{T, 2}, lmo::BellCorrelationsLMO{T, 2}) where {T <: Number}
+function reynolds_permutedims(A::Array{T, 2}) where {T <: Number}
     return (A + A') / 2
 end
 
-function reynolds_permutedims(A::Array{T, N}, lmo::BellCorrelationsLMO) where {T <: Number} where {N}
-    res = zeros(T, size(A))
-    for per in lmo.per
+function reynolds_permutedims(A::Array{T, N}) where {T <: Number, N}
+    res = zero(A)
+    for per in permutations(1:N)
         res .+= permutedims(A, per)
     end
-    return res / lmo.fac
+    return res / factorial(N)
+end
+
+function build_reduce_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
+    m = size(p, 1)
+    @assert m == size(p, 2)
+    dimension = (m * (m + 1)) ÷ 2
+    mul = vcat(ones(Int, m), 2ones(Int, dimension - m))
+    sqrt2 = sqrt(T(2))
+    function reduce(A::AbstractArray{S, 2}, lmo=nothing) where {S <: AbstractFloat}
+        vec = Vector{S}(undef, dimension)
+        cnt = 0
+        @inbounds for x in 1:m
+            vec[x] = A[x, x]
+            cnt += m - x
+            for y in x+1:m
+                vec[cnt+y] = (A[x, y] + A[y, x]) / sqrt2
+            end
+        end
+        return FrankWolfe.SymmetricArray(A, vec)
+    end
+    function reduce(A::AbstractArray{S, 2}, lmo=nothing) where {S <: Number}
+        vec = Vector{S}(undef, dimension)
+        cnt = 0
+        @inbounds for x in 1:m
+            vec[x] = A[x, x]
+            cnt += m - x
+            for y in x+1:m
+                vec[cnt+y] = (A[x, y] + A[y, x]) / S(2)
+            end
+        end
+        return FrankWolfe.SymmetricArray(A, vec, mul)
+    end
+    function inflate(sa::FrankWolfe.SymmetricArray{false}, lmo=nothing)
+        cnt = 0
+        @inbounds for x in 1:m
+            sa.data[x, x] = sa.vec[x]
+            cnt += m - x
+            for y in x+1:m
+                sa.data[x, y] = sa.vec[cnt+y] / sqrt2
+                sa.data[y, x] = sa.data[x, y]
+            end
+        end
+        return sa.data
+    end
+    function inflate(sa::FrankWolfe.SymmetricArray{true}, lmo=nothing)
+        cnt = 0
+        @inbounds for x in 1:m
+            sa.data[x, x] = sa.vec[x]
+            cnt += m - x
+            for y in x+1:m
+                sa.data[x, y] = sa.vec[cnt+y]
+                sa.data[y, x] = sa.data[x, y]
+            end
+        end
+        return sa.data
+    end
+    return reduce, inflate
+end
+
+function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
+    m = size(p, 1)
+    @assert m == size(p, 2) && m == size(p, 3)
+    dimension = (m * (m + 1) * (m + 2)) ÷ 6
+    mul = Vector{Int}(undef, dimension)
+    cnt = 0
+    for x in 1:m
+        cnt += 1
+        mul[cnt] = 1
+        for y in x+1:m
+            cnt += 1
+            mul[cnt] = 3
+            cnt += 1
+            mul[cnt] = 3
+            for z in y+1:m
+                cnt += 1
+                mul[cnt] = 6
+            end
+        end
+    end
+    sqrt3 = sqrt(T(3))
+    sqrt6 = sqrt(T(6))
+    function reduce(A::AbstractArray{S, 3}, lmo=nothing) where {S <: AbstractFloat}
+        vec = Vector{S}(undef, dimension)
+        cnt = 0
+        @inbounds for x in 1:m
+            cnt += 1
+            vec[cnt] = A[x, x, x]
+            for y in x+1:m
+                cnt += 1
+                vec[cnt] = (A[x, x, y]
+                          + A[x, y, x]
+                          + A[y, x, x]) / sqrt3
+                cnt += 1
+                vec[cnt] = (A[x, y, y]
+                          + A[y, x, y]
+                          + A[y, y, x]) / sqrt3
+                for z in y+1:m
+                    cnt += 1
+                    vec[cnt] = (A[x, y, z]
+                              + A[x, z, y]
+                              + A[y, x, z]
+                              + A[y, z, x]
+                              + A[z, x, y]
+                              + A[z, y, x]) / sqrt6
+                end
+            end
+        end
+        return FrankWolfe.SymmetricArray(A, vec)
+    end
+    function reduce(A::AbstractArray{S, 3}, lmo=nothing) where {S <: Number}
+        vec = Vector{S}(undef, dimension)
+        cnt = 0
+        @inbounds for x in 1:m
+            cnt += 1
+            vec[cnt] = A[x, x, x]
+            for y in x+1:m
+                cnt += 1
+                vec[cnt] = (A[x, x, y]
+                          + A[x, y, x]
+                          + A[y, x, x]) / S(3)
+                cnt += 1
+                vec[cnt] = (A[x, y, y]
+                          + A[y, x, y]
+                          + A[y, y, x]) / S(3)
+                for z in y+1:m
+                    cnt += 1
+                    vec[cnt] = (A[x, y, z]
+                              + A[x, z, y]
+                              + A[y, x, z]
+                              + A[y, z, x]
+                              + A[z, x, y]
+                              + A[z, y, x]) / S(6)
+                end
+            end
+        end
+        return FrankWolfe.SymmetricArray(A, vec, mul)
+    end
+    function inflate(sa::FrankWolfe.SymmetricArray{false}, lmo=nothing)
+        cnt = 0
+        @inbounds for x in 1:m
+            cnt += 1
+            sa.data[x, x, x] = sa.vec[cnt]
+            for y in x+1:m
+                cnt += 1
+                sa.data[x, x, y] = sa.vec[cnt] / sqrt3
+                sa.data[x, y, x] = sa.data[x, x, y]
+                sa.data[y, x, x] = sa.data[x, x, y]
+                cnt += 1
+                sa.data[x, y, y] = sa.vec[cnt] / sqrt3
+                sa.data[y, x, y] = sa.data[x, y, y]
+                sa.data[y, y, x] = sa.data[x, y, y]
+                for z in y+1:m
+                    cnt += 1
+                    sa.data[x, y, z] = sa.vec[cnt] / sqrt6
+                    sa.data[x, z, y] = sa.data[x, y, z]
+                    sa.data[y, x, z] = sa.data[x, y, z]
+                    sa.data[y, z, x] = sa.data[x, y, z]
+                    sa.data[z, x, y] = sa.data[x, y, z]
+                    sa.data[z, y, x] = sa.data[x, y, z]
+                end
+            end
+        end
+        return sa.data
+    end
+    function inflate(sa::FrankWolfe.SymmetricArray{true}, lmo=nothing)
+        cnt = 0
+        @inbounds for x in 1:m
+            cnt += 1
+            sa.data[x, x, x] = sa.vec[cnt]
+            for y in x+1:m
+                cnt += 1
+                sa.data[x, x, y] = sa.vec[cnt]
+                sa.data[x, y, x] = sa.data[x, x, y]
+                sa.data[y, x, x] = sa.data[x, x, y]
+                cnt += 1
+                sa.data[x, y, y] = sa.vec[cnt]
+                sa.data[y, x, y] = sa.data[x, y, y]
+                sa.data[y, y, x] = sa.data[x, y, y]
+                for z in y+1:m
+                    cnt += 1
+                    sa.data[x, y, z] = sa.vec[cnt]
+                    sa.data[x, z, y] = sa.data[x, y, z]
+                    sa.data[y, x, z] = sa.data[x, y, z]
+                    sa.data[y, z, x] = sa.data[x, y, z]
+                    sa.data[z, x, y] = sa.data[x, y, z]
+                    sa.data[z, y, x] = sa.data[x, y, z]
+                end
+            end
+        end
+        return sa.data
+    end
+    return reduce, inflate
+end
+
+function build_reduce_inflate_permutedims(p::Array{T, N}) where {T <: Number, N}
+    m = size(p, 1)
+    @assert all(m .== size(p))
+    orbs = [unique(permutations(c)) for c in with_replacement_combinations(Int8.(1:m), N)]
+    dimension = length(orbs)
+    mul = length.(orbs)
+    sqmul = sqrt.(T.(mul))
+    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: AbstractFloat}
+        vec = Vector{S}(undef, dimension)
+        @inbounds for i in 1:dimension
+            vec[i] = sum(A[el...] for el in orbs[i]) / sqmul[i]
+        end
+        return FrankWolfe.SymmetricArray(A, vec)
+    end
+    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: Number}
+        vec = Vector{S}(undef, dimension)
+        @inbounds for i in 1:dimension
+            vec[i] = sum(A[el...] for el in orbs[i]) / S(mul[i])
+        end
+        return FrankWolfe.SymmetricArray(A, vec, mul)
+    end
+    function inflate(sa::FrankWolfe.SymmetricArray{false}, lmo=nothing)
+        @inbounds for i in 1:dimension
+            sa.data[orbs[i][1]...] = sa.vec[i] / sqmul[i]
+            for j in 2:length(orbs[i])
+                sa.data[orbs[i][j]...] = sa.data[orbs[i][1]...]
+            end
+        end
+        return sa.data
+    end
+    function inflate(sa::FrankWolfe.SymmetricArray{true}, lmo=nothing)
+        @inbounds for i in 1:dimension
+            for j in 1:length(orbs[i])
+                sa.data[orbs[i][j]...] = sa.vec[i]
+            end
+        end
+        return sa.data
+    end
+    return reduce, inflate
+end
+
+function build_reduce_inflate_q(::Type{T}, q::Array{<:Integer, N}) where {T <: Number, N}
+    dim = maximum(q) # reduced dimension
+    mul = zeros(Int, dim) # multiplicities, used to have matching scalar products
+    for qi in q
+        mul[qi] += 1
+    end
+    sqmul = sqrt.(T.(mul)) # precomputed for speed
+    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: AbstractFloat}
+        vec = zeros(S, dim)
+        @inbounds for (i, qi) in enumerate(q)
+            vec[qi] += A[i]
+        end
+        vec ./= sqmul
+        return FrankWolfe.SymmetricArray(A, vec)
+    end
+    function reduce(A::AbstractArray{S, N}, lmo=nothing) where {S <: Number}
+        vec = zeros(S, dim)
+        @inbounds for (i, qi) in enumerate(q)
+            vec[qi] += A[i]
+        end
+        vec ./= S.(mul)
+        return FrankWolfe.SymmetricArray(A, vec, mul)
+    end
+    function inflate(sa::FrankWolfe.SymmetricArray{false}, lmo=nothing)
+        aux = sa.vec ./ sqmul
+        @inbounds sa.data .= aux[q]
+        return sa.data
+    end
+    function inflate(sa::FrankWolfe.SymmetricArray{true}, lmo=nothing)
+        @inbounds sa.data .= sa.vec[q]
+        return sa.data
+    end
+    return reduce, inflate
+end
+
+function reynolds_permutelastdims(A::Array{T, N2}) where {T <: Number, N2}
+    N = N2 ÷ 2
+    res = zero(A)
+    for per in permutations(1:N)
+        res .+= permutedims(A, vcat(per, per .+ N))
+    end
+    return res / factorial(N)
+end
+
+function build_reduce_inflate_permutelastdims(p::Array{T, 4}) where {T <: Number}
+    o = size(p, 1)
+    m = size(p, 3)
+    @assert o == size(p, 2) && m == size(p, 4)
+    dimension = (o * m * (o * m + 1)) ÷ 2
+    mul = Vector{Int}(undef, dimension)
+    cnt = 0
+    for a in 1:o, x in 1:m
+        cnt += 1
+        mul[cnt] = 1
+        for y in x+1:m
+            cnt += 1
+            mul[cnt] = 2
+        end
+        for b in a+1:o, y in 1:m
+            cnt += 1
+            mul[cnt] = 2
+        end
+    end
+    sqrt2 = sqrt(T(2))
+    function reduce(A::AbstractArray{S, 4}, lmo=nothing) where {S <: AbstractFloat}
+        vec = Vector{S}(undef, dimension)
+        cnt = 0
+        @inbounds for a in 1:o, x in 1:m
+            cnt += 1
+            vec[cnt] = A[a, a, x, x]
+            for y in x+1:m
+                cnt += 1
+                vec[cnt] = (A[a, a, x, y] + A[a, a, y, x]) / sqrt2
+            end
+            for b in a+1:o, y in 1:m
+                cnt += 1
+                vec[cnt] = (A[a, b, x, y] + A[b, a, y, x]) / sqrt2
+            end
+        end
+        return FrankWolfe.SymmetricArray(A, vec)
+    end
+    function reduce(A::AbstractArray{S, 4}, lmo=nothing) where {S <: Number}
+        vec = Vector{S}(undef, dimension)
+        cnt = 0
+        @inbounds for a in 1:o, x in 1:m
+            cnt += 1
+            vec[cnt] = A[a, a, x, x]
+            for y in x+1:m
+                cnt += 1
+                vec[cnt] = (A[a, a, x, y] + A[a, a, y, x]) / S(2)
+            end
+            for b in a+1:o, y in 1:m
+                cnt += 1
+                vec[cnt] = (A[a, b, x, y] + A[b, a, y, x]) / S(2)
+            end
+        end
+        return FrankWolfe.SymmetricArray(A, vec, mul)
+    end
+    function inflate(sa::FrankWolfe.SymmetricArray{false}, lmo=nothing)
+        cnt = 0
+        @inbounds for a in 1:o, x in 1:m
+            cnt += 1
+            sa.data[a, a, x, x] = sa.vec[cnt]
+            for y in x+1:m
+                cnt += 1
+                sa.data[a, a, x, y] = sa.vec[cnt] / sqrt2
+                sa.data[a, a, y, x] = sa.data[a, a, x, y]
+            end
+            for b in a+1:o, y in 1:m
+                cnt += 1
+                sa.data[a, b, x, y] = sa.vec[cnt] / sqrt2
+                sa.data[b, a, y, x] = sa.data[a, b, x, y]
+            end
+        end
+        return sa.data
+    end
+    function inflate(sa::FrankWolfe.SymmetricArray{true}, lmo=nothing)
+        cnt = 0
+        @inbounds for a in 1:o, x in 1:m
+            cnt += 1
+            sa.data[a, a, x, x] = sa.vec[cnt]
+            for y in x+1:m
+                cnt += 1
+                sa.data[a, a, x, y] = sa.vec[cnt]
+                sa.data[a, a, y, x] = sa.vec[cnt]
+            end
+            for b in a+1:o, y in 1:m
+                cnt += 1
+                sa.data[a, b, x, y] = sa.vec[cnt]
+                sa.data[b, a, y, x] = sa.vec[cnt]
+            end
+        end
+        return sa.data
+    end
+    return reduce, inflate
 end
 
 #############
@@ -452,6 +868,7 @@ function polyhedronisme(f::String, m::Int)
     @assert length(res) == m
     return vertices
 end
+export polyhedronisme
 
 # acos handling floating point imprecision
 function _unsafe_acos(x::T) where {T <: Number}
@@ -510,7 +927,7 @@ function shrinking_squared(vec::AbstractMatrix{T}; verbose=true) where {T <: Num
     return eta2
 end
 
-function shrinking_squared(vecs::Vector{TB}; verbose=true) where {TB <: AbstractMatrix{T}} where {T <: Number}
+function shrinking_squared(vecs::Vector{<:AbstractMatrix{T}}; verbose=true) where {T <: Number}
     eta2 = typemax(T)
     for i in 1:length(vecs)
         eta2 = min(eta2, shrinking_squared(vecs[i]; verbose=false))
@@ -520,3 +937,4 @@ function shrinking_squared(vecs::Vector{TB}; verbose=true) where {TB <: Abstract
     end
     return eta2
 end
+export shrinking_squared

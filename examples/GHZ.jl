@@ -7,7 +7,7 @@ N = 3 # tripartite scenario
 # Bloch vectors of the measurements to be performed by all parties (regular polygon on the XY plane)
 measurements_vec = polygonXY_vec(8)
 rho = rho_GHZ(N) # shared state
-lower_bound_infinite, lower_bound, upper_bound, local_model, bell_inequality, _ =
+lower_bound_infinite, lower_bound, upper_bound, local_model, bell_inequality =
     nonlocality_threshold(measurements_vec, N; rho=rho) # the marginals vanish in this case
 
 println("Correlation tensor")
