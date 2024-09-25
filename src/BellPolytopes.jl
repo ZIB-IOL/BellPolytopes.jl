@@ -4,6 +4,7 @@ module BellPolytopes
 using Combinatorics
 using FrankWolfe
 using LinearAlgebra
+using Polyester
 using Polyhedra
 using Printf
 using Random
