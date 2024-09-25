@@ -62,8 +62,8 @@ function bell_frank_wolfe(
     file=nothing,
     fista_maxiter=10^3,
     fista_accelerated=true,
-    fista_printstep=10,
-    fista_interval=10^3,
+    fista_printstep=5,
+    fista_interval=typemax(Int), # FISTA not activated by default
     seed::Int=0,
     kwargs...,
 ) where {T <: Number, N}
@@ -220,7 +220,7 @@ function bell_frank_wolfe(
             ds = DS(ds; T2=TL)
         end
     end
-    # renormalise the inequality by its smalles element, neglecting entries orders of magnitude smaller than the maximum
+    # renormalise the inequality by its smallest element, neglecting entries orders of magnitude smaller than the maximum
     if cutoff_last > 0
         M[log.(abs.(M)) .< maximum(log.(abs.(M))) - cutoff_last] .= zero(TL)
         M ./= minimum(abs.(M[abs.(M) .> zero(TL)]))
