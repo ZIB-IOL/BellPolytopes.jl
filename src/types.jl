@@ -627,7 +627,7 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadratic([(weights[i], reduce(atoms[i])) for i in eachindex(ass.weights)], I, p)
+    res = FrankWolfe.ActiveSetQuadratic([(weights[i], reduce(atoms[i])) for i in eachindex(ass.weights)], I, reduce(p))
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
