@@ -754,6 +754,19 @@ function build_reduce_inflate_q(::Type{T}, q::Array{<:Integer, N}) where {T <: N
     return reduce, inflate
 end
 
+function q_unique(p::Array{T}; round_first = true) where {T <: Number}
+    if round_first
+        p = round.(p; digits = 8)
+    end
+    p[abs.(p) .< Base.rtoldefault(T)] .= 0
+    unique_p = unique(p)
+    q = zeros(Int, size(p))
+    for i in eachindex(q)
+        q[i] = findfirst(u -> u ≈ p[i], unique_p)
+    end
+    return q
+end
+
 function reynolds_permutelastdims(A::Array{T, N2}) where {T <: Number, N2}
     N = N2 ÷ 2
     res = zero(A)
