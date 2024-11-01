@@ -451,7 +451,7 @@ function FrankWolfe.compute_extreme_point(
     lmo.cnt += 1
     return dsm
 end
-s
+
 # Mode=3 - scenario w/ communication w/ the i/o are explored heuristically
 function FrankWolfe.compute_extreme_point(
         lmo::BellProbabilitiesLMO{T, 4, 3},
