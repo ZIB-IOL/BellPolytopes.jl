@@ -91,15 +91,17 @@ mutable struct BellProbabilitiesLMO{T, N2, Mode, AT, IT} <: FrankWolfe.LinearMin
     # scenario fields
     const o::Vector{Int} # number of outputs
     const m::Vector{Int} # number of inputs
+    const d::Int         # amount of communication (1 dit)
     # general fields
+    const pcf::Vector{Combinatorics.FixedSetPartitions{Vector{Int}}} # vector of partition functions
     tmp::Vector{Matrix{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
     const ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     active_set::FrankWolfe.ActiveSetQuadratic{AT, T, IT, FrankWolfe.Identity{Bool}}
     lmo::BellProbabilitiesLMO{T, N2, Mode, AT, IT}
-    function BellProbabilitiesLMO{T, N2, Mode, AT, IT}(o::Vector{Int}, m::Vector{Int}, vp::IT, tmp::Vector{Matrix{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}}) where {T <: Number, N2, Mode, AT, IT}
-        lmo = new(o, m, tmp, nb, cnt, ci, FrankWolfe.ActiveSetQuadratic{AT}(vp))
+    function BellProbabilitiesLMO{T, N2, Mode, AT, IT}(o::Vector{Int}, m::Vector{Int}, d::Int, vp::IT, pcf::Vector{Combinatorics.FixedSetPartitions{Vector{Int}}}, tmp::Vector{Matrix{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}}) where {T <: Number, N2, Mode, AT, IT}
+        lmo = new(o, m, d, pcf, tmp, nb, cnt, ci, FrankWolfe.ActiveSetQuadratic{AT}(vp))
         lmo.lmo = lmo
         return lmo
     end
@@ -111,9 +113,11 @@ function BellProbabilitiesLMO(
         vp::IT;
         mode::Int = 0,
         nb::Int = 100,
+        d::Int = 1,
         kwargs...
     ) where {T <: Number, N2, IT}
     N = N2 ÷ 2
+    m = collect(size(p)[(N + 1):end]) # precompute m for use in pcf computation
     if IT <: FrankWolfe.SymmetricArray
         AT = FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}
     else
@@ -121,9 +125,11 @@ function BellProbabilitiesLMO(
     end
     return BellProbabilitiesLMO{T, N2, mode, AT, IT}(
         collect(size(p)[1:N]),
-        collect(size(p)[(N + 1):end]),
+        m,
+        d,
         vp,
-        [zeros(T, size(p, N + n), size(p, n)) for n in 1:N],
+        mode == 4 ? [partitions([1], 1)] : [partitions(collect(1:m[1]), di) for di in 1:d], # if we explore the pcfs heuristically, we don't want to save them in memory
+        d == 1 ? [zeros(T, size(p, N + n), size(p, n)) for n in 1:N] : [zeros(T, size(p, N + 1), size(p, 1)), zeros(T, size(p, N + 2) * d, size(p, 2))], # we split tmp buffer in A and B's tmp buffer of size d×mB when d > 0
         nb,
         0,
         CartesianIndices(p),
@@ -150,7 +156,9 @@ function BellProbabilitiesLMO(
     return BellProbabilitiesLMO{T2, N2, mode, AT2, IT2}(
         lmo.o,
         lmo.m,
+        lmo.d,
         vp,
+        lmo.pcf,
         broadcast.(T2, lmo.tmp),
         nb,
         lmo.cnt,
@@ -408,11 +416,12 @@ end
 # deterministic strategy structure for multipartite probability tensor
 mutable struct BellProbabilitiesDS{T, N2} <: AbstractArray{T, N2}
     const ax::Vector{Vector{Int}} # strategies, 1..d vector
+    const cf::Vector{Int}         # current communication function
     lmo::BellProbabilitiesLMO{T, N2} # tmp
     array::Array{T, N2} # if full storage to trade speed for memory; TODO: remove
     data::BellProbabilitiesDS{T, N2}
-    function BellProbabilitiesDS{T, N2}(ax::Vector{Vector{Int}}, lmo::BellProbabilitiesLMO{T, N2, Mode}, array::Array{T, N2}) where {T <: Number, N2, Mode}
-        ds = new(ax, lmo, array)
+    function BellProbabilitiesDS{T, N2}(ax::Vector{Vector{Int}}, cf::Vector{Int}, lmo::BellProbabilitiesLMO{T, N2, Mode}, array::Array{T, N2}) where {T <: Number, N2, Mode}
+        ds = new(ax, cf, lmo, array)
         ds.data = ds
         return ds
     end
@@ -423,10 +432,12 @@ Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.o, length.(ds.ax)))
 function BellProbabilitiesDS(
         ax::Vector{Vector{Int}},
         lmo::BellProbabilitiesLMO{T, N2, Mode};
+        cf::Vector{Int} = Int[],
         initialise = true,
     ) where {T <: Number, N2, Mode}
     res = BellProbabilitiesDS{T, N2}(
         ax,
+        cf,
         lmo,
         zeros(T, zeros(Int, N2)...),
     )
@@ -446,6 +457,7 @@ function BellProbabilitiesDS(
     end
     res = BellProbabilitiesDS{T2, N2}(
         ds.ax,
+        ds.cf,
         BellProbabilitiesLMO(ds.lmo, zero(T2); T2),
         zeros(T2, zeros(Int, N2)...),
     )
@@ -465,26 +477,27 @@ function BellProbabilitiesDS(
     res = BellProbabilitiesDS{T2, N2}[]
     for ds in vds
         ax = ds.ax
-        atom = BellProbabilitiesDS{T2, N2}(ax, lmo, array)
+        atom = BellProbabilitiesDS{T2, N2}(ax, ds.cf, lmo, array)
         set_array!(atom)
         push!(res, atom)
     end
     return res
 end
 
-function FrankWolfe._unsafe_equal(ds1::BellProbabilitiesDS{T, N2}, ds2::BellProbabilitiesDS{T, N2}) where {T <: Number, N2}
-    if ds1 === ds2
-        return true
-    end
-    @inbounds for n in 1:length(ds1.ax)
-        for x in eachindex(ds1.ax[n])
-            if ds1.ax[n][x] != ds2.ax[n][x]
-                return false
-            end
-        end
-    end
-    return true
-end
+# removed unsafe equal because it didn't work for strategies with communication (TODO: perhaps redo it?)
+# function FrankWolfe._unsafe_equal(ds1::BellProbabilitiesDS{T, N2}, ds2::BellProbabilitiesDS{T, N2}) where {T <: Number, N2}
+#     if ds1 === ds2
+#         return true
+#     end
+#     @inbounds for n in 1:length(ds1.ax)
+#         for x in eachindex(ds1.ax[n])
+#             if ds1.ax[n][x] != ds2.ax[n][x]
+#                 return false
+#             end
+#         end
+#     end
+#     return true
+# end
 
 Base.@propagate_inbounds function Base.getindex(ds::BellProbabilitiesDS{T, N2}, x::Int) where {T <: Number, N2}
     return Base.getindex(ds, ds.lmo.ci[x])
@@ -500,8 +513,16 @@ end
 
 function get_array(ds::BellProbabilitiesDS{T, N2}) where {T <: Number, N2}
     res = zeros(T, size(ds))
-    @inbounds for x in CartesianIndices(Tuple(length.(ds.ax)))
-        res[CartesianIndex(Tuple([ds.ax[n][x.I[n]] for n in 1:length(ds.ax)])), x] = one(T)
+    if ds.lmo.d == 1
+        @inbounds for x in CartesianIndices(Tuple(length.(ds.ax)))
+            res[CartesianIndex(Tuple([ds.ax[n][x.I[n]] for n in 1:length(ds.ax)])), x] = one(T)
+        end
+    else
+        for x in 1:ds.lmo.m[1], y in 1:ds.lmo.m[2], a in 1:ds.lmo.o[1], b in 1:ds.lmo.o[2]
+            if (ds.ax[1][x] == a) && (ds.ax[2][y + (ds.cf[x] - 1) * ds.lmo.m[2]] == b)
+                res[a, b, x, y] = one(T)
+            end
+        end
     end
     return res
 end

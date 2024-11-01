@@ -233,6 +233,21 @@ function correlation_tensor(
 end
 export correlation_tensor
 
+# convert a correlation matrix into a probability matrix
+function probability_matrix(c::AbstractMatrix{T}) where {T <: Number}
+    mA, mB = size(c)
+    p = zeros(T, 2, 2, mA, mB)
+    for y in 1:mB, x in 1:mA
+        p[1, 1, x, y] = (1 + c[x, y]) / T(4)
+        p[2, 1, x, y] = (1 - c[x, y]) / T(4)
+        p[1, 2, x, y] = (1 - c[x, y]) / T(4)
+        p[2, 2, x, y] = (1 + c[x, y]) / T(4)
+    end
+    p[p .< Base.rtoldefault(real(T))] .= 0
+    return p
+end
+export probability_matrix
+
 # convert a mx3 Bloch matrix into a 2x...x2xmx...xm probability array
 function probability_tensor(vec::AbstractMatrix{T}, N::Int; rho = rho_W(N; type = T), type = Complex{T}) where {T <: Number}
     @assert size(rho) == (2^N, 2^N)

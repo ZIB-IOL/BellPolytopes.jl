@@ -62,6 +62,7 @@ function bell_frank_wolfe(
         save::Bool = false,
         file = nothing,
         seed::Int = 0,
+        d::Int = 1,
         kwargs...,
     ) where {T <: Number, N}
     Random.seed!(seed)
@@ -106,9 +107,9 @@ function bell_frank_wolfe(
     end
     # create the LMO
     if sym
-        lmo = FrankWolfe.SymmetricLMO(LMO(p, vp; mode, nb, marg), reduce, inflate)
+        lmo = FrankWolfe.SymmetricLMO(LMO(p, vp; mode, nb, marg, d), reduce, inflate)
     else
-        lmo = LMO(p, vp; mode, nb, marg)
+        lmo = LMO(p, vp; mode, nb, marg, d)
     end
     # from now on, only uses reduced vectors
     # useful to make f efficient

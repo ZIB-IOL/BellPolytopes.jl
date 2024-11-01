@@ -26,10 +26,11 @@ export local_bound_correlation
 function local_bound_probability(
         M::Array{T, N};
         mode::Int = 0,
+        d::Int = 1 + (mode > 2),
         nb::Int = 10^4,
         kwargs...
     ) where {T <: Number} where {N}
-    ds = FrankWolfe.compute_extreme_point(BellProbabilitiesLMO(M, M; mode, nb), -M; kwargs...)
+    ds = FrankWolfe.compute_extreme_point(BellProbabilitiesLMO(M, M; mode, nb, d), -M; kwargs...)
     return FrankWolfe.fast_dot(M, ds), ds
 end
 export local_bound_probability

@@ -451,6 +451,320 @@ function FrankWolfe.compute_extreme_point(
     lmo.cnt += 1
     return dsm
 end
+s
+# Mode=3 - scenario w/ communication w/ the i/o are explored heuristically
+function FrankWolfe.compute_extreme_point(
+        lmo::BellProbabilitiesLMO{T, 4, 3},
+        A::Array{T, 4};
+        verbose = false,
+        kwargs...,
+    ) where {T <: Number}
+    ax = [ones(Int, lmo.m[1]), ones(Int, lmo.d * lmo.m[2])]
+    sc = zero(T)
+    cf = ones(Int, lmo.m[1])
+    axm = [zeros(Int, lmo.m[1]), zeros(Int, lmo.d * lmo.m[2])]
+    scm = typemax(T)
+    cfm = ones(Int, lmo.m[1])
+
+    for d in 1:lmo.d
+        dm = d * lmo.m[2]         # precompute d×mB
+        for pcf in lmo.pcf[d]
+            # translate partition function into communication function
+            for msg in 1:d
+                cf[pcf[msg]] .= msg
+            end
+            for iteration in 1:lmo.nb
+                # choose random ax and bx
+                rand!(ax[1], 1:lmo.o[1])
+                rand!(ax[2][1:dm], 1:lmo.o[2])
+                sc1 = zero(T)
+                sc2 = one(T)
+                @inbounds while sc1 < sc2
+                    sc2 = sc1
+                    for ybar in 1:dm
+                        y = (ybar - 1) % lmo.m[2] + 1
+                        currentx = pcf[(ybar - 1) ÷ lmo.m[2] + 1]
+                        for b in 1:lmo.o[2]
+                            s = zero(T)
+                            # check s for given ax, b and y
+                            for x in currentx
+                                s += A[ax[1][x], b, x, y]
+                            end
+                            lmo.tmp[2][ybar, b] = s
+                        end
+                    end
+                    for ybar in 1:dm
+                        ax[2][ybar] = argmin(lmo.tmp[2][ybar, :])[1]
+                    end
+                    for x in 1:lmo.m[1]
+                        for a in 1:lmo.o[1]
+                            s = zero(T)
+                            for y in 1:lmo.m[2]
+                                s += A[a, ax[2][y + (cf[x] - 1) * lmo.m[2]], x, y]
+                            end
+                            lmo.tmp[1][x, a] = s
+                        end
+                    end
+                    for x in 1:lmo.m[1]
+                        ax[1][x] = argmin(lmo.tmp[1][x, :])[1]
+                    end
+                    sc1 = zero(T)
+                    for x in 1:lmo.m[1]
+                        sc1 += lmo.tmp[1][x, ax[1][x]]
+                    end
+                end
+                if sc1 < scm
+                    scm = sc1
+                    for n in 1:2
+                        axm[n] .= ax[n]
+                    end
+                    cfm .= cf
+                end
+            end
+        end
+    end
+    dsm = BellProbabilitiesDS(axm, lmo; cf = cfm)
+    lmo.cnt += 1
+    return dsm
+end
+
+# Mode=4 - scenario w/ communication w/ the i/o and pcf are explored heuristically
+function FrankWolfe.compute_extreme_point(
+        lmo::BellProbabilitiesLMO{T, 4, 4},
+        A::Array{T, 4};
+        verbose = false,
+        kwargs...,
+    ) where {T <: Number}
+    ax = [ones(Int, lmo.m[1]), ones(Int, lmo.d * lmo.m[2])]
+    sc = zero(T)
+    cf = ones(Int, lmo.m[1])
+    axm = [zeros(Int, lmo.m[1]), zeros(Int, lmo.d * lmo.m[2])]
+    scm = typemax(T)
+    cfm = ones(Int, lmo.m[1])
+
+    nb_comm_func = [stirlings2(lmo.m[1], di) for di in 1:lmo.d]
+    sum_comm_func = sum(nb_comm_func)
+    weights = nb_comm_func ./ sum_comm_func
+    d_values = [x for x in 1:lmo.d]
+
+    for iterations in 1:lmo.nb
+        # choose random d
+        d = sample(d_values, Weights(weights))
+        # precompute d×mB
+        dm = d * lmo.m[2]
+        # choose random communication function
+        cf = zeros(lmo.m[1])
+        cf[1:d] .= 1:d
+        cf[(d + 1):end] = rand(1:d, lmo.m[1] - d)
+        cf = shuffle!(Int.(cf))
+        # compute unique partition function
+        pcf = [ findall(x -> x == di, cf) for di in 1:d ]
+        sort!(pcf)
+        # recompute unique communication function from partition (∃ better solution...)
+        for msg in 1:d
+            cf[pcf[msg]] .= msg
+        end
+        # choose random ax and bx
+        rand!(ax[1], 1:lmo.o[1])
+        rand!(ax[2][1:dm], 1:lmo.o[2])
+        sc1 = zero(T)
+        sc2 = one(T)
+        @inbounds while sc1 < sc2
+            sc2 = sc1
+            for ybar in 1:dm
+                y = (ybar - 1) % lmo.m[2] + 1
+                currentx = pcf[(ybar - 1) ÷ lmo.m[2] + 1]
+                for b in 1:lmo.o[2]
+                    s = zero(T)
+                    # check s for given ax, b and y
+                    for x in currentx
+                        s += A[ax[1][x], b, x, y]
+                    end
+                    lmo.tmp[2][ybar, b] = s
+                end
+            end
+            for ybar in 1:dm
+                ax[2][ybar] = argmin(lmo.tmp[2][ybar, :])[1]
+            end
+            for x in 1:lmo.m[1]
+                for a in 1:lmo.o[1]
+                    s = zero(T)
+                    for y in 1:lmo.m[2]
+                        s += A[a, ax[2][y + (cf[x] - 1) * lmo.m[2]], x, y]
+                    end
+                    lmo.tmp[1][x, a] = s
+                end
+            end
+            for x in 1:lmo.m[1]
+                ax[1][x] = argmin(lmo.tmp[1][x, :])[1]
+            end
+            sc1 = zero(T)
+            for x in 1:lmo.m[1]
+                sc1 += lmo.tmp[1][x, ax[1][x]]
+            end
+        end
+        if sc1 < scm
+            scm = sc1
+            for n in 1:2
+                axm[n] .= ax[n]
+            end
+            cfm .= cf
+        end
+    end
+    dsm = BellProbabilitiesDS(axm, lmo; cf = cfm)
+    lmo.cnt += 1
+    return dsm
+end
+
+# Mode=5 - scenario w/ communication w/ we enumerate Alice's strategies
+function FrankWolfe.compute_extreme_point(
+        lmo::BellProbabilitiesLMO{T, 4, 5},
+        A::Array{T, 4};
+        verbose = false,
+        count = false,
+        kwargs...,
+    ) where {T <: Number}
+    ax = [ones(Int, lmo.m[1]), ones(Int, lmo.d * lmo.m[2])]
+    sc = zero(T)
+    cf = ones(Int, lmo.m[1])
+    axm = [zeros(Int, lmo.m[1]), zeros(Int, lmo.d * lmo.m[2])]
+    scm = typemax(T)
+    cfm = ones(Int, lmo.m[1])
+    # set containing all optimal strategies when count=true
+    setm = Set{Array{T, 4}}()
+    for d in 1:lmo.d
+        # precompute d×mB
+        dm = d * lmo.m[2]
+        for pcf in lmo.pcf[d]
+            # translate partition function into communication function
+            for msg in 1:d
+                cf[pcf[msg]] .= msg
+            end
+            # go through all Alice's strategies
+            for λa1 in 0:(lmo.o[1]^lmo.m[1] - 1)
+                # fix a strategy for Bob
+                digits!(ax[1], λa1; base = lmo.o[1])
+                ax[1] .+= 1
+                # go through Bob's possible i/o
+                for ybar in 1:dm
+                    y = (ybar - 1) % lmo.m[2] + 1
+                    currentx = pcf[(ybar - 1) ÷ lmo.m[2] + 1]
+                    for b in 1:lmo.o[2]
+                        s = zero(T)
+                        # check s for given ax, b and y
+                        for x in currentx
+                            s += A[ax[1][x], b, x, y]
+                        end
+                        lmo.tmp[2][ybar, b] = s
+                    end
+                end
+                # find the strategy by that for each input y gives the minimum s
+                for ybar in 1:dm
+                    ax[2][ybar] = argmin(lmo.tmp[2][ybar, :])[1]
+                end
+                sc = zero(T)
+                for ybar in 1:dm
+                    sc += lmo.tmp[2][ybar, ax[2][ybar]]
+                end
+                # check if it is the minimum value that was found
+                if sc < scm
+                    scm = sc
+                    for n in 1:2
+                        axm[n] .= ax[n]
+                    end
+                    cfm .= cf
+                    empty!(setm)
+                end
+                if verbose && sc ≈ scm
+                    println(rpad(string([λa1]), 2 + ndigits(lmo.o[1]^(lmo.m[1]))), " ", string(-scm))
+                end
+                if count && sc ≈ scm
+                    push!(setm, collect(BellProbabilitiesDS(ax, lmo; cf)))
+                end
+            end
+        end
+    end
+    if count
+        println(length(setm))
+    end
+    dsm = BellProbabilitiesDS(axm, lmo; cf = cfm)
+    lmo.cnt += 1
+    return dsm
+end
+
+# Mode=6 - scenario w/ communication w/ we enumerate Bob's strategies
+function FrankWolfe.compute_extreme_point(
+        lmo::BellProbabilitiesLMO{T, 4, 6},
+        A::Array{T, 4};
+        verbose = false,
+        count = false,
+        kwargs...,
+    ) where {T <: Number}
+    ax = [ones(Int, lmo.m[1]), ones(Int, lmo.d * lmo.m[2])]
+    sc = zero(T)
+    cf = ones(Int, lmo.m[1])
+    axm = [zeros(Int, lmo.m[1]), zeros(Int, lmo.d * lmo.m[2])]
+    scm = typemax(T)
+    cfm = ones(Int, lmo.m[1])
+    # set containing all optimal strategies when count=true
+    setm = Set{Array{T, 4}}()
+    for d in 1:lmo.d
+        # precompute d×mB
+        dm = d * lmo.m[2]
+        for pcf in lmo.pcf[d]
+            # translate partition function into communication function
+            for msg in 1:d
+                cf[pcf[msg]] .= msg
+            end
+            # go through all Bob's strategies
+            for λa2 in 0:(lmo.o[2]^dm - 1)
+                # fix a strategy for Bob
+                digits!(ax[2], λa2; base = lmo.o[2])
+                ax[2][1:dm] .+= 1
+                # go through Alices's possible i/o
+                for x in 1:lmo.m[1]
+                    for a in 1:lmo.o[1]
+                        s = zero(T)
+                        # compute s given cf, by, x and a
+                        for y in 1:lmo.m[2]
+                            s += A[a, ax[2][y + (cf[x] - 1) * lmo.m[2]], x, y]
+                        end
+                        lmo.tmp[1][x, a] = s
+                    end
+                end
+                # find the strategy ax that for each input x gives the minimum s
+                for x in 1:lmo.m[1]
+                    ax[1][x] = argmin(lmo.tmp[1][x, :])[1]
+                end
+                sc = zero(T)
+                for x in 1:lmo.m[1]
+                    sc += lmo.tmp[1][x, ax[1][x]]
+                end
+                # check if it is the minimum value that was found
+                if sc < scm
+                    scm = sc
+                    for n in 1:2
+                        axm[n] .= ax[n]
+                    end
+                    cfm .= cf
+                    empty!(setm)
+                end
+                if verbose && sc ≈ scm
+                    println(rpad(string([λa2]), 2 + ndigits(lmo.o[2]^(lmo.d * lmo.m[2]))), " ", string(-scm))
+                end
+                if count && sc ≈ scm
+                    push!(setm, collect(BellProbabilitiesDS(ax, lmo; cf)))
+                end
+            end
+        end
+    end
+    if count
+        println(length(setm))
+    end
+    dsm = BellProbabilitiesDS(axm, lmo; cf = cfm)
+    lmo.cnt += 1
+    return dsm
+end
 
 function FrankWolfe.compute_extreme_point(
         lmo::BellProbabilitiesLMO{T, 6, 1},

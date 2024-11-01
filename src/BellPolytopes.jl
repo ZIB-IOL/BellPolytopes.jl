@@ -6,6 +6,7 @@ using LinearAlgebra
 using Polyhedra
 using Printf
 using Random
+using StatsBase
 using Serialization
 using Tullio
 
