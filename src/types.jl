@@ -590,10 +590,10 @@ struct ActiveSetStorageMapsto{T, N, D, HasMarginals} <: AbstractActiveSetStorage
 end
 
 function ActiveSetStorage(
-        as::FrankWolfe.ActiveSetQuadratic{AT},
+        as::FrankWolfe.ActiveSetQuadraticProductCaching{AT},
     ) where {
         AT <: Union{
-            FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, D, HasMarginals}, Vector{T}},
+            FrankWolfe.SubspaceVector{false, T, BellCorrelationsDS{T, N, D, HasMarginals}, Vector{T}},
             BellCorrelationsDS{T, N, D, HasMarginals},
         },
     } where {T <: Number, N, D, HasMarginals}
