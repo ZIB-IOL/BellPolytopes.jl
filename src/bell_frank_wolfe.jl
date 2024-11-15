@@ -46,7 +46,7 @@ function bell_frank_wolfe(
         cutoff_last = 10,
         sym::Union{Nothing, Bool} = nothing,
         inflate_output::Bool = true,
-        reduce::Function = identity,
+        deflate::Function = identity,
         inflate::Function = identity,
         active_set = nothing, # warm start
         reset_dots_A::Bool = false, # warm start (technical)
@@ -73,7 +73,7 @@ function bell_frank_wolfe(
         o = zeros(T, size(p))
         o[end] = marg
         reynolds = reynolds_permutedims
-        build_reduce_inflate = build_reduce_inflate_permutedims
+        build_deflate_inflate = build_deflate_inflate_permutedims
     else
         LMO = BellProbabilitiesLMO
         DS = BellProbabilitiesDS
@@ -81,12 +81,12 @@ function bell_frank_wolfe(
         # center of the polytope
         o = ones(T, size(p)) / prod(size(p)[1:(N ÷ 2)])
         reynolds = reynolds_permutelastdims
-        build_reduce_inflate = build_reduce_inflate_permutelastdims
+        build_deflate_inflate = build_deflate_inflate_permutelastdims
     end
     # symmetry detection
     if sym === nothing
         if all(diff(m) .== 0) && p ≈ reynolds(p)
-            reduce, inflate = build_reduce_inflate(p)
+            deflate, inflate = build_deflate_inflate(p)
             sym = true
         else
             sym = false
@@ -96,8 +96,8 @@ function bell_frank_wolfe(
         println("Visibility: ", v0)
     end
     # choosing the point on the line between o and p according to the visibility v0
-    ro = reduce(o)
-    rp = reduce(p)
+    ro = deflate(o)
+    rp = deflate(p)
     vp = v0 * rp + (one(T) - v0) * ro
     if verbose > 1
         println("   #Inputs: ", all(diff(m) .== 0) ? m[end] - (marg && !prob) : m .- (marg && !prob))
@@ -106,11 +106,11 @@ function bell_frank_wolfe(
     end
     # create the LMO
     if sym
-        lmo = FrankWolfe.SubspaceLMO(LMO(p, vp; mode, nb, marg), reduce, inflate)
+        lmo = FrankWolfe.SubspaceLMO(LMO(p, vp; mode, nb, marg), deflate, inflate)
     else
         lmo = LMO(p, vp; mode, nb, marg)
     end
-    # from now on, only uses reduced vectors
+    # from now on, only uses deflated vectors
     # useful to make f efficient
     normp2 = dot(vp, vp) / 2
     # weird syntax to enable the compiler to correctly understand the type
@@ -131,7 +131,7 @@ function bell_frank_wolfe(
         lmo.lmo.active_set = active_set
     else
         if active_set isa AbstractActiveSetStorage
-            active_set = load_active_set(active_set, T; marg, reduce)
+            active_set = load_active_set(active_set, T; marg, deflate)
             reset_dots_A = true
             reset_dots_b = true
         end
@@ -201,7 +201,7 @@ function bell_frank_wolfe(
     end
     if mode_last ≥ 0 # bypass the last LMO with a negative mode
         if sym
-            lmo_last = FrankWolfe.SubspaceLMO(LMO(lmo.lmo, vp_last; mode = mode_last, T2 = TL, nb = nb_last), reduce, inflate)
+            lmo_last = FrankWolfe.SubspaceLMO(LMO(lmo.lmo, vp_last; mode = mode_last, T2 = TL, nb = nb_last), deflate, inflate)
         else
             lmo_last = LMO(lmo, vp_last; mode = mode_last, T2 = TL, nb = nb_last)
         end

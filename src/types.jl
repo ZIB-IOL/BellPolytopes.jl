@@ -560,12 +560,12 @@ function load_active_set(
         ass::ActiveSetStorage{T1, N, HasMarginals},
         ::Type{T2};
         marg = HasMarginals,
-        reduce = identity,
+        deflate = identity,
         kwargs...
     ) where {T1 <: Number, N, HasMarginals, T2 <: Number}
     m = size.(ass.ax, (2,))
     p = zeros(T2, (marg ? m .+ 1 : m)...)
-    lmo = BellCorrelationsLMO(p, reduce(p); marg)
+    lmo = BellCorrelationsLMO(p, deflate(p); marg)
     atoms = BellCorrelationsDS{T2, N, marg}[]
     @inbounds for i in eachindex(ass.weights)
         ax = [ones(T2, marg ? m[n] + 1 : m[n]) for n in 1:N]
@@ -577,7 +577,7 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], reduce(atoms[i])) for i in eachindex(ass.weights)], I, reduce(p))
+    res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
@@ -609,13 +609,13 @@ end
 function load_active_set(
         ass::ActiveSetStorageMulti{T1, N},
         ::Type{T2};
-        reduce = identity,
+        deflate = identity,
         kwargs...
     ) where {T1 <: Number, N, T2 <: Number}
     o = ass.o
     m = [size(ass.ax[n], 2) for n in 1:N]
     p = zeros(T2, vcat(o, m)...)
-    lmo = BellProbabilitiesLMO(p, reduce(p))
+    lmo = BellProbabilitiesLMO(p, deflate(p))
     atoms = BellProbabilitiesDS{T2, 2N}[]
     @inbounds for i in 1:length(ass.weights)
         ax = [ones(Int, m[n]) for n in 1:N]
@@ -627,7 +627,7 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], reduce(atoms[i])) for i in eachindex(ass.weights)], I, reduce(p))
+    res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
