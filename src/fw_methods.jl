@@ -519,7 +519,7 @@ end
 ##############
 
 function FrankWolfe.compute_active_set_iterate!(
-        active_set::FrankWolfe.ActiveSetQuadratic{AT, T, IT},
+        active_set::FrankWolfe.ActiveSetQuadraticProductCaching{AT, T, IT},
     ) where {
         IT <: Array{T, N},
     } where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number, N}
@@ -628,7 +628,7 @@ function FrankWolfe.muladd_memory_mode(
         d::AbstractArray{T, N},
         a::AT,
         v::AT,
-    ) where {AT <: FrankWolfe.SymmetricArray{false, T, DS}} where {DS <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number, N}
+    ) where {AT <: FrankWolfe.SubspaceVector{false, T, DS}} where {DS <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number, N}
     return _muladd_memory_mode(a.data.lmo.lmo.active_set, d, a, v)
 end
 

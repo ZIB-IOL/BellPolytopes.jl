@@ -2,7 +2,7 @@
 # LMO #
 #######
 
-FrankWolfe.ActiveSetQuadratic{AT}(p::IT) where {AT, IT} = FrankWolfe.ActiveSetQuadratic{AT, eltype(p), IT, FrankWolfe.Identity{Bool}}([], [], p, FrankWolfe.Identity(true), p, [], [], [], [], [])
+FrankWolfe.ActiveSetQuadraticProductCaching{AT}(p::IT) where {AT, IT} = FrankWolfe.ActiveSetQuadraticProductCaching{AT, eltype(p), IT, FrankWolfe.Identity{Bool}}([], [], p, FrankWolfe.Identity(true), p, [], [], [], [], [])
 
 mutable struct BellCorrelationsLMO{T, N, Mode, HasMarginals, AT, IT} <: FrankWolfe.LinearMinimizationOracle
     # scenario fields
@@ -12,10 +12,10 @@ mutable struct BellCorrelationsLMO{T, N, Mode, HasMarginals, AT, IT} <: FrankWol
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
-    active_set::FrankWolfe.ActiveSetQuadratic{AT, T, IT, FrankWolfe.Identity{Bool}}
+    active_set::FrankWolfe.ActiveSetQuadraticProductCaching{AT, T, IT, FrankWolfe.Identity{Bool}}
     lmo::BellCorrelationsLMO{T, N, Mode, HasMarginals, AT}
     function BellCorrelationsLMO{T, N, Mode, HasMarginals, AT, IT}(m::Vector{Int}, vp::IT, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}) where {T <: Number, N, Mode, HasMarginals, AT, IT}
-        lmo = new(m, tmp, nb, cnt, ci, FrankWolfe.ActiveSetQuadratic{AT}(vp))
+        lmo = new(m, tmp, nb, cnt, ci, FrankWolfe.ActiveSetQuadraticProductCaching{AT}(vp))
         lmo.lmo = lmo
         return lmo
     end
@@ -30,8 +30,8 @@ function BellCorrelationsLMO(
         marg::Bool = false,
         kwargs...
     ) where {T <: Number, N, IT}
-    if IT <: FrankWolfe.SymmetricArray
-        AT = FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, marg}, Vector{T}}
+    if IT <: FrankWolfe.SubspaceVector
+        AT = FrankWolfe.SubspaceVector{false, T, BellCorrelationsDS{T, N, marg}, Vector{T}}
     else
         AT = BellCorrelationsDS{T, N, marg}
     end
@@ -71,8 +71,8 @@ function BellCorrelationsLMO(
         tmp = [zeros(T2, m[n]) for n in 1:N]
         ci = CartesianIndices(Tuple(m))
     end
-    if IT2 <: FrankWolfe.SymmetricArray
-        AT2 = FrankWolfe.SymmetricArray{false, T2, BellCorrelationsDS{T2, N, marg}, Vector{T2}}
+    if IT2 <: FrankWolfe.SubspaceVector
+        AT2 = FrankWolfe.SubspaceVector{false, T2, BellCorrelationsDS{T2, N, marg}, Vector{T2}}
     else
         AT2 = BellCorrelationsDS{T2, N, marg}
     end
@@ -96,10 +96,10 @@ mutable struct BellProbabilitiesLMO{T, N2, Mode, AT, IT} <: FrankWolfe.LinearMin
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
     const ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
-    active_set::FrankWolfe.ActiveSetQuadratic{AT, T, IT, FrankWolfe.Identity{Bool}}
+    active_set::FrankWolfe.ActiveSetQuadraticProductCaching{AT, T, IT, FrankWolfe.Identity{Bool}}
     lmo::BellProbabilitiesLMO{T, N2, Mode, AT, IT}
     function BellProbabilitiesLMO{T, N2, Mode, AT, IT}(o::Vector{Int}, m::Vector{Int}, vp::IT, tmp::Vector{Matrix{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}}) where {T <: Number, N2, Mode, AT, IT}
-        lmo = new(o, m, tmp, nb, cnt, ci, FrankWolfe.ActiveSetQuadratic{AT}(vp))
+        lmo = new(o, m, tmp, nb, cnt, ci, FrankWolfe.ActiveSetQuadraticProductCaching{AT}(vp))
         lmo.lmo = lmo
         return lmo
     end
@@ -114,8 +114,8 @@ function BellProbabilitiesLMO(
         kwargs...
     ) where {T <: Number, N2, IT}
     N = N2 ÷ 2
-    if IT <: FrankWolfe.SymmetricArray
-        AT = FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}
+    if IT <: FrankWolfe.SubspaceVector
+        AT = FrankWolfe.SubspaceVector{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}
     else
         AT = BellProbabilitiesDS{T, N2}
     end
@@ -142,8 +142,8 @@ function BellProbabilitiesLMO(
         lmo.nb = nb
         return lmo
     end
-    if IT1 <: FrankWolfe.SymmetricArray
-        AT2 = FrankWolfe.SymmetricArray{false, T2, BellProbabilitiesDS{T2, N2}, Vector{T2}}
+    if IT1 <: FrankWolfe.SubspaceVector
+        AT2 = FrankWolfe.SubspaceVector{false, T2, BellProbabilitiesDS{T2, N2}, Vector{T2}}
     else
         AT2 = BellProbabilitiesDS{T2, N2}
     end
@@ -539,10 +539,10 @@ struct ActiveSetStorage{T, N, HasMarginals} <: AbstractActiveSetStorage
 end
 
 function ActiveSetStorage(
-        as::FrankWolfe.ActiveSetQuadratic{AT},
+        as::FrankWolfe.ActiveSetQuadraticProductCaching{AT},
     ) where {
         AT <: Union{
-            FrankWolfe.SymmetricArray{false, T, BellCorrelationsDS{T, N, HasMarginals}, Vector{T}},
+            FrankWolfe.SubspaceVector{false, T, BellCorrelationsDS{T, N, HasMarginals}, Vector{T}},
             BellCorrelationsDS{T, N, HasMarginals},
         },
     } where {T <: Number, N, HasMarginals}
@@ -560,12 +560,12 @@ function load_active_set(
         ass::ActiveSetStorage{T1, N, HasMarginals},
         ::Type{T2};
         marg = HasMarginals,
-        reduce = identity,
+        deflate = identity,
         kwargs...
     ) where {T1 <: Number, N, HasMarginals, T2 <: Number}
     m = size.(ass.ax, (2,))
     p = zeros(T2, (marg ? m .+ 1 : m)...)
-    lmo = BellCorrelationsLMO(p, reduce(p); marg)
+    lmo = BellCorrelationsLMO(p, deflate(p); marg)
     atoms = BellCorrelationsDS{T2, N, marg}[]
     @inbounds for i in eachindex(ass.weights)
         ax = [ones(T2, marg ? m[n] + 1 : m[n]) for n in 1:N]
@@ -577,7 +577,7 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadratic([(weights[i], reduce(atoms[i])) for i in eachindex(ass.weights)], I, reduce(p))
+    res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
@@ -591,7 +591,7 @@ struct ActiveSetStorageMulti{T, N} <: AbstractActiveSetStorage
 end
 
 function ActiveSetStorage(
-        as::FrankWolfe.ActiveSetQuadratic{FrankWolfe.SymmetricArray{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}, T, FrankWolfe.SymmetricArray{false, T, Array{T, N2}, Vector{T}}},
+        as::FrankWolfe.ActiveSetQuadraticProductCaching{FrankWolfe.SubspaceVector{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}, T, FrankWolfe.SubspaceVector{false, T, Array{T, N2}, Vector{T}}},
     ) where {T <: Number, N2}
     N = N2 ÷ 2
     omax = maximum(as.atoms[1].data.lmo.o)
@@ -609,13 +609,13 @@ end
 function load_active_set(
         ass::ActiveSetStorageMulti{T1, N},
         ::Type{T2};
-        reduce = identity,
+        deflate = identity,
         kwargs...
     ) where {T1 <: Number, N, T2 <: Number}
     o = ass.o
     m = [size(ass.ax[n], 2) for n in 1:N]
     p = zeros(T2, vcat(o, m)...)
-    lmo = BellProbabilitiesLMO(p, reduce(p))
+    lmo = BellProbabilitiesLMO(p, deflate(p))
     atoms = BellProbabilitiesDS{T2, 2N}[]
     @inbounds for i in 1:length(ass.weights)
         ax = [ones(Int, m[n]) for n in 1:N]
@@ -627,7 +627,7 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadratic([(weights[i], reduce(atoms[i])) for i in eachindex(ass.weights)], I, reduce(p))
+    res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
     FrankWolfe.compute_active_set_iterate!(res)
     return res
 end

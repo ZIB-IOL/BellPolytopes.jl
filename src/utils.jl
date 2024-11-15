@@ -431,7 +431,7 @@ end
 ##############
 
 # associate a new lmo with all atoms
-function active_set_link_lmo!(as::FrankWolfe.ActiveSetQuadratic, lmo, p)
+function active_set_link_lmo!(as::FrankWolfe.ActiveSetQuadraticProductCaching, lmo, p)
     @inbounds for i in eachindex(as)
         as.atoms[i].data.lmo = lmo.lmo
     end
@@ -441,7 +441,7 @@ function active_set_link_lmo!(as::FrankWolfe.ActiveSetQuadratic, lmo, p)
 end
 
 # initialise an active set from a previously computed active set
-function active_set_reinitialise!(as::FrankWolfe.ActiveSetQuadratic; reset_dots_A = false, reset_dots_b = true)
+function active_set_reinitialise!(as::FrankWolfe.ActiveSetQuadraticProductCaching; reset_dots_A = false, reset_dots_b = true)
     FrankWolfe.active_set_cleanup!(as; update = false)
     FrankWolfe.active_set_renormalize!(as)
     @inbounds for idx in eachindex(as)
@@ -474,13 +474,13 @@ function reynolds_permutedims(A::Array{T, N}) where {T <: Number, N}
     return res / factorial(N)
 end
 
-function build_reduce_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
+function build_deflate_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
     m = size(p, 1)
     @assert m == size(p, 2)
     dimension = (m * (m + 1)) ÷ 2
     mul = vcat(ones(Int, m), 2ones(Int, dimension - m))
     sqrt2 = sqrt(T(2))
-    function reduce(A::AbstractArray{S, 2}, lmo = nothing) where {S <: AbstractFloat}
+    function deflate(A::AbstractArray{S, 2}, lmo = nothing) where {S <: AbstractFloat}
         vec = Vector{S}(undef, dimension)
         cnt = 0
         @inbounds for x in 1:m
@@ -490,9 +490,9 @@ function build_reduce_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
                 vec[cnt + y] = (A[x, y] + A[y, x]) / sqrt2
             end
         end
-        return FrankWolfe.SymmetricArray(A, vec)
+        return FrankWolfe.SubspaceVector(A, vec)
     end
-    function reduce(A::AbstractArray{S, 2}, lmo = nothing) where {S <: Number}
+    function deflate(A::AbstractArray{S, 2}, lmo = nothing) where {S <: Number}
         vec = Vector{S}(undef, dimension)
         cnt = 0
         @inbounds for x in 1:m
@@ -502,9 +502,9 @@ function build_reduce_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
                 vec[cnt + y] = (A[x, y] + A[y, x]) / S(2)
             end
         end
-        return FrankWolfe.SymmetricArray(A, vec, mul)
+        return FrankWolfe.SubspaceVector(A, vec, mul)
     end
-    function inflate(sa::FrankWolfe.SymmetricArray{false}, lmo = nothing)
+    function inflate(sa::FrankWolfe.SubspaceVector{false}, lmo = nothing)
         cnt = 0
         @inbounds for x in 1:m
             sa.data[x, x] = sa.vec[x]
@@ -516,7 +516,7 @@ function build_reduce_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
         end
         return sa.data
     end
-    function inflate(sa::FrankWolfe.SymmetricArray{true}, lmo = nothing)
+    function inflate(sa::FrankWolfe.SubspaceVector{true}, lmo = nothing)
         cnt = 0
         @inbounds for x in 1:m
             sa.data[x, x] = sa.vec[x]
@@ -528,10 +528,10 @@ function build_reduce_inflate_permutedims(p::Array{T, 2}) where {T <: Number}
         end
         return sa.data
     end
-    return reduce, inflate
+    return deflate, inflate
 end
 
-function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
+function build_deflate_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
     m = size(p, 1)
     @assert m == size(p, 2) && m == size(p, 3)
     dimension = (m * (m + 1) * (m + 2)) ÷ 6
@@ -553,7 +553,7 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
     end
     sqrt3 = sqrt(T(3))
     sqrt6 = sqrt(T(6))
-    function reduce(A::AbstractArray{S, 3}, lmo = nothing) where {S <: AbstractFloat}
+    function deflate(A::AbstractArray{S, 3}, lmo = nothing) where {S <: AbstractFloat}
         vec = Vector{S}(undef, dimension)
         cnt = 0
         @inbounds for x in 1:m
@@ -585,9 +585,9 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
                 end
             end
         end
-        return FrankWolfe.SymmetricArray(A, vec)
+        return FrankWolfe.SubspaceVector(A, vec)
     end
-    function reduce(A::AbstractArray{S, 3}, lmo = nothing) where {S <: Number}
+    function deflate(A::AbstractArray{S, 3}, lmo = nothing) where {S <: Number}
         vec = Vector{S}(undef, dimension)
         cnt = 0
         @inbounds for x in 1:m
@@ -619,9 +619,9 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
                 end
             end
         end
-        return FrankWolfe.SymmetricArray(A, vec, mul)
+        return FrankWolfe.SubspaceVector(A, vec, mul)
     end
-    function inflate(sa::FrankWolfe.SymmetricArray{false}, lmo = nothing)
+    function inflate(sa::FrankWolfe.SubspaceVector{false}, lmo = nothing)
         cnt = 0
         @inbounds for x in 1:m
             cnt += 1
@@ -648,7 +648,7 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
         end
         return sa.data
     end
-    function inflate(sa::FrankWolfe.SymmetricArray{true}, lmo = nothing)
+    function inflate(sa::FrankWolfe.SubspaceVector{true}, lmo = nothing)
         cnt = 0
         @inbounds for x in 1:m
             cnt += 1
@@ -675,31 +675,31 @@ function build_reduce_inflate_permutedims(p::Array{T, 3}) where {T <: Number}
         end
         return sa.data
     end
-    return reduce, inflate
+    return deflate, inflate
 end
 
-function build_reduce_inflate_permutedims(p::Array{T, N}) where {T <: Number, N}
+function build_deflate_inflate_permutedims(p::Array{T, N}) where {T <: Number, N}
     m = size(p, 1)
     @assert all(m .== size(p))
     orbs = [unique(permutations(c)) for c in with_replacement_combinations(Int8.(1:m), N)]
     dimension = length(orbs)
     mul = length.(orbs)
     sqmul = sqrt.(T.(mul))
-    function reduce(A::AbstractArray{S, N}, lmo = nothing) where {S <: AbstractFloat}
+    function deflate(A::AbstractArray{S, N}, lmo = nothing) where {S <: AbstractFloat}
         vec = Vector{S}(undef, dimension)
         @inbounds for i in 1:dimension
             vec[i] = sum(A[el...] for el in orbs[i]) / sqmul[i]
         end
-        return FrankWolfe.SymmetricArray(A, vec)
+        return FrankWolfe.SubspaceVector(A, vec)
     end
-    function reduce(A::AbstractArray{S, N}, lmo = nothing) where {S <: Number}
+    function deflate(A::AbstractArray{S, N}, lmo = nothing) where {S <: Number}
         vec = Vector{S}(undef, dimension)
         @inbounds for i in 1:dimension
             vec[i] = sum(A[el...] for el in orbs[i]) / S(mul[i])
         end
-        return FrankWolfe.SymmetricArray(A, vec, mul)
+        return FrankWolfe.SubspaceVector(A, vec, mul)
     end
-    function inflate(sa::FrankWolfe.SymmetricArray{false}, lmo = nothing)
+    function inflate(sa::FrankWolfe.SubspaceVector{false}, lmo = nothing)
         @inbounds for i in 1:dimension
             sa.data[orbs[i][1]...] = sa.vec[i] / sqmul[i]
             for j in 2:length(orbs[i])
@@ -708,7 +708,7 @@ function build_reduce_inflate_permutedims(p::Array{T, N}) where {T <: Number, N}
         end
         return sa.data
     end
-    function inflate(sa::FrankWolfe.SymmetricArray{true}, lmo = nothing)
+    function inflate(sa::FrankWolfe.SubspaceVector{true}, lmo = nothing)
         @inbounds for i in 1:dimension
             for j in 1:length(orbs[i])
                 sa.data[orbs[i][j]...] = sa.vec[i]
@@ -716,42 +716,42 @@ function build_reduce_inflate_permutedims(p::Array{T, N}) where {T <: Number, N}
         end
         return sa.data
     end
-    return reduce, inflate
+    return deflate, inflate
 end
 
-function build_reduce_inflate_q(::Type{T}, q::Array{<:Integer, N}) where {T <: Number, N}
-    dim = maximum(q) # reduced dimension
+function build_deflate_inflate_q(::Type{T}, q::Array{<:Integer, N}) where {T <: Number, N}
+    dim = maximum(q) # deflated dimension
     mul = zeros(Int, dim) # multiplicities, used to have matching scalar products
     for qi in q
         mul[qi] += 1
     end
     sqmul = sqrt.(T.(mul)) # precomputed for speed
-    function reduce(A::AbstractArray{S, N}, lmo = nothing) where {S <: AbstractFloat}
+    function deflate(A::AbstractArray{S, N}, lmo = nothing) where {S <: AbstractFloat}
         vec = zeros(S, dim)
         @inbounds for (i, qi) in enumerate(q)
             vec[qi] += A[i]
         end
         vec ./= sqmul
-        return FrankWolfe.SymmetricArray(A, vec)
+        return FrankWolfe.SubspaceVector(A, vec)
     end
-    function reduce(A::AbstractArray{S, N}, lmo = nothing) where {S <: Number}
+    function deflate(A::AbstractArray{S, N}, lmo = nothing) where {S <: Number}
         vec = zeros(S, dim)
         @inbounds for (i, qi) in enumerate(q)
             vec[qi] += A[i]
         end
         vec ./= S.(mul)
-        return FrankWolfe.SymmetricArray(A, vec, mul)
+        return FrankWolfe.SubspaceVector(A, vec, mul)
     end
-    function inflate(sa::FrankWolfe.SymmetricArray{false}, lmo = nothing)
+    function inflate(sa::FrankWolfe.SubspaceVector{false}, lmo = nothing)
         aux = sa.vec ./ sqmul
         @inbounds sa.data .= aux[q]
         return sa.data
     end
-    function inflate(sa::FrankWolfe.SymmetricArray{true}, lmo = nothing)
+    function inflate(sa::FrankWolfe.SubspaceVector{true}, lmo = nothing)
         @inbounds sa.data .= sa.vec[q]
         return sa.data
     end
-    return reduce, inflate
+    return deflate, inflate
 end
 
 function q_unique(p::Array{T}; round_first = true) where {T <: Number}
@@ -776,7 +776,7 @@ function reynolds_permutelastdims(A::Array{T, N2}) where {T <: Number, N2}
     return res / factorial(N)
 end
 
-function build_reduce_inflate_permutelastdims(p::Array{T, 4}) where {T <: Number}
+function build_deflate_inflate_permutelastdims(p::Array{T, 4}) where {T <: Number}
     o = size(p, 1)
     m = size(p, 3)
     @assert o == size(p, 2) && m == size(p, 4)
@@ -796,7 +796,7 @@ function build_reduce_inflate_permutelastdims(p::Array{T, 4}) where {T <: Number
         end
     end
     sqrt2 = sqrt(T(2))
-    function reduce(A::AbstractArray{S, 4}, lmo = nothing) where {S <: AbstractFloat}
+    function deflate(A::AbstractArray{S, 4}, lmo = nothing) where {S <: AbstractFloat}
         vec = Vector{S}(undef, dimension)
         cnt = 0
         @inbounds for a in 1:o, x in 1:m
@@ -811,9 +811,9 @@ function build_reduce_inflate_permutelastdims(p::Array{T, 4}) where {T <: Number
                 vec[cnt] = (A[a, b, x, y] + A[b, a, y, x]) / sqrt2
             end
         end
-        return FrankWolfe.SymmetricArray(A, vec)
+        return FrankWolfe.SubspaceVector(A, vec)
     end
-    function reduce(A::AbstractArray{S, 4}, lmo = nothing) where {S <: Number}
+    function deflate(A::AbstractArray{S, 4}, lmo = nothing) where {S <: Number}
         vec = Vector{S}(undef, dimension)
         cnt = 0
         @inbounds for a in 1:o, x in 1:m
@@ -828,9 +828,9 @@ function build_reduce_inflate_permutelastdims(p::Array{T, 4}) where {T <: Number
                 vec[cnt] = (A[a, b, x, y] + A[b, a, y, x]) / S(2)
             end
         end
-        return FrankWolfe.SymmetricArray(A, vec, mul)
+        return FrankWolfe.SubspaceVector(A, vec, mul)
     end
-    function inflate(sa::FrankWolfe.SymmetricArray{false}, lmo = nothing)
+    function inflate(sa::FrankWolfe.SubspaceVector{false}, lmo = nothing)
         cnt = 0
         @inbounds for a in 1:o, x in 1:m
             cnt += 1
@@ -848,7 +848,7 @@ function build_reduce_inflate_permutelastdims(p::Array{T, 4}) where {T <: Number
         end
         return sa.data
     end
-    function inflate(sa::FrankWolfe.SymmetricArray{true}, lmo = nothing)
+    function inflate(sa::FrankWolfe.SubspaceVector{true}, lmo = nothing)
         cnt = 0
         @inbounds for a in 1:o, x in 1:m
             cnt += 1
@@ -866,7 +866,7 @@ function build_reduce_inflate_permutelastdims(p::Array{T, 4}) where {T <: Number
         end
         return sa.data
     end
-    return reduce, inflate
+    return deflate, inflate
 end
 
 #############
