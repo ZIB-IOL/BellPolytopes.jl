@@ -267,17 +267,17 @@ function probability_tensor(
     return p
 end
 
-# convert a N sets of m d-outcome POVMs acting on C^e into a ex...xexmx...xm probability array
+# convert a N sets of m o-outcome POVMs acting on C^d into a dx...xdxmx...xm probability array
 function probability_tensor(
         Aax::Vector{TB},
         N::Int;
         rho = rho_GHZ(N; d = size(Aax[1], 1), type = T),
     ) where {TB <: AbstractArray{Complex{T}, 4}} where {T <: Number}
-    e, _, d, m = size(Aax[1])
+    d, _, o, m = size(Aax[1])
     @assert length(Aax) == N
-    @assert size(rho) == (e^N, e^N)
-    p = zeros(T, e * ones(Int, N)..., m * ones(Int, N)...)
-    cia = CartesianIndices(Tuple(e * ones(Int, N)))
+    @assert size(rho) == (d^N, d^N)
+    p = zeros(T, o * ones(Int, N)..., m * ones(Int, N)...)
+    cia = CartesianIndices(Tuple(o * ones(Int, N)))
     cix = CartesianIndices(Tuple(m * ones(Int, N)))
     for a in cia, x in cix
         p[a, x] = real(tr(kron([Aax[n][:, :, a[n], x[n]] for n in 1:N]...) * rho))
