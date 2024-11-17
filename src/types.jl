@@ -472,6 +472,7 @@ function BellProbabilitiesDS(
     return res
 end
 
+# works from sequential (according to Flavien)
 function FrankWolfe._unsafe_equal(ds1::BellProbabilitiesDS{T, N2}, ds2::BellProbabilitiesDS{T, N2}) where {T <: Number, N2}
     if ds1 === ds2
         return true
@@ -496,6 +497,15 @@ Base.@propagate_inbounds function Base.getindex(
     ) where {T <: Number, N2}
     @boundscheck (checkbounds(ds, x...))
     return @inbounds getindex(ds.array, x...)
+end
+
+# sequential
+function get_array(ds::BellProbabilitiesDS{T, 6}) where {T <: Number}
+    res = zeros(T, size(ds))
+    @inbounds for x1 in 1:length(ds.ax[1]), x2 in 1:length(ds.ax[2]), x3 in 1:length(ds.ax[2])
+        res[ax[1][x1], ax[2][x2], ax[3][(x2 - 1) * length(ds.ax[2]) + x3], x1, x2, x3] = one(T)
+    end
+    return res
 end
 
 function get_array(ds::BellProbabilitiesDS{T, N2}) where {T <: Number, N2}
