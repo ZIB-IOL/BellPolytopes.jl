@@ -418,7 +418,7 @@ mutable struct BellProbabilitiesDS{T, N2} <: AbstractArray{T, N2}
     end
 end
 
-Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.o, length.(ds.ax)))
+Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.o, ds.lmo.m))
 
 function BellProbabilitiesDS(
         ax::Vector{Vector{Int}},
@@ -502,8 +502,8 @@ end
 # sequential
 function get_array(ds::BellProbabilitiesDS{T, 6}) where {T <: Number}
     res = zeros(T, size(ds))
-    @inbounds for x1 in 1:length(ds.ax[1]), x2 in 1:length(ds.ax[2]), x3 in 1:length(ds.ax[2])
-        res[ax[1][x1], ax[2][x2], ax[3][(x2 - 1) * length(ds.ax[2]) + x3], x1, x2, x3] = one(T)
+    @inbounds for x1 in 1:ds.lmo.m[1], x2 in 1:ds.lmo.m[2], x3 in 1:ds.lmo.m[3]
+        res[ds.ax[1][x1], ds.ax[2][x2], ds.ax[3][(x2 - 1) * ds.lmo.m[3] + x3], x1, x2, x3] = one(T)
     end
     return res
 end
