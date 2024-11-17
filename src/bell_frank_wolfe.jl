@@ -62,6 +62,7 @@ function bell_frank_wolfe(
         save::Bool = false,
         file = nothing,
         seed::Int = 0,
+        o = ones(T, size(p)) / prod(size(p)[1:(N ÷ 2)]),
         kwargs...,
     ) where {T <: Number, N}
     Random.seed!(seed)
@@ -79,7 +80,7 @@ function bell_frank_wolfe(
         DS = BellProbabilitiesDS
         m = collect(size(p)[(N ÷ 2 + 1):end])
         # center of the polytope
-        o = ones(T, size(p)) / prod(size(p)[1:(N ÷ 2)])
+        # o = ones(T, size(p)) / prod(size(p)[1:(N ÷ 2)])
         reynolds = reynolds_permutelastdims
         build_deflate_inflate = build_deflate_inflate_permutelastdims
     end
