@@ -16,7 +16,7 @@ Tullio = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
 
 [compat]
 Combinatorics = "1"
-FrankWolfe = "0.4.4"
+FrankWolfe = "0.4.3"
 LinearAlgebra = "1"
 Polyhedra = "0.7.8"
 Printf = "1"
