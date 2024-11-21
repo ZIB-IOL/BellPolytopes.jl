@@ -205,7 +205,7 @@ function bell_frank_wolfe(
         else
             lmo_last = LMO(lmo, vp_last; mode = mode_last, T2 = TL, nb = nb_last)
         end
-        ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose = verbose > 0)
+        ds = FrankWolfe.compute_extreme_point(lmo_last, -M; verbose = verbose > 3)
     else
         if sym
             ds = FrankWolfe.SubspaceVector(DS(ds.data; T2 = TL), TL.(ds.vec))
