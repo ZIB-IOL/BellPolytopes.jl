@@ -76,7 +76,7 @@ function build_callback(
             a = -state.gradient # v*p+(1-v)*o-active_set.x
             b = FrankWolfe.fast_dot(a, state.v) # local max found by the LMO
             if verbose
-                @printf("v_c ≤ %f\n", b / FrankWolfe.fast_dot(a, p))
+                @printf("v_c ≤ %f\n", (b - FrankWolfe.fast_dot(a, o)) / (FrankWolfe.fast_dot(a, p) - FrankWolfe.fast_dot(a, o)))
             end
             if save
                 serialize(file * "_hyperplane.dat", (a, b))
