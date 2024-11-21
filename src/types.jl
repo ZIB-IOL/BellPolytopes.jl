@@ -505,11 +505,19 @@ Base.@propagate_inbounds function Base.getindex(
     return @inbounds getindex(ds.array, x...)
 end
 
-# sequential
+# dirty mode recovery
+mode(lmo::BellProbabilitiesLMO{T, 6, Mode}) where {T <: Number, Mode} = Mode
+
 function get_array(ds::BellProbabilitiesDS{T, 6}) where {T <: Number}
     res = zeros(T, size(ds))
-    @inbounds for x1 in 1:ds.lmo.m[1], x2 in 1:ds.lmo.m[2], x3 in 1:ds.lmo.m[3]
-        res[ds.ax[1][x1], ds.ax[2][x2], ds.ax[3][(x2 - 1) * ds.lmo.m[3] + x3], x1, x2, x3] = one(T)
+    if mode(ds.lmo) ≥ 2 # sequential
+        @inbounds for x1 in 1:ds.lmo.m[1], x2 in 1:ds.lmo.m[2], x3 in 1:ds.lmo.m[3]
+            res[ds.ax[1][x1], ds.ax[2][x2], ds.ax[3][(x2 - 1) * ds.lmo.m[3] + x3], x1, x2, x3] = one(T)
+        end
+    else
+        @inbounds for x1 in 1:ds.lmo.m[1], x2 in 1:ds.lmo.m[2], x3 in 1:ds.lmo.m[3]
+            res[ds.ax[1][x1], ds.ax[2][x2], ds.ax[3][x3], x1, x2, x3] = one(T)
+        end
     end
     return res
 end
