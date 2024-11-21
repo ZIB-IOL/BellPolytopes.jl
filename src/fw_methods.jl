@@ -688,6 +688,7 @@ function FrankWolfe.compute_extreme_point(
     return dsm
 end
 
+# heuristic for AB₁B₂
 function FrankWolfe.compute_extreme_point(
         lmo::BellProbabilitiesLMO{T, 6, 5},
         A::Array{T, 6};

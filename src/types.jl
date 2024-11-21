@@ -119,12 +119,17 @@ function BellProbabilitiesLMO(
     else
         AT = BellProbabilitiesDS{T, N2}
     end
+    if mode ≥ 2 # sequential scenario AB₁B₂
+        @assert N2 == 6
+        tmp = [zeros(T, size(p, 4), size(p, 1)), zeros(T, size(p, 5), size(p, 2)), zeros(T, size(p, 5) * size(p, 6), size(p, 3))]
+    else
+        tmp = [zeros(T, size(p, N + n), size(p, n)) for n in 1:N]
+    end
     return BellProbabilitiesLMO{T, N2, mode, AT, IT}(
         collect(size(p)[1:N]),
         collect(size(p)[(N + 1):end]),
         vp,
-        # [zeros(T, size(p, N + n), size(p, n)) for n in 1:N],
-        [zeros(T, size(p, 4), size(p, 1)), zeros(T, size(p, 5), size(p, 2)), zeros(T, size(p, 5) * size(p, 6), size(p, 3))],
+        tmp,
         nb,
         0,
         CartesianIndices(p),

@@ -477,7 +477,7 @@ function alternating_minimisation!(
             sc1 += lmo.tmp[1][x1, ax[1][x1]]
         end
     end
-    return sc1 # sequential
+    return sc1
 end
 
 ##############
