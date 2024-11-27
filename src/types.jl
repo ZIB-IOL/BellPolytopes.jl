@@ -578,7 +578,6 @@ function load_active_set(
     weights = T2.(ass.weights)
     weights /= sum(weights)
     res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
-    FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
 
@@ -628,6 +627,5 @@ function load_active_set(
     weights = T2.(ass.weights)
     weights /= sum(weights)
     res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
-    FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
