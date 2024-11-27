@@ -728,7 +728,7 @@ function build_deflate_inflate_q(::Type{T}, q::Array{<:Integer, N}) where {T <: 
     sqmul = sqrt.(T.(mul)) # precomputed for speed
     function deflate(A::AbstractArray{S, N}, lmo = nothing) where {S <: AbstractFloat}
         vec = zeros(S, dim)
-        @inbounds for (i, qi) in enumerate(q)
+        @inbounds for (i, qi) in pairs(q)
             vec[qi] += A[i]
         end
         vec ./= sqmul
@@ -736,7 +736,7 @@ function build_deflate_inflate_q(::Type{T}, q::Array{<:Integer, N}) where {T <: 
     end
     function deflate(A::AbstractArray{S, N}, lmo = nothing) where {S <: Number}
         vec = zeros(S, dim)
-        @inbounds for (i, qi) in enumerate(q)
+        @inbounds for (i, qi) in pairs(q)
             vec[qi] += A[i]
         end
         vec ./= S.(mul)

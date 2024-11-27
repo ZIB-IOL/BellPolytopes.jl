@@ -270,9 +270,10 @@ function FrankWolfe._unsafe_equal(ds1::BellCorrelationsDS, ds2::BellCorrelations
     return true
 end
 
-Base.@propagate_inbounds function Base.getindex(ds::BellCorrelationsDS{T, N}, x::Int) where {T <: Number, N}
-    return Base.getindex(ds, ds.lmo.ci[x])
-end
+# the type unstability introduced by "where {Mode}" in ds.lmo kills performances
+# Base.@propagate_inbounds function Base.getindex(ds::BellCorrelationsDS{T, N}, x::Int) where {T <: Number, N}
+    # return Base.getindex(ds, ds.lmo.ci[x])
+# end
 
 # specialised method for performance
 Base.@propagate_inbounds function Base.getindex(
@@ -499,9 +500,9 @@ end
 #     return true
 # end
 
-Base.@propagate_inbounds function Base.getindex(ds::BellProbabilitiesDS{T, N2}, x::Int) where {T <: Number, N2}
-    return Base.getindex(ds, ds.lmo.ci[x])
-end
+# Base.@propagate_inbounds function Base.getindex(ds::BellProbabilitiesDS{T, N2}, x::Int) where {T <: Number, N2}
+    # return Base.getindex(ds, ds.lmo.ci[x])
+# end
 
 Base.@propagate_inbounds function Base.getindex(
         ds::BellProbabilitiesDS{T, N2},
@@ -599,7 +600,6 @@ function load_active_set(
     weights = T2.(ass.weights)
     weights /= sum(weights)
     res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
-    FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
 
@@ -649,6 +649,5 @@ function load_active_set(
     weights = T2.(ass.weights)
     weights /= sum(weights)
     res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
-    FrankWolfe.compute_active_set_iterate!(res)
     return res
 end
