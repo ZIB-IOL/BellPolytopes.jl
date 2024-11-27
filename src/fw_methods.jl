@@ -557,7 +557,7 @@ function FrankWolfe.active_set_update_iterate_pairwise!(
     return xit
 end
 
-function FrankWolfe.active_set_argminmax(active_set::FrankWolfe.ActiveSetQuadratic, direction; Φ = 0.5)
+function FrankWolfe.active_set_argminmax(active_set::FrankWolfe.ActiveSetQuadraticProductCaching, direction; Φ = 0.5)
     valm = typemax(eltype(direction))
     valM = typemin(eltype(direction))
     idxm = -1
