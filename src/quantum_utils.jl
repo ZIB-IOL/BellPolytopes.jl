@@ -207,7 +207,7 @@ function correlation_tensor(p::AbstractArray{T, N2}; marg::Bool = false) where {
     for x in cix
         y = [x[i] ≤ m ? x[i] : Colon() for i in 1:N]
         res[x] =
-            sum((-1)^sum(x[i] ≤ m ? a[i] : 0 for i in 1:N) * sum(p[a, y...]) for a in cia) /
+            sum((-1)^sum(x[i] ≤ m ? a[i] - 1 : 0 for i in 1:N) * sum(p[a, y...]) for a in cia) /
             m^sum(x[i] ≤ m ? 0 : 1 for i in 1:N)
         if T <: AbstractFloat
             if abs(res[x]) < Base.rtoldefault(T)
