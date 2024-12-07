@@ -465,7 +465,7 @@ function FrankWolfe.compute_extreme_point(
     axm = [zeros(Int, lmo.m[n]) for n in 1:3]
     scm = typemax(T)
     # set containing all optimal strategies when count=true
-    setm = Set{Array{T, 4}}()
+    setm = Set{Array{T, 6}}()
     for λa3 in 0:(lmo.o[3]^lmo.m[3] - 1)
         digits!(ax[3], λa3; base = lmo.o[3])
         ax[3] .+= 1
@@ -524,7 +524,7 @@ function FrankWolfe.compute_extreme_point(
     axm = [zeros(Int, lmo.m[n]) for n in 1:4]
     scm = typemax(T)
     # set containing all optimal strategies when count=true
-    setm = Set{Array{T, 4}}()
+    setm = Set{Array{T, 8}}()
     for λa4 in 0:(lmo.o[4]^lmo.m[4] - 1)
         digits!(ax[4], λa4; base = lmo.o[4])
         ax[4] .+= 1
