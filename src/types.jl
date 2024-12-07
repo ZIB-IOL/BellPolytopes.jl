@@ -120,8 +120,13 @@ function BellProbabilitiesLMO(
         AT = BellProbabilitiesDS{T, N2}
     end
     if mode ≥ 2 # sequential scenario AB₁B₂
-        @assert N2 == 6
-        tmp = [zeros(T, size(p, 4), size(p, 1)), zeros(T, size(p, 5), size(p, 2)), zeros(T, size(p, 5) * size(p, 6), size(p, 3))]
+        if N2 == 6
+            tmp = [zeros(T, size(p, 4), size(p, 1)), zeros(T, size(p, 5), size(p, 2)), zeros(T, size(p, 5) * size(p, 6), size(p, 3))]
+        elseif N2 == 8
+            tmp = [zeros(T, size(p, 5) * size(p, 6), size(p, 1)), zeros(T, size(p, 6), size(p, 2)), zeros(T, size(p, 7), size(p, 3)), zeros(T, size(p, 7) * size(p, 8), size(p, 4))]
+        else
+            error("Unknown combination of parameters")
+        end
     else
         tmp = [zeros(T, size(p, N + n), size(p, n)) for n in 1:N]
     end
@@ -507,7 +512,7 @@ Base.@propagate_inbounds function Base.getindex(
 end
 
 # dirty mode recovery
-mode(lmo::BellProbabilitiesLMO{T, 6, Mode}) where {T <: Number, Mode} = Mode
+mode(lmo::BellProbabilitiesLMO{T, N2, Mode}) where {T <: Number, N2, Mode} = Mode
 
 function get_array(ds::BellProbabilitiesDS{T, 6}) where {T <: Number}
     res = zeros(T, size(ds))
@@ -518,6 +523,20 @@ function get_array(ds::BellProbabilitiesDS{T, 6}) where {T <: Number}
     else
         @inbounds for x1 in 1:ds.lmo.m[1], x2 in 1:ds.lmo.m[2], x3 in 1:ds.lmo.m[3]
             res[ds.ax[1][x1], ds.ax[2][x2], ds.ax[3][x3], x1, x2, x3] = one(T)
+        end
+    end
+    return res
+end
+
+function get_array(ds::BellProbabilitiesDS{T, 8}) where {T <: Number}
+    res = zeros(T, size(ds))
+    if mode(ds.lmo) ≥ 2 # sequential
+        @inbounds for x1 in 1:ds.lmo.m[1], x2 in 1:ds.lmo.m[2], x3 in 1:ds.lmo.m[3], x4 in 1:ds.lmo.m[4]
+            res[ds.ax[1][(x2 - 1) * ds.lmo.m[1] + x1], ds.ax[2][x2], ds.ax[3][x3], ds.ax[4][(x3 - 1) * ds.lmo.m[4] + x4], x1, x2, x3, x4] = one(T)
+        end
+    else
+        @inbounds for x1 in 1:ds.lmo.m[1], x2 in 1:ds.lmo.m[2], x3 in 1:ds.lmo.m[3], x4 in 1:ds.lmo.m[4]
+            res[ds.ax[1][x1], ds.ax[2][x2], ds.ax[3][x3], ds.ax[4][x4], x1, x2, x3, x4] = one(T)
         end
     end
     return res
