@@ -201,7 +201,7 @@ function correlation_tensor(p::AbstractArray{T, N2}; marg::Bool = false) where {
     for x in cix
         y = [x[i] ≤ m ? x[i] : Colon() for i in 1:N]
         res[x] =
-            sum((-1)^sum(x[i] ≤ m ? a[i] : 0 for i in 1:N) * sum(p[a, y...]) for a in cia) /
+            sum((-1)^sum(x[i] ≤ m ? a[i] - 1 : 0 for i in 1:N) * sum(p[a, y...]) for a in cia) /
             m^sum(x[i] ≤ m ? 0 : 1 for i in 1:N)
         if T <: AbstractFloat
             if abs(res[x]) < Base.rtoldefault(T)
@@ -267,17 +267,17 @@ function probability_tensor(
     return p
 end
 
-# convert a N sets of m d-outcome POVMs acting on C^e into a ex...xexmx...xm probability array
+# convert a N sets of m o-outcome POVMs acting on C^d into a dx...xdxmx...xm probability array
 function probability_tensor(
         Aax::Vector{TB},
         N::Int;
         rho = rho_GHZ(N; d = size(Aax[1], 1), type = T),
     ) where {TB <: AbstractArray{Complex{T}, 4}} where {T <: Number}
-    e, _, d, m = size(Aax[1])
+    d, _, o, m = size(Aax[1])
     @assert length(Aax) == N
-    @assert size(rho) == (e^N, e^N)
-    p = zeros(T, e * ones(Int, N)..., m * ones(Int, N)...)
-    cia = CartesianIndices(Tuple(e * ones(Int, N)))
+    @assert size(rho) == (d^N, d^N)
+    p = zeros(T, o * ones(Int, N)..., m * ones(Int, N)...)
+    cia = CartesianIndices(Tuple(o * ones(Int, N)))
     cix = CartesianIndices(Tuple(m * ones(Int, N)))
     for a in cia, x in cix
         p[a, x] = real(tr(kron([Aax[n][:, :, a[n], x[n]] for n in 1:N]...) * rho))

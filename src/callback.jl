@@ -89,6 +89,9 @@ function build_callback(
         if save && mod(state.t, save_interval) == 0
             serialize(file * "_tmp.dat", ActiveSetStorage(active_set))
         end
+        # if state.dual_gap < state.primal / 2
+            # return false
+        # end
         return state.primal > epsilon
     end
     return callback

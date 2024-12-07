@@ -480,6 +480,72 @@ function alternating_minimisation!(
     return sc1
 end
 
+function alternating_minimisation!(
+        ax::Vector{Vector{Int}},
+        lmo::BellProbabilitiesLMO{T, 8, 0},
+        A::Array{T, 8},
+    ) where {T <: Number}
+    sc1 = zero(T)
+    sc2 = one(T)
+    @inbounds while sc1 < sc2
+        sc2 = sc1
+        for x4 in 1:length(ax[4])
+            for a4 in 1:lmo.o[4]
+                s = zero(T)
+                for x1 in 1:length(ax[1]), x2 in 1:length(ax[2]), x3 in 1:length(ax[3])
+                    s += A[ax[1][x1], ax[2][x2], ax[3][x3], a4, x1, x2, x3, x4]
+                end
+                lmo.tmp[4][x4, a4] = s
+            end
+        end
+        for x4 in 1:length(ax[4])
+            ax[4][x4] = argmin(lmo.tmp[4][x4, :])[1]
+        end
+        for x3 in 1:length(ax[3])
+            for a3 in 1:lmo.o[3]
+                s = zero(T)
+                for x1 in 1:length(ax[1]), x2 in 1:length(ax[2]), x4 in 1:length(ax[4])
+                    s += A[ax[1][x1], ax[2][x2], ax[4][x4], a3, x1, x2, x3, x4]
+                end
+                lmo.tmp[3][x3, a3] = s
+            end
+        end
+        for x3 in 1:length(ax[3])
+            ax[3][x3] = argmin(lmo.tmp[3][x3, :])[1]
+        end
+        for x2 in 1:length(ax[2])
+            for a2 in 1:lmo.o[2]
+                s = zero(T)
+                for x1 in 1:length(ax[1]), x3 in 1:length(ax[3]), x4 in 1:length(ax[4])
+                    s += A[ax[1][x1], a2, ax[3][x3], ax[4][x4], x1, x2, x3, x4]
+                end
+                lmo.tmp[2][x2, a2] = s
+            end
+        end
+        for x2 in 1:length(ax[2])
+            ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
+        end
+        for x1 in 1:length(ax[1])
+            for a1 in 1:lmo.o[1]
+                s = zero(T)
+                for x2 in 1:length(ax[2]), x3 in 1:length(ax[3]), x4 in 1:length(ax[4])
+                    s += A[a1, ax[2][x2], ax[3][x3], ax[4][x4], x1, x2, x3, x4]
+                end
+                lmo.tmp[1][x1, a1] = s
+            end
+        end
+        for x1 in 1:length(ax[1])
+            ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+        end
+        # uses the precomputed sum of lines to compute the scalar product
+        sc1 = zero(T)
+        for x1 in 1:length(ax[1])
+            sc1 += lmo.tmp[1][x1, ax[1][x1]]
+        end
+    end
+    return sc1
+end
+
 ##############
 # ACTIVE SET #
 ##############
@@ -782,7 +848,7 @@ function build_deflate_inflate_q(::Type{T}, q::Array{<:Integer, N}) where {T <: 
     sqmul = sqrt.(T.(mul)) # precomputed for speed
     function deflate(A::AbstractArray{S, N}, lmo = nothing) where {S <: AbstractFloat}
         vec = zeros(S, dim)
-        @inbounds for (i, qi) in enumerate(q)
+        @inbounds for (i, qi) in pairs(q)
             vec[qi] += A[i]
         end
         vec ./= sqmul
@@ -790,7 +856,7 @@ function build_deflate_inflate_q(::Type{T}, q::Array{<:Integer, N}) where {T <: 
     end
     function deflate(A::AbstractArray{S, N}, lmo = nothing) where {S <: Number}
         vec = zeros(S, dim)
-        @inbounds for (i, qi) in enumerate(q)
+        @inbounds for (i, qi) in pairs(q)
             vec[qi] += A[i]
         end
         vec ./= S.(mul)
