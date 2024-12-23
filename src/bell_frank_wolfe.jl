@@ -14,6 +14,7 @@ Returns:
  - `β`: the local bound of the inequality parametrised by `M`, reliable only if the last LMO is exact.
 
 Optional arguments:
+ - `o`: same type as `p`, corresponds to the noise to be added, by default the center of the polytope,
  - `prob`: a boolean, indicates if `p` is a corelation or probability array,
  - `marg`: a boolean, indicates if `p` contains marginals,
  - `v0`: the visibility used to make a nonlocal `p` closer to the local polytope,
@@ -32,6 +33,7 @@ Optional arguments:
 """
 function bell_frank_wolfe(
         p::Array{T, N};
+        o = nothing,
         prob::Bool = false,
         marg::Bool = false,
         v0 = one(T),
@@ -69,23 +71,25 @@ function bell_frank_wolfe(
         LMO = BellCorrelationsLMO
         DS = BellCorrelationsDS
         m = collect(size(p))
-        # center of the polytope
-        o = zeros(T, size(p))
-        o[end] = marg
+        if o === nothing
+            o = zeros(T, size(p))
+            o[end] = marg
+        end
         reynolds = reynolds_permutedims
         build_deflate_inflate = build_deflate_inflate_permutedims
     else
         LMO = BellProbabilitiesLMO
         DS = BellProbabilitiesDS
         m = collect(size(p)[(N ÷ 2 + 1):end])
-        # center of the polytope
-        o = ones(T, size(p)) / prod(size(p)[1:(N ÷ 2)])
+        if o === nothing
+            o = ones(T, size(p)) / prod(size(p)[1:(N ÷ 2)])
+        end
         reynolds = reynolds_permutelastdims
         build_deflate_inflate = build_deflate_inflate_permutelastdims
     end
     # symmetry detection
     if sym === nothing
-        if all(diff(m) .== 0) && p ≈ reynolds(p)
+        if all(diff(m) .== 0) && p ≈ reynolds(p) && (v0 == 1 || o ≈ reynolds(o))
             deflate, inflate = build_deflate_inflate(p)
             sym = true
         else
