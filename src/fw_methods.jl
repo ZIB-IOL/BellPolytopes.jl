@@ -390,9 +390,7 @@ function FrankWolfe.compute_extreme_point(
             push!(setm, collect(BellProbabilitiesDS(ax, lmo)))
         end
     end
-    if count
-        println(length(setm))
-    end
+    count && println(length(setm))
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
     return dsm
@@ -438,15 +436,13 @@ function FrankWolfe.compute_extreme_point(
             empty!(setm)
         end
         if verbose && sc ≈ scm
-            println(rpad(string([λa2]), 2 + ndigits(lmo.o[1]^lmo.m[1])), " ", string(-scm))
+            println(rpad(string([λa1]), 2 + ndigits(lmo.o[1]^lmo.m[1])), " ", string(-scm))
         end
         if count && sc ≈ scm
             push!(setm, collect(BellProbabilitiesDS(ax, lmo)))
         end
     end
-    if count
-        println(length(setm))
-    end
+    count && println(length(setm))
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
     return dsm
@@ -684,9 +680,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
     end
-    if count
-        println(length(setm))
-    end
+    count && println(length(setm))
     dsm = BellProbabilitiesDS(axm, lmo; cf = cfm)
     lmo.cnt += 1
     return dsm
@@ -758,9 +752,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
     end
-    if count
-        println(length(setm))
-    end
+    count && println(length(setm))
     dsm = BellProbabilitiesDS(axm, lmo; cf = cfm)
     lmo.cnt += 1
     return dsm
@@ -779,7 +771,7 @@ function FrankWolfe.compute_extreme_point(
     axm = [zeros(Int, lmo.m[n]) for n in 1:3]
     scm = typemax(T)
     # set containing all optimal strategies when count=true
-    setm = Set{Array{T, 4}}()
+    setm = Set{Array{T, 6}}()
     for λa3 in 0:(lmo.o[3]^lmo.m[3] - 1)
         digits!(ax[3], λa3; base = lmo.o[3])
         ax[3] .+= 1
@@ -817,13 +809,73 @@ function FrankWolfe.compute_extreme_point(
             end
         end
     end
-    if count
-        println(length(setm))
-    end
+    count && println(length(setm))
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
     return dsm
 end
+
+function FrankWolfe.compute_extreme_point(
+        lmo::BellProbabilitiesLMO{T, 8, 1},
+        A::Array{T, 8};
+        verbose = false,
+        count = false,
+        sym = false,
+        kwargs...,
+    ) where {T <: Number}
+    ax = [ones(Int, lmo.m[n]) for n in 1:4]
+    sc = zero(T)
+    axm = [zeros(Int, lmo.m[n]) for n in 1:4]
+    scm = typemax(T)
+    # set containing all optimal strategies when count=true
+    setm = Set{Array{T, 8}}()
+    for λa4 in 0:(lmo.o[4]^lmo.m[4] - 1)
+        digits!(ax[4], λa4; base = lmo.o[4])
+        ax[4] .+= 1
+        for λa3 in (sym ? λa4 : 0):(lmo.o[3]^lmo.m[3] - 1)
+            digits!(ax[3], λa3; base = lmo.o[3])
+            ax[3] .+= 1
+            for λa2 in (sym ? λa3 : 0):(lmo.o[2]^lmo.m[2] - 1)
+                digits!(ax[2], λa2; base = lmo.o[2])
+                ax[2] .+= 1
+                for x1 in 1:length(ax[1])
+                    for a1 in 1:lmo.o[1]
+                        s = zero(T)
+                        for x2 in 1:length(ax[2]), x3 in 1:length(ax[3]), x4 in 1:length(ax[4])
+                            s += A[a1, ax[2][x2], ax[3][x3], ax[4][x4], x1, x2, x3, x4]
+                        end
+                        lmo.tmp[1][x1, a1] = s
+                    end
+                end
+                for x1 in 1:length(ax[1])
+                    ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+                end
+                sc = zero(T)
+                for x1 in 1:length(ax[1])
+                    sc += lmo.tmp[1][x1, ax[1][x1]]
+                end
+                if sc < scm
+                    scm = sc
+                    for n in 1:4
+                        axm[n] .= ax[n]
+                    end
+                    empty!(setm)
+                end
+                if verbose && sc ≈ scm
+                    println(rpad(string([λa4, λa3, λa2]), 6 + ndigits(lmo.o[4]^lmo.m[4]) + ndigits(lmo.o[3]^lmo.m[3]) + ndigits(lmo.o[2]^lmo.m[2])), " ", string(-scm))
+                end
+                if count && sc ≈ scm
+                    push!(setm, collect(BellProbabilitiesDS(ax, lmo)))
+                end
+            end
+        end
+    end
+    count && println(length(setm))
+    dsm = BellProbabilitiesDS(axm, lmo)
+    lmo.cnt += 1
+    return dsm
+end
+
 
 ##############
 # ACTIVE SET #
