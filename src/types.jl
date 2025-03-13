@@ -428,7 +428,7 @@ mutable struct BellProbabilitiesDS{T, N2} <: AbstractArray{T, N2}
     end
 end
 
-Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.o, length.(ds.ax)))
+Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.o, ds.lmo.m))
 
 function BellProbabilitiesDS(
         ax::Vector{Vector{Int}},
