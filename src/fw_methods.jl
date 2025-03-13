@@ -390,9 +390,7 @@ function FrankWolfe.compute_extreme_point(
             push!(setm, collect(BellProbabilitiesDS(ax, lmo)))
         end
     end
-    if count
-        println(length(setm))
-    end
+    count && println(length(setm))
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
     return dsm
@@ -444,9 +442,7 @@ function FrankWolfe.compute_extreme_point(
             push!(setm, collect(BellProbabilitiesDS(ax, lmo)))
         end
     end
-    if count
-        println(length(setm))
-    end
+    count && println(length(setm))
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
     return dsm
@@ -503,9 +499,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
     end
-    if count
-        println(length(setm))
-    end
+    count && println(length(setm))
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
     return dsm
@@ -566,9 +560,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
     end
-    if count
-        println(length(setm))
-    end
+    count && println(length(setm))
     dsm = BellProbabilitiesDS(axm, lmo)
     lmo.cnt += 1
     return dsm
