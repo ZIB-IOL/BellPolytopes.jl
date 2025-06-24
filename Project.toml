@@ -15,14 +15,14 @@ Tullio = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
 
 [compat]
 Combinatorics = "1"
-FrankWolfe = "0.4.3"
+FrankWolfe = "0.5"
 LinearAlgebra = "1"
-Polyhedra = "0.7.8"
+Polyhedra = "0.8"
 Printf = "1"
 Random = "1"
 Serialization = "1"
 Test = "1"
-Tullio = "0.3.7"
+Tullio = "0.3"
 julia = "1.9"
 
 [extras]
