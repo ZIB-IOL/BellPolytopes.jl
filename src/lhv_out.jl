@@ -15,100 +15,90 @@ Think of the target correlator `p` as a matrix of the form:
 |----------------------|
 
 =#
-mutable struct OutBellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray, DS} <: FrankWolfe.LinearMinimizationOracle
+mutable struct OutBellCorrelationsLMO{T, N, Mode, HasMarginals, AT, IT} <: FrankWolfe.LinearMinimizationOracle
     # scenario fields
-    const m::Int # number of inputs
-    const p::Array{T, N} # point of interest (a correlations matrix for bipartite N=2 case)
+    const m::Vector{Int} # number of inputs
     # general fields
-    tmp::Vector{T} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
-    nb::Int # number of repetitions
-    cnt::Int # count the number of calls of the LMO and used to hash the atoms
-    const reynolds::Union{Nothing, Function}
-    const fac::T # factorial of N used in the symmetric case
-    const per::Vector{Vector{Int}} # permutations used in the symmetric case
+    tmp::Vector{Vector{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
+    nb::Int # number of repetition
+    cnt::Int # count the number of calls of the LMO
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
-    data::Vector{Any} # store information about the computation
-    active_set::FrankWolfe.ActiveSetQuadratic{DS, T, Array{T, N}, FrankWolfe.Identity{Bool}}
-    lmofalse::OutBellCorrelationsLMO{T, N, Mode, false, HasMarginals, false}
-    function OutBellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray, DS}(m::Int, p::Array{T, N}, tmp::Vector{T}, nb::Int, cnt::Int, reynolds::Union{Nothing, Function}, fac::T, per::Vector{Vector{Int}}, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}, data::Vector) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray} where {DS}
-        lmo = new(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data, FrankWolfe.ActiveSetQuadratic{DS}(p))
-        if IsSymmetric || UseArray
-            lmo.lmofalse = OutBellCorrelationsLMO{T, N, Mode, false, HasMarginals, false, DS}(m, p, tmp, nb, cnt, reynolds, fac, per, ci, data)
-        else
-            lmo.lmofalse = lmo
-        end
+    active_set::FrankWolfe.ActiveSetQuadraticProductCaching{AT, T, IT, FrankWolfe.Identity{Bool}}
+    lmo::OutBellCorrelationsLMO{T, N, Mode, HasMarginals, AT}
+    function OutBellCorrelationsLMO{T, N, Mode, HasMarginals, AT, IT}(m::Vector{Int}, vp::IT, tmp::Vector{Vector{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}}) where {T <: Number, N, Mode, HasMarginals, AT, IT}
+        lmo = new(m, tmp, nb, cnt, ci, FrankWolfe.ActiveSetQuadraticProductCaching{AT}(vp))
+        lmo.lmo = lmo
         return lmo
     end
 end
 
 # constructor with predefined values
 function OutBellCorrelationsLMO(
-    p::Array{T, N};
-    mode::Int=0,
-    nb::Int=128,
-    sym::Bool=false,
-    marg::Bool=false,
-    use_array::Bool=false,
-    reynolds=reynolds_permutedims,
-    data=[0, 0],
-) where {T <: Number} where {N}
-    return OutBellCorrelationsLMO{T, N, mode, sym, marg, use_array, OutBellCorrelationsDS{T, N, sym, marg, use_array}}(
-        size(p, 1),
-        p,
-        zeros(T, size(p, 1)),
+        p::Array{T, N},
+        vp::IT;
+        mode::Int = 0,
+        nb::Int = 100,
+        marg::Bool = false,
+        use_array::Bool = false,
+    ) where {T <: Number, N, IT}
+    if IT <: FrankWolfe.SubspaceVector
+        AT = FrankWolfe.SubspaceVector{false, T, OutBellCorrelationsDS{T, N, marg, use_array}, Vector{T}}
+    else
+        AT = OutBellCorrelationsDS{T, N, marg, use_array}
+    end
+    return OutBellCorrelationsLMO{T, N, mode, marg, AT, IT}(
+        collect(size(p)),
+        vp,
+        [zeros(T, size(p, 2) - marg) for _ in 1:2],
         nb,
-        1,
-        reynolds,
-        T(factorial(N)),
-        collect(permutations(1:N)),
+        0,
         CartesianIndices(p),
-        data,
     )
 end
 
-# function OutBellCorrelationsLMO(
-#     lmo::OutBellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray};
-#     type=T,
-#     mode=Mode,
-#     sym=IsSymmetric,
-#     marg=HasMarginals,
-#     use_array=UseArray,
-#     nb=lmo.nb,
-#     reynolds=lmo.reynolds,
-#     data=lmo.data,
-# ) where {T <: Number} where {N} where {Mode} where {IsSymmetric} where {HasMarginals} where {UseArray}
-#     if marg == HasMarginals
-#         m = lmo.m
-#         p = type.(lmo.p)
-#         tmp = type.(lmo.tmp)
-#         ci = lmo.ci
-#     elseif HasMarginals
-#         # Since the marginals are stored in an extra row/column, we remove it:
-#         m = lmo.m - 1
-#         ci = CartesianIndices(size(p) .- 1)
-#         p = type.(lmo.p[ci])
-#         tmp = zeros(type, m)
-#     else
-#         # ... or add it:
-#         m = lmo.m + 1
-#         p = zeros(type, size(lmo.p) .+ 1)
-#         p[lmo.ci] .= lmo.p
-#         tmp = zeros(type, m)
-#         ci = CartesianIndices(p)
-#     end
-#     return OutBellCorrelationsLMO{type, N, mode, sym, marg, use_array}(
-#         m,
-#         p,
-#         tmp,
-#         nb,
-#         lmo.cnt,
-#         lmo.reynolds, # TODO: Shouldn't the reynolds change if we change the dimension?
-#         lmo.fac,
-#         lmo.per,
-#         lmo.ci,       # TODO: Shouldn't we use the updated ci?
-#         data,
-#     )
-# end
+function OutBellCorrelationsLMO(
+        lmo::OutBellCorrelationsLMO{T1, N, Mode, HasMarginals, AT1, IT1},
+        vp::IT2;
+        T2 = T1,
+        mode = Mode,
+        marg = HasMarginals,
+        use_array = false,
+        nb = lmo.nb,
+        kwargs...
+    ) where {T1 <: Number, N, Mode, HasMarginals, AT1, IT1, IT2}
+    if T2 == T1 && mode == Mode && marg == HasMarginals && IT1 == IT2
+        lmo.nb = nb
+        return lmo
+    end
+    if marg == HasMarginals
+        m = lmo.m
+        tmp = broadcast.(T2, lmo.tmp)
+        ci = lmo.ci
+    elseif HasMarginals
+        m = lmo.m .- 1
+        m[1] -= 1
+        tmp = [zeros(T2, m[n]) for n in 1:N]
+        ci = CartesianIndices(Tuple(m))
+    else
+        m = lmo.m .+ 1
+        m[1] += 1
+        tmp = [zeros(T2, m[n]) for n in 1:N]
+        ci = CartesianIndices(Tuple(m))
+    end
+    if IT2 <: FrankWolfe.SubspaceVector
+        AT2 = FrankWolfe.SubspaceVector{false, T2, OutBellCorrelationsDS{T2, N, marg, use_array}, Vector{T2}}
+    else
+        AT2 = OutBellCorrelationsDS{T2, N, marg, use_array}
+    end
+    return OutBellCorrelationsLMO{T2, N, mode, marg, AT2, IT2}(
+        m,
+        vp,
+        tmp,
+        nb,
+        lmo.cnt,
+        lmo.ci,
+    )
+end
 
 ##################################
 # CORRELATION TENSOR FOR OUT-LHV #
@@ -137,7 +127,7 @@ Think of the matrix representation as:
 |----------------------|
 
 =#
-mutable struct OutBellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray} <: AbstractArray{T, N}
+mutable struct OutBellCorrelationsDS{T, N, HasMarginals, UseArray} <: AbstractArray{T, N}
     # Representation of the outcomes:
     a::Vector{T} # Outcomes for Alice. (Redundant because of `idxs_p` and `idxs_m` but makes stuff easier).
     b_plus::Vector{T}  # Outcomes for Bob respective to +1 outcome of Alice.
@@ -145,21 +135,28 @@ mutable struct OutBellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray} 
     # Parameters to speed up computation in argminmax:
     idxs_p::Vector{Int} # Indexes where a is +1.
     idxs_m::Vector{Int} # Indexes where a is -1.
-    lmo::OutBellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals} where {Mode} # Point of interest, to access lmo.p
+    lmo::OutBellCorrelationsLMO{T, N} # tmp
     array::Array{T, N} # if UseArray, full storage to trade speed for memory
+    data::OutBellCorrelationsDS{T, N, HasMarginals, UseArray}
+    function OutBellCorrelationsDS{T, N, HasMarginals, UseArray}(a::Vector{T}, b_plus::Vector{T}, b_minus::Vector{T}, idxs_p::Vector{Int}, idxs_m::Vector{Int}, lmo::OutBellCorrelationsLMO{T, N}, array::Array{T, N}) where {T <: Number, N, HasMarginals, UseArray}
+        ds = new(a, b_plus, b_minus, idxs_p, idxs_m, lmo, array)
+        ds.data = ds
+        return ds
+    end
 end
 
 function OutBellCorrelationsDS(
     a::Vector{T},
     b_plus::Vector{T},
     b_minus::Vector{T},
-    lmo::OutBellCorrelationsLMO{T, N, Mode, IsSymmetric, HasMarginals, UseArray};
-    initialise=true,
-) where {T <: Number, N, Mode, IsSymmetric, HasMarginals, UseArray}
+    lmo::OutBellCorrelationsLMO{T, N, Mode, HasMarginals};
+    use_array = false,
+    initialise = true,
+) where {T <: Number, N, Mode, HasMarginals}
     # @assert length(b_plus) == length(b_minus) "<b_xy> vectors of unequal length."
     idxs_p = findall(a .== one(T))
     idxs_m = deleteat!([1:length(a);], idxs_p)
-    res = OutBellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray}(
+    res = OutBellCorrelationsDS{T, N, HasMarginals, use_array}(
         a,
         b_plus,
         b_minus,
@@ -174,20 +171,49 @@ function OutBellCorrelationsDS(
     return res
 end
 
-# To initialize an empty trivial DS.
-function OutBellCorrelationsDS(nx::Int, ny::Int, lmo::OutBellCorrelationsLMO{T}, init=false) where {T<:Number}
-    OutBellCorrelationsDS(ones(T, nx), ones(T, ny), ones(T, ny), lmo, initialise=init)
+# To initialise an empty trivial DS.
+function OutBellCorrelationsDS(nx::Int, ny::Int, lmo::OutBellCorrelationsLMO{T}; initialise = false) where {T<:Number}
+    OutBellCorrelationsDS(ones(T, nx), ones(T, ny), ones(T, ny), lmo; initialise)
 end
 
-# TODO: What is this constructor needed for?:
+function OutBellCorrelationsDS(
+        ds::OutBellCorrelationsDS{T1, N, HasMarginals, UseArray};
+        T2 = T1,
+        marg = HasMarginals,
+        use_array = UseArray,
+        kwargs...
+    ) where {T1 <: Number, N, HasMarginals, UseArray}
+    if T2 == T1 && marg == HasMarginals && use_array == UseArray
+        return ds
+    end
+    if marg == HasMarginals
+        a = ds.a
+        b_plus = ds.b_plus
+        b_minus = ds.b_minus
+    elseif HasMarginals
+        a = ds.a[1:end-2]
+        b_plus = ds.b_plus[1:end-1]
+        b_minus = ds.b_minus[1:end-1]
+    else
+        a = vcat(ds.a, 1)
+        b_plus = vcat(ds.b_plus, 1)
+        b_minus = vcat(ds.b_minus, 1)
+    end
+    res = BellCorrelationsDS{T2, N, marg, use_array}(
+        T2.(a),
+        T2.(b_plus),
+        T2.(b_minus),
+        OutBellCorrelationsLMO(ds.lmo, zero(T2); T2, marg, use_array),
+    )
+    return res
+end
 
 # function OutBellCorrelationsDS(
-#     ds::OutBellCorrelationsDS{T, N, IsSymmetric, HasMarginals, UseArray};
+#     ds::OutBellCorrelationsDS{T, N, HasMarginals, UseArray};
 #     type=T,
-#     sym=IsSymmetric,
 #     marg=HasMarginals,
 #     use_array=UseArray,
-# ) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray}
+# ) where {T <: Number} where {N} where {HasMarginals} where {UseArray}
 #     if marg == HasMarginals
 #         ax = ds.ax
 #     elseif HasMarginals
@@ -214,12 +240,11 @@ end
 # to recompute the last iterate
 
 # function OutBellCorrelationsDS(
-#     vds::Vector{OutBellCorrelationsDS{T1, N, IsSymmetric, HasMarginals, UseArray}},
+#     vds::Vector{OutBellCorrelationsDS{T1, N, HasMarginals, UseArray}},
 #     ::Type{T2};
-#     sym=IsSymmetric,
 #     marg=HasMarginals,
 #     use_array=false,
-# ) where {T1 <: Number} where {N} where {IsSymmetric} where {HasMarginals} where {UseArray} where {T2 <: Number}
+# ) where {T1 <: Number} where {N} where {HasMarginals} where {UseArray} where {T2 <: Number}
 #     array = zeros(T2, size(vds[1]))
 #     lmo = BellCorrelationsLMO(array; sym=sym, marg=marg)
 #     dotp = zero(T2)
@@ -264,39 +289,34 @@ function FrankWolfe._unsafe_equal(ds1::OutBellCorrelationsDS, ds2::OutBellCorrel
     return false
 end
 
-function Base.size(ds::OutBellCorrelationsDS{T, 2, IsSymmetric, false, UseArray}
-) where {T} where {IsSymmetric} where {UseArray}
-    (length(ds.a), length(ds.b_plus))
+function Base.size(ds::OutBellCorrelationsDS{T, 2, false}) where {T <: Number}
+    return (length(ds.a), length(ds.b_plus))
 end
 
 # See Base.getindex below to understand why I sum +1 and +2:
-function Base.size(
-    ds::OutBellCorrelationsDS{T, 2, IsSymmetric, true, UseArray}
-) where {T} where {IsSymmetric} where {UseArray}
+function Base.size(ds::OutBellCorrelationsDS{T, 2, true}) where {T <: Number}
     (length(ds.a) + 2, length(ds.b_plus) + 1)
 end
 
 # Base.:*(n::Number, D::OutLHVDS) = OutLHVDS(D.a, n .* D.b_plus, n .* D.b_minus)
 # Base.copy(D::OutLHVDS) = OutLHVDS(copy(D.a), copy(D.b_plus), copy(D.b_minus))
 
-function update_indexes!(
-    ds::OutBellCorrelationsDS{T, 2, IsSymmetric, HasMarginals, UseArray}
-) where {T <: Number} where {IsSymmetric} where {HasMarginals} where {UseArray}
+function update_indexes!(ds::OutBellCorrelationsDS{T, 2}) where {T <: Number}
     ds.idxs_p = findall(ds.a .== one(eltype(T)))
     ds.idxs_m = deleteat!([1:length(ds.a);], ds.idxs_p)
 end
 
 Base.@propagate_inbounds function Base.getindex(
-    ds::OutBellCorrelationsDS{T, 2, IsSymmetric, HasMarginals, true}, x, y
-) where {T <: Number, IsSymmetric, HasMarginals}
+    ds::OutBellCorrelationsDS{T, 2, HasMarginals, true}, x, y
+) where {T <: Number, HasMarginals}
     @boundscheck checkbounds(ds, x, y)
     return getindex(ds.array, x, y)
 end
 
 # Behaves as <a_x b_{x,y}> since there are no marginals:
 Base.@propagate_inbounds function Base.getindex(
-    ds::OutBellCorrelationsDS{T, 2, IsSymmetric, false, false}, x, y
-) where {T <: Number, IsSymmetric}
+    ds::OutBellCorrelationsDS{T, 2, false, false}, x, y
+) where {T <: Number}
     @boundscheck checkbounds(ds, x, y)
     if ds.a[x] == one(T)
         return ds.b_plus[y]
@@ -305,8 +325,8 @@ Base.@propagate_inbounds function Base.getindex(
     end
 end
 
-function get_array(ds::OutBellCorrelationsDS{T, N, IsSymmetric}, lmo::OutBellCorrelationsLMO{T, N, Mode, IsSymmetric}) where {T <: Number} where {N} where {Mode} where {IsSymmetric}
-    aux = OutBellCorrelationsDS(ds.a, ds.b_plus, ds.b_minus, lmo.lmofalse)
+function get_array(ds::OutBellCorrelationsDS{T, N}) where {T <: Number, N}
+    aux = OutBellCorrelationsDS(ds.a, ds.b_plus, ds.b_minus, ds.lmo; use_array = false)
     res = zeros(T, size(aux))
     @inbounds for x in eachindex(aux)
         res[x] = aux[x]
@@ -316,18 +336,15 @@ function get_array(ds::OutBellCorrelationsDS{T, N, IsSymmetric}, lmo::OutBellCor
             end
         end
     end
-    return IsSymmetric ? lmo.reynolds(res, lmo) : res
+    return res
 end
 
-function set_array!(
-    ds::OutBellCorrelationsDS{T, N, IsSymmetric, HasMarginals, true},
-) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals}
+function set_array!(ds::OutBellCorrelationsDS{T, N, HasMarginals, true}) where {T <: Number, N, HasMarginals}
     ds.array = get_array(ds, ds.lmo)
 end
 
-function set_array!(
-    ds::OutBellCorrelationsDS{T, N, IsSymmetric, HasMarginals, false},
-) where {T <: Number} where {N} where {IsSymmetric} where {HasMarginals} end
+function set_array!(ds::OutBellCorrelationsDS{T, N, HasMarginals, false}) where {T <: Number, N, HasMarginals}
+end
 
 #=
 Here there are marginals, so:
@@ -338,8 +355,8 @@ Here there are marginals, so:
     - Return 0 for the lower-right corner elements
 =#
 Base.@propagate_inbounds function Base.getindex(
-    ds::OutBellCorrelationsDS{T, 2, IsSymmetric, true, false}, x, y
-) where {T <: Number} where {IsSymmetric}
+    ds::OutBellCorrelationsDS{T, 2, true, false}, x, y
+) where {T <: Number}
     @boundscheck (checkbounds([ds.a; [0, 0]], x); checkbounds([ds.b_plus; 0], y))
     nx, ny = size(ds)
     # Treat the correlator terms:
@@ -372,9 +389,9 @@ FrankWolfe.fast_dot(A::Array, ds::OutBellCorrelationsDS) = conj(FrankWolfe.fast_
 
 # If there are no marginals
 function FrankWolfe.fast_dot(
-    ds::OutBellCorrelationsDS{T, 2, IsSymmetric, false, UseArray},
+    ds::OutBellCorrelationsDS{T, 2, false, UseArray},
     A::Array{T, 2},
-) where {T <: Number, IsSymmetric, UseArray}
+) where {T <: Number, UseArray}
     _, ny = size(ds)
     s = zero(T)
 
@@ -391,9 +408,9 @@ end
 
 # With marginals...
 function FrankWolfe.fast_dot(
-    ds::OutBellCorrelationsDS{T, 2, IsSymmetric, true, UseArray},
+    ds::OutBellCorrelationsDS{T, 2, true, UseArray},
     A::Array{T, 2},
-) where {T <: Number, IsSymmetric, UseArray}
+) where {T <: Number, UseArray}
     nx, ny = size(ds)
     s = zero(T)
 
@@ -425,9 +442,9 @@ Dot products between two deterministic strategies.
 =#
 
 function FrankWolfe.fast_dot(
-    ds1::OutBellCorrelationsDS{T, 2, IsSymmetric, HasMarginals, UseArray},
-    ds2::OutBellCorrelationsDS{T, 2, IsSymmetric, HasMarginals, UseArray},
-) where {T <: Number, IsSymmetric, HasMarginals, UseArray}
+    ds1::OutBellCorrelationsDS{T, 2, HasMarginals, UseArray},
+    ds2::OutBellCorrelationsDS{T, 2, HasMarginals, UseArray},
+) where {T <: Number, HasMarginals, UseArray}
     # This is to avoid instantiating the ds1 and ds2 matrices:
     nx, _ = size(ds1)
     if HasMarginals
@@ -468,18 +485,22 @@ LinearAlgebra.dot(ds1::OutBellCorrelationsDS, ds2::OutBellCorrelationsDS) = Fran
 # TODO: Worth implementing the symmetrised/usearray versions?
 
 # for Out-LHV models
-struct ActiveSetStorageOutBell{T, N, IsSymmetric, HasMarginals, UseArray}
+struct ActiveSetStorageOutBell{T, N, HasMarginals} <: AbstractActiveSetStorage
     weights::Vector{T}
     ax::BitMatrix
     byp::BitMatrix
     bym::BitMatrix
-    data::Vector{Any}
 end
 
 function ActiveSetStorage(
-    as::FrankWolfe.ActiveSetQuadratic{OutBellCorrelationsDS{T, 2, IsSymmetric, HasMarginals, UseArray}, T, Array{T, 2}},
-) where {T <: Number} where {IsSymmetric} where {HasMarginals} where {UseArray}
-    mx, my = size(as.atoms[1].lmo.p)
+        as::FrankWolfe.ActiveSetQuadraticProductCaching{AT},
+    ) where {
+        AT <: Union{
+            FrankWolfe.SubspaceVector{false, T, OutBellCorrelationsDS{T, 2, HasMarginals, UseArray}, Vector{T}},
+            OutBellCorrelationsDS{T, 2, HasMarginals, UseArray},
+        },
+    } where {T <: Number, HasMarginals, UseArray}
+    mx, my = as.atoms[1].data.lmo.m
     if HasMarginals
         mx -= 2
         my -= 1
@@ -494,22 +515,22 @@ function ActiveSetStorage(
         @view(byp[i, :]) .= as.atoms[i].b_plus[1:my] .> zero(T)
         @view(bym[i, :]) .= as.atoms[i].b_minus[1:my] .> zero(T)
     end
-    return ActiveSetStorageOutBell{T, 2, IsSymmetric, HasMarginals, UseArray}(as.weights, ax, byp, bym, as.atoms[1].lmo.data)
+    return ActiveSetStorageOutBell{T, 2, HasMarginals}(as.weights, ax, byp, bym, as.atoms[1].lmo.data)
 end
 
 function load_active_set(
-    ass::ActiveSetStorageOutBell{T1, 2, IsSymmetric, HasMarginals, UseArray},
-    ::Type{T2};
-    sym=IsSymmetric,
-    marg=HasMarginals,
-    use_array=UseArray,
-    reynolds=(IsSymmetric ? reynolds_permutedims : nothing),
-) where {T1 <: Number} where {IsSymmetric} where {HasMarginals} where {UseArray} where {T2 <: Number}
+        ass::ActiveSetStorageOutBell{T1, 2, HasMarginals},
+        ::Type{T2};
+        marg = HasMarginals,
+        use_array = false,
+        deflate = identity,
+        kwargs...
+    ) where {T1 <: Number, HasMarginals, T2 <: Number}
     mx = size(ass.ax, 2)
     my = size(ass.byp, 2)
     p = zeros(T2, marg ? mx + 2 : mx, marg ? my + 1 : my)
     # why an lmo with p = zeros instead of storing p?
-    lmo = OutBellCorrelationsLMO(p; sym=sym, marg=marg, use_array=use_array, reynolds=reynolds, data=ass.data)
+    lmo = OutBellCorrelationsLMO(p, deflate(p); marg, use_array)
     atoms = OutBellCorrelationsDS{T2, 2, sym, marg, use_array}[]
     @inbounds for i in 1:length(ass.weights)
         ax = T2.(2 * ass.ax[i, :] .- 1)
@@ -520,8 +541,7 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadratic([(weights[i], atoms[i]) for i in eachindex(ass.weights)], I, p)
-    FrankWolfe.compute_active_set_iterate!(res)
+    res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
     return res
 end
 
@@ -539,11 +559,11 @@ The idea is that for a valid Out-LHV model we want that:
     - <b_y> = ∑ᵢ w_i b_{y,-}
 =#
 function FrankWolfe.compute_extreme_point(
-    lmo::OutBellCorrelationsLMO{T, 2, Mode, IsSymmetric, HasMarginals, UseArray},
-    Q::Array{T, 2};
-    kwargs...,
-) where {T <: Number, Mode, IsSymmetric, HasMarginals, UseArray}
-    nx, ny = size(lmo.p)
+        lmo::OutBellCorrelationsLMO{T, 2, 0, HasMarginals},
+        Q::Array{T, 2};
+        kwargs...,
+    ) where {T <: Number, HasMarginals}
+    nx, ny = lmo.m
     if HasMarginals
         nx -= 2
         ny -= 1
@@ -563,13 +583,13 @@ function FrankWolfe.compute_extreme_point(
         rand!(a, [-one(T), one(T)])
         rand!(b_plus, [-one(T), one(T)])
         rand!(b_minus, [-one(T), one(T)])
-        
+
         # Optimize a, bp, bm to minimize the function...
         sc1 = zero(T)
         sc2 = one(T)
-        tmpBp = Vector{T}(undef, ny)
-        tmpBm = Vector{T}(undef, ny)
-        @inbounds while sc1 < sc2       
+        tmpBp = lmo.tmp[1]
+        tmpBm = lmo.tmp[2]
+        @inbounds while sc1 < sc2
             sc2 = sc1
             for x in 1:nx
                 # Optimize a_x:
@@ -625,8 +645,7 @@ function FrankWolfe.compute_extreme_point(
             bm_minus .= b_minus
         end
     end
-    d = OutBellCorrelationsDS(am, bm_plus, bm_minus, lmo; initialise=true)
+    d = OutBellCorrelationsDS(am, bm_plus, bm_minus, lmo; initialise = true)
     lmo.cnt += 1
-    lmo.data[2] += 1
     return d
 end

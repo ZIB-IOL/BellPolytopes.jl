@@ -36,6 +36,7 @@ function bell_frank_wolfe(
         o = nothing,
         prob::Bool = false,
         marg::Bool = false,
+        out::Bool = false,
         v0 = one(T),
         epsilon = 10Base.rtoldefault(T),
         verbose = 0,
@@ -68,16 +69,20 @@ function bell_frank_wolfe(
     ) where {T <: Number, N}
     Random.seed!(seed)
     if !prob
-        LMO = BellCorrelationsLMO
-        DS = BellCorrelationsDS
+        LMO = out ? OutBellCorrelationsLMO : BellCorrelationsLMO
+        DS = out ? OutBellCorrelationsDS : BellCorrelationsDS
         m = collect(size(p))
         if o === nothing
             o = zeros(T, size(p))
             o[end] = marg
+            if out
+                o[end-1, end] = marg
+            end
         end
         reynolds = reynolds_permutedims
         build_deflate_inflate = build_deflate_inflate_permutedims
     else
+        out && error("Probability representation not supported for LHV+Out yet.")
         LMO = BellProbabilitiesLMO
         DS = BellProbabilitiesDS
         m = collect(size(p)[(N ÷ 2 + 1):end])
@@ -104,7 +109,11 @@ function bell_frank_wolfe(
     rp = deflate(p)
     vp = v0 * rp + (one(T) - v0) * ro
     if verbose > 1
-        println("   #Inputs: ", all(diff(m) .== 0) ? m[end] - (marg && !prob) : m .- (marg && !prob))
+        if out && marg
+            println("   #Inputs: ", m[1] == m[2] + 1 ? m[2] - 1 : m .- [2, 1])
+        else
+            println("   #Inputs: ", all(diff(m) .== 0) ? m[end] - (marg && !prob) : m .- (marg && !prob))
+        end
         println(" Symmetric: ", sym)
         println(" Dimension: ", length(vp))
     end
