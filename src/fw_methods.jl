@@ -881,11 +881,11 @@ end
 # ACTIVE SET #
 ##############
 
+BellDS{T, N} = Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}
+
 function FrankWolfe.compute_active_set_iterate!(
         active_set::FrankWolfe.ActiveSetQuadraticProductCaching{AT, T, IT},
-    ) where {
-        IT <: Array{T, N},
-    } where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number, N}
+    ) where {IT <: Array{T, N}} where {AT <: BellDS{T, N}} where {T <: Number, N}
     active_set.x .= zero(T)
     for (λi, ai) in active_set
         @inbounds for x in active_set.atoms[1].lmo.ci
@@ -899,7 +899,7 @@ function FrankWolfe.active_set_update_scale!(
         xit::Array{T, N},
         lambda::T,
         atom::AT,
-    ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number, N}
+    ) where {AT <: BellDS{T, N}} where {T <: Number, N}
     @inbounds for x in atom.lmo.ci
         xit[x] = (1 - lambda) * xit[x] + lambda * atom[x]
     end
@@ -913,7 +913,7 @@ function FrankWolfe.active_set_update_iterate_pairwise!(
         away_atom::AT,
     ) where {
         IT <: Array{T, N},
-    } where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Real, N} # Real for disambiguation
+    } where {AT <: BellDS{T, N}} where {T <: Real, N} # Real for disambiguation
     @inbounds for x in fw_atom.lmo.ci
         xit[x] += lambda * (fw_atom[x] - away_atom[x])
     end
@@ -951,7 +951,7 @@ function FrankWolfe.muladd_memory_mode(
         d::AbstractArray{T, N},
         a::AT,
         v::AT,
-    ) where {AT <: FrankWolfe.SubspaceVector{false, T, DS}} where {DS <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number, N}
+    ) where {AT <: FrankWolfe.SubspaceVector{false, T, DS}} where {DS <: BellDS{T, N}} where {T <: Number, N}
     return _muladd_memory_mode(a.data.lmo.lmo.active_set, d, a, v)
 end
 
@@ -961,7 +961,7 @@ function FrankWolfe.muladd_memory_mode(
         d::Array{T, N},
         a::AT,
         v::AT,
-    ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number, N}
+    ) where {AT <: BellDS{T, N}} where {T <: Number, N}
     return _muladd_memory_mode(a.lmo.active_set, d, a, v)
 end
 
@@ -970,7 +970,7 @@ function FrankWolfe.muladd_memory_mode(
         d::Array{T, N},
         x::AbstractArray{T, N},
         v::AT,
-    ) where {AT <: Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}} where {T <: Number, N}
+    ) where {AT <: BellDS{T, N}} where {T <: Number, N}
     @inbounds for i in v.lmo.ci
         d[i] = x[i] - v[i]
     end
