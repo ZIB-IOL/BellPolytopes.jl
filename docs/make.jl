@@ -1,10 +1,10 @@
 using BellPolytopes
 using Documenter
 
-DocMeta.setdocmeta!(BellPolytopes, :DocTestSetup, :(using BellPolytopes); recursive=true)
+DocMeta.setdocmeta!(BellPolytopes, :DocTestSetup, :(using BellPolytopes); recursive = true)
 
 generated_path = joinpath(@__DIR__, "src")
-base_url = "https://github.com/ZIB-IOL/BellPolytopes.jl/blob/master/"
+base_url = "https://github.com/ZIB-IOL/BellPolytopes.jl/blob/main/"
 isdir(generated_path) || mkdir(generated_path)
 
 open(joinpath(generated_path, "index.md"), "w") do io
@@ -24,17 +24,17 @@ open(joinpath(generated_path, "index.md"), "w") do io
 end
 
 makedocs(;
-    modules=[BellPolytopes],
-    authors="ZIB AISST",
-    repo="https://github.com/ZIB-IOL/BellPolytopes.jl/blob/{commit}{path}#{line}",
-    sitename="BellPolytopes.jl",
-    format=Documenter.HTML(;
-        prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://zib-iol.github.io/BellPolytopes.jl",
-        edit_link="main",
-        assets=String[],
+    modules = [BellPolytopes],
+    authors = "ZIB AISST",
+    repo = "https://github.com/ZIB-IOL/BellPolytopes.jl/blob/{commit}{path}#{line}",
+    sitename = "BellPolytopes.jl",
+    format = Documenter.HTML(;
+        prettyurls = get(ENV, "CI", "false") == "true",
+        canonical = "https://zib-iol.github.io/BellPolytopes.jl",
+        edit_link = "main",
+        assets = String[],
     ),
-    pages=["Home" => "index.md", "API reference" => "api.md"],
+    pages = ["Home" => "index.md", "API reference" => "api.md"],
 )
 
-deploydocs(; repo="github.com/ZIB-IOL/BellPolytopes.jl", devbranch="main", push_preview=true)
+deploydocs(; repo = "github.com/ZIB-IOL/BellPolytopes.jl", devbranch = "main", push_preview = true)
