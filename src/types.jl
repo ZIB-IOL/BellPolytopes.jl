@@ -583,16 +583,21 @@ function load_active_set(
 end
 
 # for multi-outcome scenarios
-struct ActiveSetStorageMulti{T, N} <: AbstractActiveSetStorage
+struct ActiveSetStorageMulti{T, N, IntK} <: AbstractActiveSetStorage
     o::Vector{Int}
     weights::Vector{T}
-    ax::Vector{Matrix{IntK}} where {IntK <: Integer}
+    ax::Vector{Matrix{IntK}}
     data::Vector
 end
 
 function ActiveSetStorage(
-        as::FrankWolfe.ActiveSetQuadraticProductCaching{FrankWolfe.SubspaceVector{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}, T, FrankWolfe.SubspaceVector{false, T, Array{T, N2}, Vector{T}}},
-    ) where {T <: Number, N2}
+        as::FrankWolfe.ActiveSetQuadraticProductCaching{AT},
+    ) where {
+        AT <: Union{
+            FrankWolfe.SubspaceVector{false, T, BellProbabilitiesDS{T, N2}, Vector{T}},
+            BellProbabilitiesDS{T, N2},
+        },
+    } where {T <: Number, N2}
     N = N2 ÷ 2
     omax = maximum(as.atoms[1].data.lmo.o)
     m = as.atoms[1].data.lmo.m
@@ -603,7 +608,7 @@ function ActiveSetStorage(
             @view(ax[n][i, :]) .= as.atoms[i].data.ax[n]
         end
     end
-    return ActiveSetStorageMulti{T, N}(as.atoms[1].data.lmo.o, as.weights, ax, [as.atoms[1].data.lmo.cnt])
+    return ActiveSetStorageMulti{T, N, IntK}(as.atoms[1].data.lmo.o, as.weights, ax, [as.atoms[1].data.lmo.cnt])
 end
 
 function load_active_set(
