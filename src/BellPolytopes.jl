@@ -11,10 +11,10 @@ using Tullio
 
 include("quantum_utils.jl")
 include("types.jl")
+include("lhv_out.jl")
 include("fw_methods.jl")
 include("utils.jl")
 include("callback.jl")
-include("lhv_out.jl")
 include("bell_frank_wolfe.jl")
 include("local_bound.jl")
 include("nonlocality_threshold.jl")

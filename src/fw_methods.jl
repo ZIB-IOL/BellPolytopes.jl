@@ -571,7 +571,7 @@ end
 # ACTIVE SET #
 ##############
 
-BellDS{T, N} = Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}}
+BellDS{T, N} = Union{BellCorrelationsDS{T, N}, BellProbabilitiesDS{T, N}, OutBellCorrelationsDS{T, N}}
 
 function FrankWolfe.compute_active_set_iterate!(
         active_set::FrankWolfe.ActiveSetQuadraticProductCaching{AT, T, IT},
