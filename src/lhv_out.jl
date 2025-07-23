@@ -891,16 +891,18 @@ function load_active_set(
         kwargs...
     ) where {T1 <: Number, N, T2 <: Number}
     o = ass.o
-    m = [size(ass.ax[n], 2) for n in 1:N]
+    m = [size(ass.ax, 2), size(ass.bya[1], 2)]
     p = zeros(T2, vcat(o, m)...)
     lmo = OutBellProbabilitiesLMO(p, deflate(p))
     atoms = OutBellProbabilitiesDS{T2, 2N}[]
     @inbounds for i in 1:length(ass.weights)
-        ax = [ones(Int, m[n]) for n in 1:N]
-        for n in 1:N
-            ax[n] .= Int.(ass.ax[n][i, :])
+        ax = Vector{Int}(undef, m[1])
+        bya = [Vector{Int}(undef, m[2]) for _ in 1:o[1]]
+        ax .= @view(ass.ax[i, :])
+        for a in 1:o[1]
+            bya[a] .= @view(ass.ax[n][i, :])
         end
-        atom = OutBellProbabilitiesDS(ax, lmo)
+        atom = OutBellProbabilitiesDS(ax, bya, lmo)
         push!(atoms, atom)
     end
     weights = T2.(ass.weights)
