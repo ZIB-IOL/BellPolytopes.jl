@@ -348,7 +348,7 @@ function alternating_minimisation!(
             end
         end
         for x2 in 1:length(ax[2])
-            ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
+            ax[2][x2] = argmin(@view(lmo.tmp[2][x2, :]))[1]
         end
         # given b_y, a_x is argmin_a ∑_x A[a, b_y, x, y]
         for x1 in 1:length(ax[1])
@@ -361,7 +361,7 @@ function alternating_minimisation!(
             end
         end
         for x1 in 1:length(ax[1])
-            ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+            ax[1][x1] = argmin(@view(lmo.tmp[1][x1, :]))[1]
         end
         # uses the precomputed sum of lines to compute the scalar product
         sc1 = zero(T)
@@ -391,7 +391,7 @@ function alternating_minimisation!(
             end
         end
         for x3 in 1:length(ax[3])
-            ax[3][x3] = argmin(lmo.tmp[3][x3, :])[1]
+            ax[3][x3] = argmin(@view(lmo.tmp[3][x3, :]))[1]
         end
         for x2 in 1:length(ax[2])
             for a2 in 1:lmo.o[2]
@@ -403,7 +403,7 @@ function alternating_minimisation!(
             end
         end
         for x2 in 1:length(ax[2])
-            ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
+            ax[2][x2] = argmin(@view(lmo.tmp[2][x2, :]))[1]
         end
         for x1 in 1:length(ax[1])
             for a1 in 1:lmo.o[1]
@@ -415,7 +415,7 @@ function alternating_minimisation!(
             end
         end
         for x1 in 1:length(ax[1])
-            ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+            ax[1][x1] = argmin(@view(lmo.tmp[1][x1, :]))[1]
         end
         # uses the precomputed sum of lines to compute the scalar product
         sc1 = zero(T)
@@ -445,7 +445,7 @@ function alternating_minimisation!(
             end
         end
         for x4 in 1:length(ax[4])
-            ax[4][x4] = argmin(lmo.tmp[4][x4, :])[1]
+            ax[4][x4] = argmin(@view(lmo.tmp[4][x4, :]))[1]
         end
         for x3 in 1:length(ax[3])
             for a3 in 1:lmo.o[3]
@@ -457,7 +457,7 @@ function alternating_minimisation!(
             end
         end
         for x3 in 1:length(ax[3])
-            ax[3][x3] = argmin(lmo.tmp[3][x3, :])[1]
+            ax[3][x3] = argmin(@view(lmo.tmp[3][x3, :]))[1]
         end
         for x2 in 1:length(ax[2])
             for a2 in 1:lmo.o[2]
@@ -469,7 +469,7 @@ function alternating_minimisation!(
             end
         end
         for x2 in 1:length(ax[2])
-            ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
+            ax[2][x2] = argmin(@view(lmo.tmp[2][x2, :]))[1]
         end
         for x1 in 1:length(ax[1])
             for a1 in 1:lmo.o[1]
@@ -481,7 +481,7 @@ function alternating_minimisation!(
             end
         end
         for x1 in 1:length(ax[1])
-            ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+            ax[1][x1] = argmin(@view(lmo.tmp[1][x1, :]))[1]
         end
         # uses the precomputed sum of lines to compute the scalar product
         sc1 = zero(T)
