@@ -660,14 +660,15 @@ mutable struct OutBellProbabilitiesLMO{T, N2, Mode, AT, IT} <: FrankWolfe.Linear
     const o::Vector{Int} # number of outputs
     const m::Vector{Int} # number of inputs
     # general fields
-    tmp::Vector{Matrix{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
+    tmpA::Matrix{T} # used in alternating minimisation
+    tmpB::Vector{Matrix{T}} # used in alternating minimisation
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
     const ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
     active_set::FrankWolfe.ActiveSetQuadraticProductCaching{AT, T, IT, FrankWolfe.Identity{Bool}}
     lmo::OutBellProbabilitiesLMO{T, N2, Mode, AT, IT}
-    function OutBellProbabilitiesLMO{T, N2, Mode, AT, IT}(o::Vector{Int}, m::Vector{Int}, vp::IT, tmp::Vector{Matrix{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}}) where {T <: Number, N2, Mode, AT, IT}
-        lmo = new(o, m, tmp, nb, cnt, ci, FrankWolfe.ActiveSetQuadraticProductCaching{AT}(vp))
+    function OutBellProbabilitiesLMO{T, N2, Mode, AT, IT}(o::Vector{Int}, m::Vector{Int}, vp::IT, tmpA::Matrix{T}, tmpB::Vector{Matrix{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}}) where {T <: Number, N2, Mode, AT, IT}
+        lmo = new(o, m, tmpA, tmpB, nb, cnt, ci, FrankWolfe.ActiveSetQuadraticProductCaching{AT}(vp))
         lmo.lmo = lmo
         return lmo
     end
@@ -691,7 +692,8 @@ function OutBellProbabilitiesLMO(
         collect(size(p)[1:N]),
         collect(size(p)[(N + 1):end]),
         vp,
-        [zeros(T, size(p, N + n), size(p, n)) for n in 1:N],
+        zeros(T, size(p, N + 1), size(p, 1)),
+        [zeros(T, size(p, N + 2), size(p, 2)) for _ in 1:size(p, 1)],
         nb,
         0,
         CartesianIndices(p),
@@ -719,7 +721,8 @@ function OutBellProbabilitiesLMO(
         lmo.o,
         lmo.m,
         vp,
-        broadcast.(T2, lmo.tmp),
+        broadcast(T2, lmo.tmpA),
+        broadcast.(T2, lmo.tmpB),
         nb,
         lmo.cnt,
         lmo.ci,
@@ -822,10 +825,8 @@ end
 
 function get_array(ds::OutBellProbabilitiesDS{T, N2}) where {T <: Number, N2}
     res = zeros(T, size(ds))
-    @inbounds for x in eachindex(ds.ax)
-        for y in eachindex(ds.bya)
-            res[ds.ax[x], ds.bya[ds.ax[x]][y], x, y] = one(T)
-        end
+    @inbounds for x in 1:ds.lmo.m[1], y in 1:ds.lmo.m[2]
+        res[ds.lmo.ci[ds.ax[x], ds.bya[ds.ax[x]][y], x, y]] = one(T)
     end
     return res
 end
@@ -912,6 +913,9 @@ end
 # LMO for Out-LHV model #
 #########################
 
+#=
+min_{a_x, b_y^a} ∑_xy A[a_x, b_y^{a_x}, x, y]
+=#
 function FrankWolfe.compute_extreme_point(
         lmo::OutBellProbabilitiesLMO{T, 4, 0},
         A::Array{T, 4};
@@ -926,8 +930,45 @@ function FrankWolfe.compute_extreme_point(
     byam = [zeros(Int, mB) for _ in 1:oA]
     scm = typemax(T)
     for i in 1:lmo.nb
-        rand!(ax, 1:oA)
-        sc = 0 # TODO
+        rand!(ax, 1:oA) # random start
+        sc1 = zero(T)
+        sc2 = one(T)
+        @inbounds while sc1 < sc2
+            sc2 = sc1
+            # given a_x, b_y^a is argmin_b ∑_{x | a_x = a} A[a, b_y^a, x, y]
+            for y in 1:mB
+                for b in 1:oB
+                    for a in 1:oA
+                        lmo.tmpB[a][y, b] = zero(T)
+                    end
+                    for x in 1:mA
+                        lmo.tmpB[ax[x]][y, b] += A[ax[x], b, x, y]
+                    end
+                end
+            end
+            for a in 1:oA, y in 1:mB
+                bya[a][y] = argmin(@view(lmo.tmpB[a][y, :]))[1]
+            end
+            # given b_y^a, a_x is argmin_a ∑_x A[a, b_y^a, x, y]
+            for x in 1:mA
+                for a in 1:oA
+                    s = zero(T)
+                    for y in 1:mB
+                        s += A[a, bya[a][y], x, y]
+                    end
+                    lmo.tmpA[x, a] = s
+                end
+            end
+            for x in 1:mA
+                ax[x] = argmin(@view(lmo.tmpA[x, :]))[1]
+            end
+            # uses the precomputed sum of lines to compute the scalar product
+            sc1 = zero(T)
+            for x in 1:mA
+                sc1 += lmo.tmpA[x, ax[x]]
+            end
+        end
+        sc = sc1
         if sc < scm
             scm = sc
             axm .= ax
