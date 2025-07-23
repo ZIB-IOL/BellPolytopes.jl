@@ -82,9 +82,8 @@ function bell_frank_wolfe(
         reynolds = reynolds_permutedims
         build_deflate_inflate = build_deflate_inflate_permutedims
     else
-        out && error("Probability representation not supported for LHV+Out yet.")
-        LMO = BellProbabilitiesLMO
-        DS = BellProbabilitiesDS
+        LMO = out ? OutBellProbabilitiesLMO : BellProbabilitiesLMO
+        DS = out ? OutBellProbabilitiesDS : BellProbabilitiesDS
         m = collect(size(p)[(N ÷ 2 + 1):end])
         if o === nothing
             o = ones(T, size(p)) / prod(size(p)[1:(N ÷ 2)])
@@ -94,7 +93,7 @@ function bell_frank_wolfe(
     end
     # symmetry detection
     if sym === nothing
-        if all(diff(m) .== 0) && p ≈ reynolds(p) && (v0 == 1 || o ≈ reynolds(o))
+        if !out && all(diff(m) .== 0) && p ≈ reynolds(p) && (v0 == 1 || o ≈ reynolds(o))
             deflate, inflate = build_deflate_inflate(p)
             sym = true
         else

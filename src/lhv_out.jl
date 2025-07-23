@@ -283,7 +283,7 @@ function FrankWolfe._unsafe_equal(ds1::OutBellCorrelationsDS, ds2::OutBellCorrel
     if ds1 === ds2
         return true
     end
-    if ds1.a == ds2.a && ds1.bm == ds2.bm && ds1.bp == ds2.bp
+    if ds1.a == ds2.a && ds1.bm == ds2.bm && ds1.bp == ds2.bp # maybe use the array instead
         return true
     end
     return false
@@ -648,4 +648,295 @@ function FrankWolfe.compute_extreme_point(
     d = OutBellCorrelationsDS(am, bpm, bmm, lmo; initialise = true)
     lmo.cnt += 1
     return d
+end
+
+########################
+# Probability notation #
+########################
+
+# warning: N2 is twice the number of parties in this case
+mutable struct OutBellProbabilitiesLMO{T, N2, Mode, AT, IT} <: FrankWolfe.LinearMinimizationOracle
+    # scenario fields
+    const o::Vector{Int} # number of outputs
+    const m::Vector{Int} # number of inputs
+    # general fields
+    tmp::Vector{Matrix{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
+    nb::Int # number of repetition
+    cnt::Int # count the number of calls of the LMO and used to hash the atoms
+    const ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
+    active_set::FrankWolfe.ActiveSetQuadraticProductCaching{AT, T, IT, FrankWolfe.Identity{Bool}}
+    lmo::OutBellProbabilitiesLMO{T, N2, Mode, AT, IT}
+    function OutBellProbabilitiesLMO{T, N2, Mode, AT, IT}(o::Vector{Int}, m::Vector{Int}, vp::IT, tmp::Vector{Matrix{T}}, nb::Int, cnt::Int, ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}}) where {T <: Number, N2, Mode, AT, IT}
+        lmo = new(o, m, tmp, nb, cnt, ci, FrankWolfe.ActiveSetQuadraticProductCaching{AT}(vp))
+        lmo.lmo = lmo
+        return lmo
+    end
+end
+
+# constructor with predefined values
+function OutBellProbabilitiesLMO(
+        p::Array{T, N2},
+        vp::IT;
+        mode::Int = 0,
+        nb::Int = 100,
+        kwargs...
+    ) where {T <: Number, N2, IT}
+    N = N2 ÷ 2
+    if IT <: FrankWolfe.SubspaceVector
+        AT = FrankWolfe.SubspaceVector{false, T, OutBellProbabilitiesDS{T, N2}, Vector{T}}
+    else
+        AT = OutBellProbabilitiesDS{T, N2}
+    end
+    return OutBellProbabilitiesLMO{T, N2, mode, AT, IT}(
+        collect(size(p)[1:N]),
+        collect(size(p)[(N + 1):end]),
+        vp,
+        [zeros(T, size(p, N + n), size(p, n)) for n in 1:N],
+        nb,
+        0,
+        CartesianIndices(p),
+    )
+end
+
+function OutBellProbabilitiesLMO(
+        lmo::OutBellProbabilitiesLMO{T1, N2, Mode, AT1, IT1},
+        vp::IT2;
+        T2 = T1,
+        mode = Mode,
+        nb = lmo.nb,
+        kwargs...
+    ) where {T1 <: Number, N2, Mode, AT1, IT1, IT2}
+    if T2 == T1 && mode == Mode && IT1 == IT2
+        lmo.nb = nb
+        return lmo
+    end
+    if IT1 <: FrankWolfe.SubspaceVector
+        AT2 = FrankWolfe.SubspaceVector{false, T2, OutBellProbabilitiesDS{T2, N2}, Vector{T2}}
+    else
+        AT2 = OutBellProbabilitiesDS{T2, N2}
+    end
+    return OutBellProbabilitiesLMO{T2, N2, mode, AT2, IT2}(
+        lmo.o,
+        lmo.m,
+        vp,
+        broadcast.(T2, lmo.tmp),
+        nb,
+        lmo.cnt,
+        lmo.ci,
+    )
+end
+
+# deterministic strategy structure for multipartite probability tensor
+mutable struct OutBellProbabilitiesDS{T, N2} <: AbstractArray{T, N2}
+    # Representation of the outcomes:
+    ax::Vector{Int} # Outcomes for Alice. (Redundant because of `indp` and `indm` but makes stuff easier).
+    bya::Vector{Vector{Int}} # Outcomes for Bob respective to the ath outcome of Alice.
+    # Parameters to speed up computation in argminmax:
+    lmo::OutBellProbabilitiesLMO{T, N2} # tmp
+    array::Array{T, N2} # if full storage to trade speed for memory
+    data::OutBellProbabilitiesDS{T, N2}
+    function OutBellProbabilitiesDS{T, N2}(ax::Vector{Int}, bya::Vector{Vector{Int}}, lmo::OutBellProbabilitiesLMO{T, N2, Mode}, array::Array{T, N2}) where {T <: Number, N2, Mode}
+        ds = new(ax, bya, lmo, array)
+        ds.data = ds
+        return ds
+    end
+end
+
+Base.size(ds::OutBellProbabilitiesDS) = Tuple(vcat(ds.lmo.o, ds.lmo.m))
+
+function OutBellProbabilitiesDS(
+        ax::Vector{Int},
+        bya::Vector{Vector{Int}},
+        lmo::OutBellProbabilitiesLMO{T, N2, Mode};
+        initialise = true,
+    ) where {T <: Number, N2, Mode}
+    res = OutBellProbabilitiesDS{T, N2}(
+        ax,
+        bya,
+        lmo,
+        zeros(T, zeros(Int, N2)...),
+    )
+    if initialise
+        set_array!(res)
+    end
+    return res
+end
+
+function OutBellProbabilitiesDS(
+        ds::OutBellProbabilitiesDS{T1, N2};
+        T2 = T1,
+        kwargs...
+    ) where {T1 <: Number, N2}
+    if T2 == T1
+        return ds
+    end
+    res = OutBellProbabilitiesDS{T2, N2}(
+        ds.ax,
+        ds.bya,
+        OutBellProbabilitiesLMO(ds.lmo, zero(T2); T2),
+        zeros(T2, zeros(Int, N2)...),
+    )
+    set_array!(res)
+    return res
+end
+
+# method used to convert active_set.atoms into a desired type (intended Rational{BigInt})
+# to recompute the last iterate
+function OutBellProbabilitiesDS(
+        vds::Vector{OutBellProbabilitiesDS{T1, N2}},
+        ::Type{T2};
+        kwargs...
+    ) where {T1 <: Number, N2, T2 <: Number}
+    array = zeros(T2, size(vds[1]))
+    lmo = OutBellProbabilitiesLMO(array)
+    res = OutBellProbabilitiesDS{T2, N2}[]
+    for ds in vds
+        atom = OutBellProbabilitiesDS{T2, N2}(ds.ax, ds.bya, lmo, array)
+        set_array!(atom)
+        push!(res, atom)
+    end
+    return res
+end
+
+function FrankWolfe._unsafe_equal(ds1::OutBellProbabilitiesDS{T, N2}, ds2::OutBellProbabilitiesDS{T, N2}) where {T <: Number, N2}
+    if ds1 === ds2
+        return true
+    end
+    if ds1.ax == ds2.ax && all([b1 == b2 for (b1, b2) in zip(ds1.bya, ds2.bya)]) # maybe use the array instead
+        return true
+    end
+    return false
+end
+
+# Base.@propagate_inbounds function Base.getindex(ds::OutBellProbabilitiesDS{T, N2}, x::Int) where {T <: Number, N2}
+    # return Base.getindex(ds, ds.lmo.ci[x])
+# end
+
+Base.@propagate_inbounds function Base.getindex(
+        ds::OutBellProbabilitiesDS{T, N2},
+        x::Vararg{Int, N2},
+    ) where {T <: Number, N2}
+    @boundscheck (checkbounds(ds, x...))
+    return @inbounds getindex(ds.array, x...)
+end
+
+function get_array(ds::OutBellProbabilitiesDS{T, N2}) where {T <: Number, N2}
+    res = zeros(T, size(ds))
+    @inbounds for x in eachindex(ds.ax)
+        for y in eachindex(ds.bya)
+            res[ds.ax[x], ds.bya[ds.ax[x]][y], x, y] = one(T)
+        end
+    end
+    return res
+end
+
+function set_array!(ds::OutBellProbabilitiesDS{T, N2}) where {T <: Number, N2}
+    ds.array = get_array(ds)
+end
+
+FrankWolfe.fast_dot(A::Array, ds::OutBellProbabilitiesDS) = conj(FrankWolfe.fast_dot(ds, A))
+
+function FrankWolfe.fast_dot(
+        ds::OutBellProbabilitiesDS{T, N2},
+        A::Array{T, N2},
+    ) where {T <: Number, N2}
+    return dot(ds.array, A)
+end
+
+function FrankWolfe.fast_dot(
+        ds1::OutBellProbabilitiesDS{T, N2},
+        ds2::OutBellProbabilitiesDS{T, N2},
+    ) where {T <: Number, N2}
+    return dot(ds1.array, ds2.array)
+end
+
+# for multi-outcome scenarios
+struct ActiveSetStorageOutBellMulti{T, N, IntK} <: AbstractActiveSetStorage
+    o::Vector{Int}
+    weights::Vector{T}
+    ax::Matrix{IntK}
+    bya::Vector{Matrix{IntK}}
+    data::Vector
+end
+
+function ActiveSetStorage(
+        as::FrankWolfe.ActiveSetQuadraticProductCaching{AT},
+    ) where {
+        AT <: Union{
+            FrankWolfe.SubspaceVector{false, T, OutBellProbabilitiesDS{T, N2}, Vector{T}},
+            OutBellProbabilitiesDS{T, N2},
+        },
+    } where {T <: Number, N2}
+    N = N2 ÷ 2
+    oA, oB = as.atoms[1].data.lmo.o
+    omax = maximum(oA, oB)
+    mA, mB = as.atoms[1].data.lmo.m
+    IntK = omax < typemax(Int8) ? Int8 : omax < typemax(Int16) ? Int16 : omax < typemax(Int32) ? Int32 : Int
+    ax = Matrix{IntK}(undef, length(as), mA)
+    bya = [Matrix{IntK}(undef, length(as), mB) for _ in 1:oA]
+    for i in eachindex(as)
+        @view(ax[i, :]) .= as.atoms[i].data.ax
+        for a in 1:oA
+            @view(bya[a][i, :]) .= as.atoms[i].data.by[a]
+        end
+    end
+    return ActiveSetStorageOutBellMulti{T, N, IntK}(as.atoms[1].data.lmo.o, as.weights, ax, bya, [as.atoms[1].data.lmo.cnt])
+end
+
+function load_active_set(
+        ass::ActiveSetStorageOutBellMulti{T1, N},
+        ::Type{T2};
+        deflate = identity,
+        kwargs...
+    ) where {T1 <: Number, N, T2 <: Number}
+    o = ass.o
+    m = [size(ass.ax[n], 2) for n in 1:N]
+    p = zeros(T2, vcat(o, m)...)
+    lmo = OutBellProbabilitiesLMO(p, deflate(p))
+    atoms = OutBellProbabilitiesDS{T2, 2N}[]
+    @inbounds for i in 1:length(ass.weights)
+        ax = [ones(Int, m[n]) for n in 1:N]
+        for n in 1:N
+            ax[n] .= Int.(ass.ax[n][i, :])
+        end
+        atom = OutBellProbabilitiesDS(ax, lmo)
+        push!(atoms, atom)
+    end
+    weights = T2.(ass.weights)
+    weights /= sum(weights)
+    res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
+    return res
+end
+
+#########################
+# LMO for Out-LHV model #
+#########################
+
+function FrankWolfe.compute_extreme_point(
+        lmo::OutBellProbabilitiesLMO{T, 4, 0},
+        A::Array{T, 4};
+        kwargs...,
+    ) where {T <: Number}
+    oA, oB = lmo.o
+    mA, mB = lmo.m
+    ax = ones(Int, mA)
+    bya = [ones(Int, mB) for _ in 1:oA]
+    sc = zero(T)
+    axm = zeros(Int, mA)
+    byam = [zeros(Int, mB) for _ in 1:oA]
+    scm = typemax(T)
+    for i in 1:lmo.nb
+        rand!(ax, 1:oA)
+        sc = 0 # TODO
+        if sc < scm
+            scm = sc
+            axm .= ax
+            for a in 1:oA
+                byam[a] .= bya[a]
+            end
+        end
+    end
+    dsm = OutBellProbabilitiesDS(axm, byam, lmo)
+    lmo.cnt += 1
+    return dsm
 end
