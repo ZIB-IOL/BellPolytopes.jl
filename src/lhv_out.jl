@@ -107,9 +107,9 @@ end
 #=
 Deterministic outcomes structure for bipartite Out-LHV scenario
 
-a           = [a_1 a_2 ... a_x]
-b_minus     = [b_{-,1} ... b_{-,y}]
-b_plus      = [b_{+,1} ... b_{+,y}]
+a  = [a_1 a_2 ... a_x]
+bm = [b_{-,1} ... b_{-,y}]
+bp = [b_{+,1} ... b_{+,y}]
 
 Assuming N = 2 and UseArray=false, extend later if necessary.
 For HasMarginals=true the differences will be on the interface level, the data stored is the same.
@@ -129,17 +129,17 @@ Think of the matrix representation as:
 =#
 mutable struct OutBellCorrelationsDS{T, N, HasMarginals, UseArray} <: AbstractArray{T, N}
     # Representation of the outcomes:
-    a::Vector{T} # Outcomes for Alice. (Redundant because of `idxs_p` and `idxs_m` but makes stuff easier).
-    b_plus::Vector{T}  # Outcomes for Bob respective to +1 outcome of Alice.
-    b_minus::Vector{T} # Outcomes for Bob respective to -1 outcome of Alice.
+    a::Vector{T} # Outcomes for Alice. (Redundant because of `indp` and `indm` but makes stuff easier).
+    bp::Vector{T} # Outcomes for Bob respective to +1 outcome of Alice.
+    bm::Vector{T} # Outcomes for Bob respective to -1 outcome of Alice.
     # Parameters to speed up computation in argminmax:
-    idxs_p::Vector{Int} # Indexes where a is +1.
-    idxs_m::Vector{Int} # Indexes where a is -1.
+    indp::Vector{Int} # Indices where a is +1.
+    indm::Vector{Int} # Indices where a is -1.
     lmo::OutBellCorrelationsLMO{T, N} # tmp
     array::Array{T, N} # if UseArray, full storage to trade speed for memory
     data::OutBellCorrelationsDS{T, N, HasMarginals, UseArray}
-    function OutBellCorrelationsDS{T, N, HasMarginals, UseArray}(a::Vector{T}, b_plus::Vector{T}, b_minus::Vector{T}, idxs_p::Vector{Int}, idxs_m::Vector{Int}, lmo::OutBellCorrelationsLMO{T, N}, array::Array{T, N}) where {T <: Number, N, HasMarginals, UseArray}
-        ds = new(a, b_plus, b_minus, idxs_p, idxs_m, lmo, array)
+    function OutBellCorrelationsDS{T, N, HasMarginals, UseArray}(a::Vector{T}, bp::Vector{T}, bm::Vector{T}, indp::Vector{Int}, indm::Vector{Int}, lmo::OutBellCorrelationsLMO{T, N}, array::Array{T, N}) where {T <: Number, N, HasMarginals, UseArray}
+        ds = new(a, bp, bm, indp, indm, lmo, array)
         ds.data = ds
         return ds
     end
@@ -147,21 +147,21 @@ end
 
 function OutBellCorrelationsDS(
     a::Vector{T},
-    b_plus::Vector{T},
-    b_minus::Vector{T},
+    bp::Vector{T},
+    bm::Vector{T},
     lmo::OutBellCorrelationsLMO{T, N, Mode, HasMarginals};
     use_array = false,
     initialise = true,
 ) where {T <: Number, N, Mode, HasMarginals}
-    # @assert length(b_plus) == length(b_minus) "<b_xy> vectors of unequal length."
-    idxs_p = findall(a .== one(T))
-    idxs_m = deleteat!([1:length(a);], idxs_p)
+    # @assert length(bp) == length(bm) "<b_xy> vectors of unequal length."
+    indp = findall(a .== one(T))
+    indm = deleteat!([1:length(a);], indp)
     res = OutBellCorrelationsDS{T, N, HasMarginals, use_array}(
         a,
-        b_plus,
-        b_minus,
-        idxs_p,
-        idxs_m,
+        bp,
+        bm,
+        indp,
+        indm,
         lmo,
         zeros(T, zeros(Int, N)...),
     )
@@ -188,21 +188,21 @@ function OutBellCorrelationsDS(
     end
     if marg == HasMarginals
         a = ds.a
-        b_plus = ds.b_plus
-        b_minus = ds.b_minus
+        bp = ds.bp
+        bm = ds.bm
     elseif HasMarginals
         a = ds.a[1:end-2]
-        b_plus = ds.b_plus[1:end-1]
-        b_minus = ds.b_minus[1:end-1]
+        bp = ds.bp[1:end-1]
+        bm = ds.bm[1:end-1]
     else
         a = vcat(ds.a, 1)
-        b_plus = vcat(ds.b_plus, 1)
-        b_minus = vcat(ds.b_minus, 1)
+        bp = vcat(ds.bp, 1)
+        bm = vcat(ds.bm, 1)
     end
     res = BellCorrelationsDS{T2, N, marg, use_array}(
         T2.(a),
-        T2.(b_plus),
-        T2.(b_minus),
+        T2.(bp),
+        T2.(bm),
         OutBellCorrelationsLMO(ds.lmo, zero(T2); T2, marg, use_array),
     )
     return res
@@ -283,27 +283,27 @@ function FrankWolfe._unsafe_equal(ds1::OutBellCorrelationsDS, ds2::OutBellCorrel
     if ds1 === ds2
         return true
     end
-    if ds1.a == ds2.a && ds1.b_minus == ds2.b_minus && ds1.b_plus == ds2.b_plus
+    if ds1.a == ds2.a && ds1.bm == ds2.bm && ds1.bp == ds2.bp
         return true
     end
     return false
 end
 
 function Base.size(ds::OutBellCorrelationsDS{T, 2, false}) where {T <: Number}
-    return (length(ds.a), length(ds.b_plus))
+    return (length(ds.a), length(ds.bp))
 end
 
 # See Base.getindex below to understand why I sum +1 and +2:
 function Base.size(ds::OutBellCorrelationsDS{T, 2, true}) where {T <: Number}
-    (length(ds.a) + 2, length(ds.b_plus) + 1)
+    (length(ds.a) + 2, length(ds.bp) + 1)
 end
 
-# Base.:*(n::Number, D::OutLHVDS) = OutLHVDS(D.a, n .* D.b_plus, n .* D.b_minus)
-# Base.copy(D::OutLHVDS) = OutLHVDS(copy(D.a), copy(D.b_plus), copy(D.b_minus))
+# Base.:*(n::Number, D::OutLHVDS) = OutLHVDS(D.a, n .* D.bp, n .* D.bm)
+# Base.copy(D::OutLHVDS) = OutLHVDS(copy(D.a), copy(D.bp), copy(D.bm))
 
 function update_indexes!(ds::OutBellCorrelationsDS{T, 2}) where {T <: Number}
-    ds.idxs_p = findall(ds.a .== one(eltype(T)))
-    ds.idxs_m = deleteat!([1:length(ds.a);], ds.idxs_p)
+    ds.indp = findall(ds.a .== one(eltype(T)))
+    ds.indm = deleteat!([1:length(ds.a);], ds.indp)
 end
 
 Base.@propagate_inbounds function Base.getindex(
@@ -319,14 +319,14 @@ Base.@propagate_inbounds function Base.getindex(
 ) where {T <: Number}
     @boundscheck checkbounds(ds, x, y)
     if ds.a[x] == one(T)
-        return ds.b_plus[y]
+        return ds.bp[y]
     else #if ds.a[x] == -one(T)
-        return -ds.b_minus[y]
+        return -ds.bm[y]
     end
 end
 
 function get_array(ds::OutBellCorrelationsDS{T, N}) where {T <: Number, N}
-    aux = OutBellCorrelationsDS(ds.a, ds.b_plus, ds.b_minus, ds.lmo; use_array = false)
+    aux = OutBellCorrelationsDS(ds.a, ds.bp, ds.bm, ds.lmo; use_array = false)
     res = zeros(T, size(aux))
     @inbounds for x in eachindex(aux)
         res[x] = aux[x]
@@ -357,22 +357,22 @@ Here there are marginals, so:
 Base.@propagate_inbounds function Base.getindex(
     ds::OutBellCorrelationsDS{T, 2, true, false}, x, y
 ) where {T <: Number}
-    @boundscheck (checkbounds([ds.a; [0, 0]], x); checkbounds([ds.b_plus; 0], y))
+    @boundscheck (checkbounds([ds.a; [0, 0]], x); checkbounds([ds.bp; 0], y))
     nx, ny = size(ds)
     # Treat the correlator terms:
     @inbounds if x < nx - 1 && y < ny
         if ds.a[x] == one(T)
-            return ds.b_plus[y]
+            return ds.bp[y]
         else #if ds.a[x] == -one(T)
-            return -ds.b_minus[y]
+            return -ds.bm[y]
         end
     # Treat the marginals case by case:
     elseif y == ny && x < nx - 1 # <a_x>
         return ds.a[x]
     elseif x == nx - 1 && y < ny # <b_{y,+}>
-        return ds.b_plus[y]
+        return ds.bp[y]
     elseif x == nx && y < ny # <b_{y,-}>
-        return ds.b_minus[y]
+        return ds.bm[y]
     elseif x >= nx - 1 && y == ny
         return zero(T) # The padding zeros...
     else
@@ -396,11 +396,11 @@ function FrankWolfe.fast_dot(
     s = zero(T)
 
     @inbounds for y in 1:ny
-        for x in eachindex(ds.idxs_p)
-            s += A[ds.idxs_p[x], y] * ds.b_plus[y]
+        for x in eachindex(ds.indp)
+            s += A[ds.indp[x], y] * ds.bp[y]
         end
-        for x in eachindex(ds.idxs_m)
-            s -= A[ds.idxs_m[x], y] * ds.b_minus[y]
+        for x in eachindex(ds.indm)
+            s -= A[ds.indm[x], y] * ds.bm[y]
         end
     end
     return s
@@ -416,11 +416,11 @@ function FrankWolfe.fast_dot(
 
     # Correlators:
     @inbounds for y in 1:ny-1
-        for x in eachindex(ds.idxs_p)
-            s += A[ds.idxs_p[x], y] * ds.b_plus[y]
+        for x in eachindex(ds.indp)
+            s += A[ds.indp[x], y] * ds.bp[y]
         end
-        for x in eachindex(ds.idxs_m)
-            s -= A[ds.idxs_m[x], y] * ds.b_minus[y]
+        for x in eachindex(ds.indm)
+            s -= A[ds.indm[x], y] * ds.bm[y]
         end
     end
     # Marginals of Alice:
@@ -430,9 +430,9 @@ function FrankWolfe.fast_dot(
     # Marginals of Bob:
     @inbounds for y in 1:ny-1
         # TODO add a factor two to account for the geometry issue discussed?
-        # Should be equiv. to s += A[nx-1] * (ds.b_plus[y] + ds.b_minus[y]) since A[nx-1,y]==A[nx,y]
-        s += A[nx - 1, y] * ds.b_plus[y]
-        s += A[nx, y] * ds.b_minus[y]
+        # Should be equiv. to s += A[nx-1] * (ds.bp[y] + ds.bm[y]) since A[nx-1,y]==A[nx,y]
+        s += A[nx - 1, y] * ds.bp[y]
+        s += A[nx, y] * ds.bm[y]
     end
     return s
 end
@@ -454,25 +454,25 @@ function FrankWolfe.fast_dot(
     els = Int(0)
 
     # Correlator part (same as HasMarginals=false):
-    intersection = length(findall(in(ds1.idxs_p), ds2.idxs_p))
-    s += intersection * ds1.b_plus' * ds2.b_plus
+    intersection = length(findall(in(ds1.indp), ds2.indp))
+    s += intersection * ds1.bp' * ds2.bp
     els += intersection
 
-    intersection = length(findall(in(ds1.idxs_m), ds2.idxs_m))
-    s += intersection * ds1.b_minus' * ds2.b_minus
+    intersection = length(findall(in(ds1.indm), ds2.indm))
+    s += intersection * ds1.bm' * ds2.bm
     els += intersection
 
-    intersection = length(findall(in(ds1.idxs_p), ds2.idxs_m))
-    s -= intersection * ds1.b_plus' * ds2.b_minus
+    intersection = length(findall(in(ds1.indp), ds2.indm))
+    s -= intersection * ds1.bp' * ds2.bm
     els += intersection
 
-    s -= (nx - els) * ds1.b_minus' * ds2.b_plus
+    s -= (nx - els) * ds1.bm' * ds2.bp
 
     # Marginals part:
     if HasMarginals
         s += ds1.a' * ds2.a
-        s += ds1.b_plus' * ds2.b_plus
-        s += ds1.b_minus' * ds2.b_minus
+        s += ds1.bp' * ds2.bp
+        s += ds1.bm' * ds2.bm
     end
 
     return s
@@ -506,14 +506,14 @@ function ActiveSetStorage(
         my -= 1
     end
     @assert mx == length(as.atoms[1].a)
-    @assert my == length(as.atoms[1].b_plus) && my == length(as.atoms[1].b_minus)
+    @assert my == length(as.atoms[1].bp) && my == length(as.atoms[1].bm)
     ax = BitArray(undef, length(as), mx)
     byp = BitArray(undef, length(as), my)
     bym = BitArray(undef, length(as), my)
     for i in eachindex(as)
         @view(ax[i, :]) .= as.atoms[i].a[1:mx] .> zero(T)
-        @view(byp[i, :]) .= as.atoms[i].b_plus[1:my] .> zero(T)
-        @view(bym[i, :]) .= as.atoms[i].b_minus[1:my] .> zero(T)
+        @view(byp[i, :]) .= as.atoms[i].bp[1:my] .> zero(T)
+        @view(bym[i, :]) .= as.atoms[i].bm[1:my] .> zero(T)
     end
     return ActiveSetStorageOutBell{T, 2, HasMarginals}(as.weights, ax, byp, bym, as.atoms[1].lmo.data)
 end
@@ -570,19 +570,19 @@ function FrankWolfe.compute_extreme_point(
     end
     # Temporary storage for testing different initial settings:
     a = ones(T, nx)
-    b_plus = ones(T, ny)
-    b_minus = ones(T, ny)
+    bp = ones(T, ny)
+    bm = ones(T, ny)
     # Temporary storage to save best strategy so far:
     am = zeros(T, nx)
-    bm_plus = zeros(T, ny)
-    bm_minus = zeros(T, ny)
+    bpm = zeros(T, ny)
+    bmm = zeros(T, ny)
     scm = typemax(T)
 
     for i in 1:lmo.nb
         # Randomize starting point
         rand!(a, [-one(T), one(T)])
-        rand!(b_plus, [-one(T), one(T)])
-        rand!(b_minus, [-one(T), one(T)])
+        rand!(bp, [-one(T), one(T)])
+        rand!(bm, [-one(T), one(T)])
 
         # Optimize a, bp, bm to minimize the function...
         sc1 = zero(T)
@@ -594,9 +594,9 @@ function FrankWolfe.compute_extreme_point(
             for x in 1:nx
                 # Optimize a_x:
                 if a[x] > zero(T)
-                    s = dot(@view(Q[x, 1:ny]), b_plus)
+                    s = dot(@view(Q[x, 1:ny]), bp)
                 else
-                    s = dot(@view(Q[x, 1:ny]), b_minus)
+                    s = dot(@view(Q[x, 1:ny]), bm)
                 end
                 if HasMarginals
                     s += Q[x, ny + 1] # Alice's marginal.
@@ -605,33 +605,33 @@ function FrankWolfe.compute_extreme_point(
             end
 
             # Update indexes...
-            idxs_p = findall(a .== one(eltype(T)))
-            idxs_m = deleteat!([1:length(a);], idxs_p)
+            indp = findall(a .== one(eltype(T)))
+            indm = deleteat!([1:length(a);], indp)
 
             tmpBp .= zero(T)
             tmpBm .= zero(T)
             for y in 1:ny
                 # Optimize b for the a_x = +1:
                 tmpBp[y] = zero(T)
-                for x in idxs_p
+                for x in indp
                     tmpBp[y] += Q[x, y]
                 end
                 if HasMarginals
                     tmpBp[y] += Q[nx + 1, y] # Bob's marginal for +1
                 end
-                b_plus[y] = tmpBp[y] > zero(T) ? -one(T) : one(T)
+                bp[y] = tmpBp[y] > zero(T) ? -one(T) : one(T)
                 # Optimize b for the a_x = -1:
                 tmpBm[y] = zero(T)
-                for x in idxs_m
+                for x in indm
                     tmpBm[y] -= Q[x, y]
                 end
                 if HasMarginals
                     tmpBm[y] += Q[nx + 2, y] # Bob's marginal for +1
                 end
-                b_minus[y] = tmpBm[y] > zero(T) ? -one(T) : one(T)
+                bm[y] = tmpBm[y] > zero(T) ? -one(T) : one(T)
             end
             # Compute objective value:
-            sc1 = dot(b_plus, tmpBp) + dot(b_minus, tmpBm)
+            sc1 = dot(bp, tmpBp) + dot(bm, tmpBm)
             if HasMarginals
                 sc1 += dot(@view(Q[1:nx, ny + 1]), a)
             end
@@ -641,11 +641,11 @@ function FrankWolfe.compute_extreme_point(
         if sc1 < scm
             scm = sc1
             am .= a
-            bm_plus .= b_plus
-            bm_minus .= b_minus
+            bpm .= bp
+            bmm .= bm
         end
     end
-    d = OutBellCorrelationsDS(am, bm_plus, bm_minus, lmo; initialise = true)
+    d = OutBellCorrelationsDS(am, bpm, bmm, lmo; initialise = true)
     lmo.cnt += 1
     return d
 end
