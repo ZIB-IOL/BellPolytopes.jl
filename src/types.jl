@@ -8,7 +8,7 @@ mutable struct BellCorrelationsLMO{T, N, Mode, HasMarginals, AT, IT} <: FrankWol
     # scenario fields
     const m::Vector{Int} # number of inputs
     # general fields
-    tmp::Vector{Vector{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
+    tmp::Vector{Vector{T}} # used to compute scalar products, not constant to avoid error in alternating_minimisation!, although @tullio operates in place
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
@@ -92,7 +92,7 @@ mutable struct BellProbabilitiesLMO{T, N2, Mode, AT, IT} <: FrankWolfe.LinearMin
     const o::Vector{Int} # number of outputs
     const m::Vector{Int} # number of inputs
     # general fields
-    tmp::Vector{Matrix{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
+    tmp::Vector{Matrix{T}} # used to compute scalar products, not constant to avoid error in alternating_minimisation!, although @tullio operates in place
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
     const ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
@@ -465,8 +465,7 @@ function BellProbabilitiesDS(
     lmo = BellProbabilitiesLMO(array)
     res = BellProbabilitiesDS{T2, N2}[]
     for ds in vds
-        ax = ds.ax
-        atom = BellProbabilitiesDS{T2, N2}(ax, lmo, array)
+        atom = BellProbabilitiesDS{T2, N2}(ds.ax, lmo, array)
         set_array!(atom)
         push!(res, atom)
     end
@@ -602,7 +601,7 @@ function ActiveSetStorage(
     omax = maximum(as.atoms[1].data.lmo.o)
     m = as.atoms[1].data.lmo.m
     IntK = omax < typemax(Int8) ? Int8 : omax < typemax(Int16) ? Int16 : omax < typemax(Int32) ? Int32 : Int
-    ax = [ones(IntK, length(as), m[n]) for n in 1:N]
+    ax = [Matrix{IntK}(undef, length(as), m[n]) for n in 1:N]
     for i in eachindex(as)
         for n in 1:N
             @view(ax[n][i, :]) .= as.atoms[i].data.ax[n]
