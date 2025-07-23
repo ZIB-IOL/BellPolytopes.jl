@@ -622,9 +622,9 @@ function load_active_set(
     lmo = BellProbabilitiesLMO(p, deflate(p))
     atoms = BellProbabilitiesDS{T2, 2N}[]
     @inbounds for i in 1:length(ass.weights)
-        ax = [ones(Int, m[n]) for n in 1:N]
+        ax = [Vector{Int}(undef, m[n]) for n in 1:N]
         for n in 1:N
-            ax[n] .= Int.(ass.ax[n][i, :])
+            ax[n] .= @view(ass.ax[n][i, :])
         end
         atom = BellProbabilitiesDS(ax, lmo)
         push!(atoms, atom)
