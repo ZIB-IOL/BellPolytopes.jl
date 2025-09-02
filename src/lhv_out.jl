@@ -870,7 +870,7 @@ function ActiveSetStorage(
     } where {T <: Number, N2}
     N = N2 ÷ 2
     oA, oB = as.atoms[1].data.lmo.o
-    omax = maximum(oA, oB)
+    omax = max(oA, oB)
     mA, mB = as.atoms[1].data.lmo.m
     IntK = omax < typemax(Int8) ? Int8 : omax < typemax(Int16) ? Int16 : omax < typemax(Int32) ? Int32 : Int
     ax = Matrix{IntK}(undef, length(as), mA)
@@ -878,7 +878,7 @@ function ActiveSetStorage(
     for i in eachindex(as)
         @view(ax[i, :]) .= as.atoms[i].data.ax
         for a in 1:oA
-            @view(bya[a][i, :]) .= as.atoms[i].data.by[a]
+            @view(bya[a][i, :]) .= as.atoms[i].data.bya[a]
         end
     end
     return ActiveSetStorageOutBellMulti{T, N, IntK}(as.atoms[1].data.lmo.o, as.weights, ax, bya, [as.atoms[1].data.lmo.cnt])
@@ -900,7 +900,7 @@ function load_active_set(
         bya = [Vector{Int}(undef, m[2]) for _ in 1:o[1]]
         ax .= @view(ass.ax[i, :])
         for a in 1:o[1]
-            bya[a] .= @view(ass.ax[n][i, :])
+            bya[a] .= @view(ass.ax[i, :])
         end
         atom = OutBellProbabilitiesDS(ax, bya, lmo)
         push!(atoms, atom)
