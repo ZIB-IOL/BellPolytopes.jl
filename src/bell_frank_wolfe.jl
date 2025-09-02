@@ -160,7 +160,7 @@ function bell_frank_wolfe(
         rp,
         v0,
         ro,
-        shr2^(iseven(N) ? N ÷ 2 : N / 2),
+        shr2 ^ (prob ? (N ÷ 2) / 2 : N / 2),
         verbose,
         epsilon,
         renorm_interval,
