@@ -900,7 +900,7 @@ function load_active_set(
         bya = [Vector{Int}(undef, m[2]) for _ in 1:o[1]]
         ax .= @view(ass.ax[i, :])
         for a in 1:o[1]
-            bya[a] .= @view(ass.ax[i, :])
+            bya[a] .= @view(ass.bya[a][i, :])
         end
         atom = OutBellProbabilitiesDS(ax, bya, lmo)
         push!(atoms, atom)
