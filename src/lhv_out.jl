@@ -385,10 +385,10 @@ Dot products between a deterministic strategy and a correlators matrix.
 The matrix must be such that Q[x,y] = <a_x b_y>.
 =#
 
-FrankWolfe.fast_dot(A::Array, ds::OutBellCorrelationsDS) = conj(FrankWolfe.fast_dot(ds, A))
+LinearAlgebra.dot(A::Array, ds::OutBellCorrelationsDS) = conj(dot(ds, A))
 
 # If there are no marginals
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
     ds::OutBellCorrelationsDS{T, 2, false, UseArray},
     A::Array{T, 2},
 ) where {T <: Number, UseArray}
@@ -407,7 +407,7 @@ function FrankWolfe.fast_dot(
 end
 
 # With marginals...
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
     ds::OutBellCorrelationsDS{T, 2, true, UseArray},
     A::Array{T, 2},
 ) where {T <: Number, UseArray}
@@ -441,7 +441,7 @@ end
 Dot products between two deterministic strategies.
 =#
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
     ds1::OutBellCorrelationsDS{T, 2, HasMarginals, UseArray},
     ds2::OutBellCorrelationsDS{T, 2, HasMarginals, UseArray},
 ) where {T <: Number, HasMarginals, UseArray}
@@ -478,9 +478,9 @@ function FrankWolfe.fast_dot(
     return s
 end
 
-LinearAlgebra.dot(A::Array, ds::OutBellCorrelationsDS) = FrankWolfe.fast_dot(A, ds)
-LinearAlgebra.dot(ds::OutBellCorrelationsDS, A::Array) = FrankWolfe.fast_dot(ds, A)
-LinearAlgebra.dot(ds1::OutBellCorrelationsDS, ds2::OutBellCorrelationsDS) = FrankWolfe.fast_dot(ds1, ds2)
+LinearAlgebra.dot(A::Array, ds::OutBellCorrelationsDS) = dot(A, ds)
+LinearAlgebra.dot(ds::OutBellCorrelationsDS, A::Array) = dot(ds, A)
+LinearAlgebra.dot(ds1::OutBellCorrelationsDS, ds2::OutBellCorrelationsDS) = dot(ds1, ds2)
 
 # TODO: Worth implementing the symmetrised/usearray versions?
 
@@ -835,16 +835,16 @@ function set_array!(ds::OutBellProbabilitiesDS{T, N2}) where {T <: Number, N2}
     ds.array = get_array(ds)
 end
 
-FrankWolfe.fast_dot(A::Array, ds::OutBellProbabilitiesDS) = conj(FrankWolfe.fast_dot(ds, A))
+LinearAlgebra.dot(A::Array, ds::OutBellProbabilitiesDS) = conj(dot(ds, A))
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::OutBellProbabilitiesDS{T, N2},
         A::Array{T, N2},
     ) where {T <: Number, N2}
     return dot(ds.array, A)
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds1::OutBellProbabilitiesDS{T, N2},
         ds2::OutBellProbabilitiesDS{T, N2},
     ) where {T <: Number, N2}
