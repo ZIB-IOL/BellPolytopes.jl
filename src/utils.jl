@@ -348,7 +348,7 @@ function alternating_minimisation!(
             end
         end
         for x2 in 1:length(ax[2])
-            ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
+            ax[2][x2] = argmin(@view(lmo.tmp[2][x2, :]))[1]
         end
         # given b_y, a_x is argmin_a ∑_x A[a, b_y, x, y]
         for x1 in 1:length(ax[1])
@@ -361,7 +361,7 @@ function alternating_minimisation!(
             end
         end
         for x1 in 1:length(ax[1])
-            ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+            ax[1][x1] = argmin(@view(lmo.tmp[1][x1, :]))[1]
         end
         # uses the precomputed sum of lines to compute the scalar product
         sc1 = zero(T)
@@ -391,7 +391,7 @@ function alternating_minimisation!(
             end
         end
         for x3 in 1:length(ax[3])
-            ax[3][x3] = argmin(lmo.tmp[3][x3, :])[1]
+            ax[3][x3] = argmin(@view(lmo.tmp[3][x3, :]))[1]
         end
         for x2 in 1:length(ax[2])
             for a2 in 1:lmo.o[2]
@@ -403,7 +403,7 @@ function alternating_minimisation!(
             end
         end
         for x2 in 1:length(ax[2])
-            ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
+            ax[2][x2] = argmin(@view(lmo.tmp[2][x2, :]))[1]
         end
         for x1 in 1:length(ax[1])
             for a1 in 1:lmo.o[1]
@@ -415,7 +415,7 @@ function alternating_minimisation!(
             end
         end
         for x1 in 1:length(ax[1])
-            ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+            ax[1][x1] = argmin(@view(lmo.tmp[1][x1, :]))[1]
         end
         # uses the precomputed sum of lines to compute the scalar product
         sc1 = zero(T)
@@ -445,19 +445,19 @@ function alternating_minimisation!(
             end
         end
         for x4 in 1:length(ax[4])
-            ax[4][x4] = argmin(lmo.tmp[4][x4, :])[1]
+            ax[4][x4] = argmin(@view(lmo.tmp[4][x4, :]))[1]
         end
         for x3 in 1:length(ax[3])
             for a3 in 1:lmo.o[3]
                 s = zero(T)
                 for x1 in 1:length(ax[1]), x2 in 1:length(ax[2]), x4 in 1:length(ax[4])
-                    s += A[ax[1][x1], ax[2][x2], ax[4][x4], a3, x1, x2, x3, x4]
+                    s += A[ax[1][x1], ax[2][x2], a3, ax[4][x4], x1, x2, x3, x4]
                 end
                 lmo.tmp[3][x3, a3] = s
             end
         end
         for x3 in 1:length(ax[3])
-            ax[3][x3] = argmin(lmo.tmp[3][x3, :])[1]
+            ax[3][x3] = argmin(@view(lmo.tmp[3][x3, :]))[1]
         end
         for x2 in 1:length(ax[2])
             for a2 in 1:lmo.o[2]
@@ -469,7 +469,7 @@ function alternating_minimisation!(
             end
         end
         for x2 in 1:length(ax[2])
-            ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
+            ax[2][x2] = argmin(@view(lmo.tmp[2][x2, :]))[1]
         end
         for x1 in 1:length(ax[1])
             for a1 in 1:lmo.o[1]
@@ -481,7 +481,7 @@ function alternating_minimisation!(
             end
         end
         for x1 in 1:length(ax[1])
-            ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+            ax[1][x1] = argmin(@view(lmo.tmp[1][x1, :]))[1]
         end
         # uses the precomputed sum of lines to compute the scalar product
         sc1 = zero(T)
@@ -492,6 +492,83 @@ function alternating_minimisation!(
     return sc1
 end
 
+function alternating_minimisation!(
+        ax::Vector{Vector{Int}},
+        lmo::BellProbabilitiesLMO{T, 10, 0},
+        A::Array{T, 10},
+    ) where {T <: Number}
+    sc1 = zero(T)
+    sc2 = one(T)
+    @inbounds while sc1 < sc2
+        sc2 = sc1
+        for x5 in 1:length(ax[5])
+            for a5 in 1:lmo.o[5]
+                s = zero(T)
+                for x1 in 1:length(ax[1]), x2 in 1:length(ax[2]), x3 in 1:length(ax[3]), x4 in 1:length(ax[4])
+                    s += A[ax[1][x1], ax[2][x2], ax[3][x3], ax[4][x4], a5, x1, x2, x3, x4, x5]
+                end
+                lmo.tmp[5][x5, a5] = s
+            end
+        end
+        for x5 in 1:length(ax[5])
+            ax[5][x5] = argmin(@view(lmo.tmp[5][x5, :]))[1]
+        end
+        for x4 in 1:length(ax[4])
+            for a4 in 1:lmo.o[4]
+                s = zero(T)
+                for x1 in 1:length(ax[1]), x2 in 1:length(ax[2]), x3 in 1:length(ax[3]), x5 in 1:length(ax[5])
+                    s += A[ax[1][x1], ax[2][x2], ax[3][x3], a4, ax[5][x5], x1, x2, x3, x4, x5]
+                end
+                lmo.tmp[4][x4, a4] = s
+            end
+        end
+        for x4 in 1:length(ax[4])
+            ax[4][x4] = argmin(@view(lmo.tmp[4][x4, :]))[1]
+        end
+        for x3 in 1:length(ax[3])
+            for a3 in 1:lmo.o[3]
+                s = zero(T)
+                for x1 in 1:length(ax[1]), x2 in 1:length(ax[2]), x4 in 1:length(ax[4]), x5 in 1:length(ax[5])
+                    s += A[ax[1][x1], ax[2][x2], a3, ax[4][x4], ax[5][x5], x1, x2, x3, x4, x5]
+                end
+                lmo.tmp[3][x3, a3] = s
+            end
+        end
+        for x3 in 1:length(ax[3])
+            ax[3][x3] = argmin(@view(lmo.tmp[3][x3, :]))[1]
+        end
+        for x2 in 1:length(ax[2])
+            for a2 in 1:lmo.o[2]
+                s = zero(T)
+                for x1 in 1:length(ax[1]), x3 in 1:length(ax[3]), x4 in 1:length(ax[4]), x5 in 1:length(ax[5])
+                    s += A[ax[1][x1], a2, ax[3][x3], ax[4][x4], ax[5][x5], x1, x2, x3, x4, x5]
+                end
+                lmo.tmp[2][x2, a2] = s
+            end
+        end
+        for x2 in 1:length(ax[2])
+            ax[2][x2] = argmin(@view(lmo.tmp[2][x2, :]))[1]
+        end
+        for x1 in 1:length(ax[1])
+            for a1 in 1:lmo.o[1]
+                s = zero(T)
+                for x2 in 1:length(ax[2]), x3 in 1:length(ax[3]), x4 in 1:length(ax[4]), x5 in 1:length(ax[5])
+                    s += A[a1, ax[2][x2], ax[3][x3], ax[4][x4], ax[5][x5], x1, x2, x3, x4, x5]
+                end
+                lmo.tmp[1][x1, a1] = s
+            end
+        end
+        for x1 in 1:length(ax[1])
+            ax[1][x1] = argmin(@view(lmo.tmp[1][x1, :]))[1]
+        end
+        # uses the precomputed sum of lines to compute the scalar product
+        sc1 = zero(T)
+        for x1 in 1:length(ax[1])
+            sc1 += lmo.tmp[1][x1, ax[1][x1]]
+        end
+    end
+    return sc1
+end
 
 ##############
 # ACTIVE SET #
@@ -514,11 +591,11 @@ function active_set_reinitialise!(as::FrankWolfe.ActiveSetQuadraticProductCachin
     @inbounds for idx in eachindex(as)
         if reset_dots_A
             for idy in 1:idx
-                as.dots_A[idx][idy] = FrankWolfe.fast_dot(as.A * as.atoms[idx], as.atoms[idy])
+                as.dots_A[idx][idy] = dot(as.A * as.atoms[idx], as.atoms[idy])
             end
         end
         if reset_dots_b
-            as.dots_b[idx] = FrankWolfe.fast_dot(as.b, as.atoms[idx])
+            as.dots_b[idx] = dot(as.b, as.atoms[idx])
         end
     end
     FrankWolfe.compute_active_set_iterate!(as)

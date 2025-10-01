@@ -8,7 +8,7 @@ mutable struct BellCorrelationsLMO{T, N, Mode, HasMarginals, AT, IT} <: FrankWol
     # scenario fields
     const m::Vector{Int} # number of inputs
     # general fields
-    tmp::Vector{Vector{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
+    tmp::Vector{Vector{T}} # used to compute scalar products, not constant to avoid error in alternating_minimisation!, although @tullio operates in place
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
     const ci::CartesianIndices{N, NTuple{N, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
@@ -92,7 +92,7 @@ mutable struct BellProbabilitiesLMO{T, N2, Mode, AT, IT} <: FrankWolfe.LinearMin
     const o::Vector{Int} # number of outputs
     const m::Vector{Int} # number of inputs
     # general fields
-    tmp::Vector{Matrix{T}} # used to compute scalar products, not constant to avoid error in seesaw!, although @tullio operates in place
+    tmp::Vector{Matrix{T}} # used to compute scalar products, not constant to avoid error in alternating_minimisation!, although @tullio operates in place
     nb::Int # number of repetition
     cnt::Int # count the number of calls of the LMO and used to hash the atoms
     const ci::CartesianIndices{N2, NTuple{N2, Base.OneTo{Int}}} # cartesian indices used for tensor indexing
@@ -292,9 +292,9 @@ end
 function set_array!(ds::BellCorrelationsDS{T, N}, lmo::BellCorrelationsLMO{T, N}) where {T <: Number, N}
 end
 
-FrankWolfe.fast_dot(A::Array, ds::BellCorrelationsDS) = conj(FrankWolfe.fast_dot(ds, A))
+LinearAlgebra.dot(A::Array, ds::BellCorrelationsDS) = conj(dot(ds, A))
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 2, HasMarginals},
         A::Array{T, 2},
     ) where {T <: Number, HasMarginals}
@@ -302,7 +302,7 @@ function FrankWolfe.fast_dot(
     return dot(ds.ax[1], ds.lmo.tmp[1]) - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 3, HasMarginals},
         A::Array{T, 3},
     ) where {T <: Number, HasMarginals}
@@ -311,7 +311,7 @@ function FrankWolfe.fast_dot(
     return res - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 4, HasMarginals},
         A::Array{T, 4},
     ) where {T <: Number, HasMarginals}
@@ -320,7 +320,7 @@ function FrankWolfe.fast_dot(
     return res - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 5, HasMarginals},
         A::Array{T, 5},
     ) where {T <: Number, HasMarginals}
@@ -329,7 +329,7 @@ function FrankWolfe.fast_dot(
     return res - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 6, HasMarginals},
         A::Array{T, 6},
     ) where {T <: Number, HasMarginals}
@@ -339,7 +339,7 @@ function FrankWolfe.fast_dot(
     return res - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 7, HasMarginals},
         A::Array{T, 7},
     ) where {T <: Number, HasMarginals}
@@ -356,7 +356,7 @@ function FrankWolfe.fast_dot(
     return res - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 8, HasMarginals},
         A::Array{T, 8},
     ) where {T <: Number, HasMarginals}
@@ -374,24 +374,24 @@ function FrankWolfe.fast_dot(
     return res - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, N, HasMarginals},
         A::Array{T, N},
     ) where {T <: Number, N, HasMarginals}
     error(
-        "Combination of parameters not supported yet, please copy, paste, and trivially adapt fast_dot in types.jl",
+        "Combination of parameters not supported yet, please copy, paste, and trivially adapt LinearAlgebra.dot in types.jl",
     )
 end
 
 # specialised method for performance
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds1::BellCorrelationsDS{T, 2, HasMarginals},
         ds2::BellCorrelationsDS{T, 2, HasMarginals},
     ) where {T <: Number, HasMarginals}
     return dot(ds1.ax[1], ds2.ax[1]) * dot(ds1.ax[2], ds2.ax[2]) - HasMarginals
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds1::BellCorrelationsDS{T, N, HasMarginals},
         ds2::BellCorrelationsDS{T, N, HasMarginals},
     ) where {T <: Number, N, HasMarginals}
@@ -412,7 +412,7 @@ mutable struct BellProbabilitiesDS{T, N2} <: AbstractArray{T, N2}
     lmo::BellProbabilitiesLMO{T, N2} # tmp
     array::Array{T, N2} # if full storage to trade speed for memory; TODO: remove
     data::BellProbabilitiesDS{T, N2}
-    function BellProbabilitiesDS{T, N2}(ax::Vector{Vector{Int}}, lmo::BellProbabilitiesLMO{T, N2, Mode}, array::Array{T, N2}) where {T <: Number, N2, Mode}
+    function BellProbabilitiesDS{T, N2}(ax::Vector{Vector{Int}}, lmo::BellProbabilitiesLMO{T, N2}, array::Array{T, N2}) where {T <: Number, N2}
         ds = new(ax, lmo, array)
         ds.data = ds
         return ds
@@ -423,9 +423,9 @@ Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.o, length.(ds.ax)))
 
 function BellProbabilitiesDS(
         ax::Vector{Vector{Int}},
-        lmo::BellProbabilitiesLMO{T, N2, Mode};
+        lmo::BellProbabilitiesLMO{T, N2};
         initialise = true,
-    ) where {T <: Number, N2, Mode}
+    ) where {T <: Number, N2}
     res = BellProbabilitiesDS{T, N2}(
         ax,
         lmo,
@@ -465,8 +465,7 @@ function BellProbabilitiesDS(
     lmo = BellProbabilitiesLMO(array)
     res = BellProbabilitiesDS{T2, N2}[]
     for ds in vds
-        ax = ds.ax
-        atom = BellProbabilitiesDS{T2, N2}(ax, lmo, array)
+        atom = BellProbabilitiesDS{T2, N2}(ds.ax, lmo, array)
         set_array!(atom)
         push!(res, atom)
     end
@@ -511,16 +510,16 @@ function set_array!(ds::BellProbabilitiesDS{T, N2}) where {T <: Number, N2}
     ds.array = get_array(ds)
 end
 
-FrankWolfe.fast_dot(A::Array, ds::BellProbabilitiesDS) = conj(FrankWolfe.fast_dot(ds, A))
+LinearAlgebra.dot(A::Array, ds::BellProbabilitiesDS) = conj(dot(ds, A))
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellProbabilitiesDS{T, N2},
         A::Array{T, N2},
     ) where {T <: Number, N2}
     return dot(ds.array, A)
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds1::BellProbabilitiesDS{T, N2},
         ds2::BellProbabilitiesDS{T, N2},
     ) where {T <: Number, N2}
@@ -586,18 +585,22 @@ end
 struct ActiveSetStorageMulti{T, N} <: AbstractActiveSetStorage
     o::Vector{Int}
     weights::Vector{T}
-    ax::Vector{Matrix{IntK}} where {IntK <: Integer}
+    ax::Vector{Matrix{Int8}}
     data::Vector
 end
 
 function ActiveSetStorage(
-        as::FrankWolfe.ActiveSetQuadraticProductCaching{FrankWolfe.SubspaceVector{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}, T, FrankWolfe.SubspaceVector{false, T, Array{T, N2}, Vector{T}}},
-    ) where {T <: Number, N2}
+        as::FrankWolfe.ActiveSetQuadraticProductCaching{AT},
+    ) where {
+        AT <: Union{
+            FrankWolfe.SubspaceVector{false, T, BellProbabilitiesDS{T, N2}, Vector{T}},
+            BellProbabilitiesDS{T, N2},
+        },
+    } where {T <: Number, N2}
     N = N2 ÷ 2
     omax = maximum(as.atoms[1].data.lmo.o)
     m = as.atoms[1].data.lmo.m
-    IntK = omax < typemax(Int8) ? Int8 : omax < typemax(Int16) ? Int16 : omax < typemax(Int32) ? Int32 : Int
-    ax = [ones(IntK, length(as), m[n]) for n in 1:N]
+    ax = [Matrix{Int8}(undef, length(as), m[n]) for n in 1:N]
     for i in eachindex(as)
         for n in 1:N
             @view(ax[n][i, :]) .= as.atoms[i].data.ax[n]
@@ -618,9 +621,9 @@ function load_active_set(
     lmo = BellProbabilitiesLMO(p, deflate(p))
     atoms = BellProbabilitiesDS{T2, 2N}[]
     @inbounds for i in 1:length(ass.weights)
-        ax = [ones(Int, m[n]) for n in 1:N]
+        ax = [Vector{Int}(undef, m[n]) for n in 1:N]
         for n in 1:N
-            ax[n] .= Int.(ass.ax[n][i, :])
+            ax[n] .= @view(ass.ax[n][i, :])
         end
         atom = BellProbabilitiesDS(ax, lmo)
         push!(atoms, atom)

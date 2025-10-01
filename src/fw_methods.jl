@@ -304,7 +304,7 @@ function FrankWolfe.compute_extreme_point(
             ds.ax[n][1:m[n]] .= 2intax[n] .- 1
         end
         set_array!(ds)
-        sc = FrankWolfe.fast_dot(ds, A)
+        sc = dot(ds, A)
         if sc < scm
             scm = sc
             for n in 1:N
@@ -725,7 +725,7 @@ function FrankWolfe.perform_line_search(
     if d[1] == typemax(T)
         return min(max(d[2], 0), gamma_max)
     else
-        #  return min(max((FrankWolfe.fast_dot(gradient, x) - (d[1] - d[2])) * inv(FrankWolfe.fast_dot(x, x) + d[3]), 0), gamma_max)
-        return min(max(FrankWolfe.fast_dot(gradient, d) * inv(line_search.L * FrankWolfe.fast_dot(d, d)), 0), gamma_max)
+        #  return min(max((dot(gradient, x) - (d[1] - d[2])) * inv(dot(x, x) + d[3]), 0), gamma_max)
+        return min(max(dot(gradient, d) * inv(line_search.L * dot(d, d)), 0), gamma_max)
     end
 end
