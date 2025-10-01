@@ -153,7 +153,7 @@ function bell_frank_wolfe(
         rp,
         v0,
         ro,
-        shr2^(iseven(N) ? N ÷ 2 : N / 2),
+        shr2 ^ (prob ? (N ÷ 2) / 2 : N / 2),
         verbose,
         epsilon,
         renorm_interval,
@@ -166,7 +166,7 @@ function bell_frank_wolfe(
         save_interval,
     )
     # main call to FW
-    x, ds, primal, dual_gap, _, as = FrankWolfe.blended_pairwise_conditional_gradient(
+    res = FrankWolfe.blended_pairwise_conditional_gradient(
         f,
         grad!,
         lmo,
@@ -181,6 +181,11 @@ function bell_frank_wolfe(
         verbose = false,
         kwargs...,
     )
+    x = res.x
+    ds = res.v
+    primal = res.primal
+    dual_gap = res.dual_gap
+    as = res.active_set
     if verbose ≥ 2
         println()
         @printf("Primal: %.2e\n", primal)
@@ -198,7 +203,7 @@ function bell_frank_wolfe(
     as = T == TL ? as : FrankWolfe.ActiveSetQuadraticProductCaching([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
     FrankWolfe.compute_active_set_iterate!(as)
     x = as.x
-    tmp = abs(FrankWolfe.fast_dot(vp - x, rp))
+    tmp = abs(dot(vp - x, rp))
     if sym
         M = FrankWolfe.SubspaceVector(TL.(vp.data - inflate(x)) / (tmp == 0 ? 1 : tmp), TL.(vp.vec - x.vec) / (tmp == 0 ? 1 : tmp))
     else
@@ -221,10 +226,10 @@ function bell_frank_wolfe(
     # renormalise the inequality by its smallest element, neglecting entries orders of magnitude smaller than the maximum
     if cutoff_last > 0
         M[log.(abs.(M)) .< maximum(log.(abs.(M))) - cutoff_last] .= zero(TL)
-        M ./= minimum(abs.(M[abs.(M) .> zero(TL)]))
+        M ./= minimum(abs.(M[abs.(M) .> zero(TL)]); init = one(TL)) # init to avoid error for zero array
     end
-    β = (FrankWolfe.fast_dot(M, ds) - FrankWolfe.fast_dot(M, ro)) / (FrankWolfe.fast_dot(M, rp) - FrankWolfe.fast_dot(M, ro)) # local/global max found by the LMO
-    dual_gap = FrankWolfe.fast_dot(x - vp, x) - FrankWolfe.fast_dot(x - vp, ds)
+    β = (dot(M, ds) - dot(M, ro)) / (dot(M, rp) - dot(M, ro)) # local/global max found by the LMO
+    dual_gap = dot(x - vp, x) - dot(x - vp, ds)
     if verbose > 0
         if verbose ≥ 2 && mode_last ≥ 0
             @printf("FW gap: %.2e\n", dual_gap) # recomputed FW gap (usually with a more reliable heuristic)

@@ -20,7 +20,7 @@ function local_bound_correlation(
         kwargs...
     ) where {T <: Number} where {N}
     ds = FrankWolfe.compute_extreme_point(BellCorrelationsLMO(M, M; marg, mode, nb, d), -M; kwargs...)
-    return FrankWolfe.fast_dot(M, ds), ds
+    return dot(M, ds), ds
 end
 export local_bound_correlation
 
@@ -31,6 +31,6 @@ function local_bound_probability(
         kwargs...
     ) where {T <: Number} where {N}
     ds = FrankWolfe.compute_extreme_point(BellProbabilitiesLMO(M, M; mode, nb), -M; kwargs...)
-    return FrankWolfe.fast_dot(M, ds), ds
+    return dot(M, ds), ds
 end
 export local_bound_probability
