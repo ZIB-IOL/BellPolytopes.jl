@@ -412,7 +412,7 @@ mutable struct BellProbabilitiesDS{T, N2} <: AbstractArray{T, N2}
     lmo::BellProbabilitiesLMO{T, N2} # tmp
     array::Array{T, N2} # if full storage to trade speed for memory; TODO: remove
     data::BellProbabilitiesDS{T, N2}
-    function BellProbabilitiesDS{T, N2}(ax::Vector{Vector{Int}}, lmo::BellProbabilitiesLMO{T, N2, Mode}, array::Array{T, N2}) where {T <: Number, N2, Mode}
+    function BellProbabilitiesDS{T, N2}(ax::Vector{Vector{Int}}, lmo::BellProbabilitiesLMO{T, N2}, array::Array{T, N2}) where {T <: Number, N2}
         ds = new(ax, lmo, array)
         ds.data = ds
         return ds
@@ -423,9 +423,9 @@ Base.size(ds::BellProbabilitiesDS) = Tuple(vcat(ds.lmo.o, length.(ds.ax)))
 
 function BellProbabilitiesDS(
         ax::Vector{Vector{Int}},
-        lmo::BellProbabilitiesLMO{T, N2, Mode};
+        lmo::BellProbabilitiesLMO{T, N2};
         initialise = true,
-    ) where {T <: Number, N2, Mode}
+    ) where {T <: Number, N2}
     res = BellProbabilitiesDS{T, N2}(
         ax,
         lmo,
@@ -582,10 +582,10 @@ function load_active_set(
 end
 
 # for multi-outcome scenarios
-struct ActiveSetStorageMulti{T, N, IntK} <: AbstractActiveSetStorage
+struct ActiveSetStorageMulti{T, N} <: AbstractActiveSetStorage
     o::Vector{Int}
     weights::Vector{T}
-    ax::Vector{Matrix{IntK}}
+    ax::Vector{Matrix{Int8}}
     data::Vector
 end
 
@@ -600,14 +600,13 @@ function ActiveSetStorage(
     N = N2 ÷ 2
     omax = maximum(as.atoms[1].data.lmo.o)
     m = as.atoms[1].data.lmo.m
-    IntK = omax < typemax(Int8) ? Int8 : omax < typemax(Int16) ? Int16 : omax < typemax(Int32) ? Int32 : Int
-    ax = [Matrix{IntK}(undef, length(as), m[n]) for n in 1:N]
+    ax = [Matrix{Int8}(undef, length(as), m[n]) for n in 1:N]
     for i in eachindex(as)
         for n in 1:N
             @view(ax[n][i, :]) .= as.atoms[i].data.ax[n]
         end
     end
-    return ActiveSetStorageMulti{T, N, IntK}(as.atoms[1].data.lmo.o, as.weights, ax, [as.atoms[1].data.lmo.cnt])
+    return ActiveSetStorageMulti{T, N}(as.atoms[1].data.lmo.o, as.weights, ax, [as.atoms[1].data.lmo.cnt])
 end
 
 function load_active_set(
