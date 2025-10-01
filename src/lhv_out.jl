@@ -736,9 +736,9 @@ mutable struct OutBellProbabilitiesDS{T, N2} <: AbstractArray{T, N2}
     bya::Vector{Vector{Int}} # Outcomes for Bob respective to the ath outcome of Alice.
     # Parameters to speed up computation in argminmax:
     lmo::OutBellProbabilitiesLMO{T, N2} # tmp
-    array::Array{Int8, N2} # if full storage to trade speed for memory
+    array::Array{T, N2} # if full storage to trade speed for memory
     data::OutBellProbabilitiesDS{T, N2}
-    function OutBellProbabilitiesDS{T, N2}(ax::Vector{Int}, bya::Vector{Vector{Int}}, lmo::OutBellProbabilitiesLMO{T, N2, Mode}, array::Array{Int8, N2}) where {T <: Number, N2, Mode}
+    function OutBellProbabilitiesDS{T, N2}(ax::Vector{Int}, bya::Vector{Vector{Int}}, lmo::OutBellProbabilitiesLMO{T, N2}, array::Array{T, N2}) where {T <: Number, N2}
         ds = new(ax, bya, lmo, array)
         ds.data = ds
         return ds
@@ -750,14 +750,14 @@ Base.size(ds::OutBellProbabilitiesDS) = Tuple(vcat(ds.lmo.o, ds.lmo.m))
 function OutBellProbabilitiesDS(
         ax::Vector{Int},
         bya::Vector{Vector{Int}},
-        lmo::OutBellProbabilitiesLMO{T, N2, Mode};
+        lmo::OutBellProbabilitiesLMO{T, N2};
         initialise = true,
-    ) where {T <: Number, N2, Mode}
+    ) where {T <: Number, N2}
     res = OutBellProbabilitiesDS{T, N2}(
         ax,
         bya,
         lmo,
-        zeros(Int8, zeros(Int, N2)...),
+        zeros(T, zeros(Int, N2)...),
     )
     if initialise
         set_array!(res)
@@ -777,7 +777,7 @@ function OutBellProbabilitiesDS(
         ds.ax,
         ds.bya,
         OutBellProbabilitiesLMO(ds.lmo, zero(T2); T2),
-        zeros(Int8, zeros(Int, N2)...),
+        zeros(T, zeros(Int, N2)...),
     )
     set_array!(res)
     return res
@@ -824,9 +824,9 @@ Base.@propagate_inbounds function Base.getindex(
 end
 
 function get_array(ds::OutBellProbabilitiesDS{T, N2}) where {T <: Number, N2}
-    res = zeros(Int8, size(ds))
+    res = zeros(T, size(ds))
     @inbounds for x in 1:ds.lmo.m[1], y in 1:ds.lmo.m[2]
-        res[ds.lmo.ci[ds.ax[x], ds.bya[ds.ax[x]][y], x, y]] = 1
+        res[ds.lmo.ci[ds.ax[x], ds.bya[ds.ax[x]][y], x, y]] = one(T)
     end
     return res
 end
@@ -852,11 +852,11 @@ function FrankWolfe.fast_dot(
 end
 
 # for multi-outcome scenarios
-struct ActiveSetStorageOutBellMulti{T, N, IntK} <: AbstractActiveSetStorage
+struct ActiveSetStorageOutBellMulti{T, N} <: AbstractActiveSetStorage
     o::Vector{Int}
     weights::Vector{T}
-    ax::Matrix{IntK}
-    bya::Vector{Matrix{IntK}}
+    ax::Matrix{Int8}
+    bya::Vector{Matrix{Int8}}
     data::Vector
 end
 
@@ -872,16 +872,15 @@ function ActiveSetStorage(
     oA, oB = as.atoms[1].data.lmo.o
     omax = max(oA, oB)
     mA, mB = as.atoms[1].data.lmo.m
-    IntK = omax < typemax(Int8) ? Int8 : omax < typemax(Int16) ? Int16 : omax < typemax(Int32) ? Int32 : Int
-    ax = Matrix{IntK}(undef, length(as), mA)
-    bya = [Matrix{IntK}(undef, length(as), mB) for _ in 1:oA]
+    ax = Matrix{Int8}(undef, length(as), mA)
+    bya = [Matrix{Int8}(undef, length(as), mB) for _ in 1:oA]
     for i in eachindex(as)
         @view(ax[i, :]) .= as.atoms[i].data.ax
         for a in 1:oA
             @view(bya[a][i, :]) .= as.atoms[i].data.bya[a]
         end
     end
-    return ActiveSetStorageOutBellMulti{T, N, IntK}(as.atoms[1].data.lmo.o, as.weights, ax, bya, [as.atoms[1].data.lmo.cnt])
+    return ActiveSetStorageOutBellMulti{T, N}(as.atoms[1].data.lmo.o, as.weights, ax, bya, [as.atoms[1].data.lmo.cnt])
 end
 
 function load_active_set(
