@@ -591,11 +591,11 @@ function active_set_reinitialise!(as::FrankWolfe.ActiveSetQuadraticProductCachin
     @inbounds for idx in eachindex(as)
         if reset_dots_A
             for idy in 1:idx
-                as.dots_A[idx][idy] = FrankWolfe.fast_dot(as.A * as.atoms[idx], as.atoms[idy])
+                as.dots_A[idx][idy] = dot(as.A * as.atoms[idx], as.atoms[idy])
             end
         end
         if reset_dots_b
-            as.dots_b[idx] = FrankWolfe.fast_dot(as.b, as.atoms[idx])
+            as.dots_b[idx] = dot(as.b, as.atoms[idx])
         end
     end
     FrankWolfe.compute_active_set_iterate!(as)
