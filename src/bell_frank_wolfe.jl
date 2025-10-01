@@ -165,7 +165,7 @@ function bell_frank_wolfe(
         save_interval,
     )
     # main call to FW
-    x, ds, primal, dual_gap, _, as = FrankWolfe.blended_pairwise_conditional_gradient(
+    res = FrankWolfe.blended_pairwise_conditional_gradient(
         f,
         grad!,
         lmo,
@@ -180,6 +180,11 @@ function bell_frank_wolfe(
         verbose = false,
         kwargs...,
     )
+    x = res.x
+    ds = res.v
+    primal = res.primal
+    dual_gap = res.dual_gap
+    as = res.active_set
     if verbose ≥ 2
         println()
         @printf("Primal: %.2e\n", primal)
