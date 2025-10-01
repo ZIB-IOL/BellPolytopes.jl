@@ -736,9 +736,9 @@ mutable struct OutBellProbabilitiesDS{T, N2} <: AbstractArray{T, N2}
     bya::Vector{Vector{Int}} # Outcomes for Bob respective to the ath outcome of Alice.
     # Parameters to speed up computation in argminmax:
     lmo::OutBellProbabilitiesLMO{T, N2} # tmp
-    array::Array{T, N2} # if full storage to trade speed for memory
+    array::Array{Int8, N2} # if full storage to trade speed for memory
     data::OutBellProbabilitiesDS{T, N2}
-    function OutBellProbabilitiesDS{T, N2}(ax::Vector{Int}, bya::Vector{Vector{Int}}, lmo::OutBellProbabilitiesLMO{T, N2, Mode}, array::Array{T, N2}) where {T <: Number, N2, Mode}
+    function OutBellProbabilitiesDS{T, N2}(ax::Vector{Int}, bya::Vector{Vector{Int}}, lmo::OutBellProbabilitiesLMO{T, N2, Mode}, array::Array{Int8, N2}) where {T <: Number, N2, Mode}
         ds = new(ax, bya, lmo, array)
         ds.data = ds
         return ds
@@ -757,7 +757,7 @@ function OutBellProbabilitiesDS(
         ax,
         bya,
         lmo,
-        zeros(T, zeros(Int, N2)...),
+        zeros(Int8, zeros(Int, N2)...),
     )
     if initialise
         set_array!(res)
@@ -777,7 +777,7 @@ function OutBellProbabilitiesDS(
         ds.ax,
         ds.bya,
         OutBellProbabilitiesLMO(ds.lmo, zero(T2); T2),
-        zeros(T2, zeros(Int, N2)...),
+        zeros(Int8, zeros(Int, N2)...),
     )
     set_array!(res)
     return res
@@ -824,9 +824,9 @@ Base.@propagate_inbounds function Base.getindex(
 end
 
 function get_array(ds::OutBellProbabilitiesDS{T, N2}) where {T <: Number, N2}
-    res = zeros(T, size(ds))
+    res = zeros(Int8, size(ds))
     @inbounds for x in 1:ds.lmo.m[1], y in 1:ds.lmo.m[2]
-        res[ds.lmo.ci[ds.ax[x], ds.bya[ds.ax[x]][y], x, y]] = one(T)
+        res[ds.lmo.ci[ds.ax[x], ds.bya[ds.ax[x]][y], x, y]] = 1
     end
     return res
 end
