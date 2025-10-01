@@ -197,7 +197,7 @@ function bell_frank_wolfe(
     as = T == TL ? as : FrankWolfe.ActiveSetQuadraticProductCaching([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
     FrankWolfe.compute_active_set_iterate!(as)
     x = as.x
-    tmp = abs(FrankWolfe.fast_dot(vp - x, rp))
+    tmp = abs(dot(vp - x, rp))
     if sym
         M = FrankWolfe.SubspaceVector(TL.(vp.data - inflate(x)) / (tmp == 0 ? 1 : tmp), TL.(vp.vec - x.vec) / (tmp == 0 ? 1 : tmp))
     else
@@ -222,8 +222,8 @@ function bell_frank_wolfe(
         M[log.(abs.(M)) .< maximum(log.(abs.(M))) - cutoff_last] .= zero(TL)
         M ./= minimum(abs.(M[abs.(M) .> zero(TL)]); init = one(TL)) # init to avoid error for zero array
     end
-    β = (FrankWolfe.fast_dot(M, ds) - FrankWolfe.fast_dot(M, ro)) / (FrankWolfe.fast_dot(M, rp) - FrankWolfe.fast_dot(M, ro)) # local/global max found by the LMO
-    dual_gap = FrankWolfe.fast_dot(x - vp, x) - FrankWolfe.fast_dot(x - vp, ds)
+    β = (dot(M, ds) - dot(M, ro)) / (dot(M, rp) - dot(M, ro)) # local/global max found by the LMO
+    dual_gap = dot(x - vp, x) - dot(x - vp, ds)
     if verbose > 0
         if verbose ≥ 2 && mode_last ≥ 0
             @printf("FW gap: %.2e\n", dual_gap) # recomputed FW gap (usually with a more reliable heuristic)

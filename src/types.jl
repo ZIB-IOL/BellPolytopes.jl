@@ -292,9 +292,9 @@ end
 function set_array!(ds::BellCorrelationsDS{T, N}, lmo::BellCorrelationsLMO{T, N}) where {T <: Number, N}
 end
 
-FrankWolfe.fast_dot(A::Array, ds::BellCorrelationsDS) = conj(FrankWolfe.fast_dot(ds, A))
+LinearAlgebra.dot(A::Array, ds::BellCorrelationsDS) = conj(dot(ds, A))
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 2, HasMarginals},
         A::Array{T, 2},
     ) where {T <: Number, HasMarginals}
@@ -302,7 +302,7 @@ function FrankWolfe.fast_dot(
     return dot(ds.ax[1], ds.lmo.tmp[1]) - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 3, HasMarginals},
         A::Array{T, 3},
     ) where {T <: Number, HasMarginals}
@@ -311,7 +311,7 @@ function FrankWolfe.fast_dot(
     return res - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 4, HasMarginals},
         A::Array{T, 4},
     ) where {T <: Number, HasMarginals}
@@ -320,7 +320,7 @@ function FrankWolfe.fast_dot(
     return res - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 5, HasMarginals},
         A::Array{T, 5},
     ) where {T <: Number, HasMarginals}
@@ -329,7 +329,7 @@ function FrankWolfe.fast_dot(
     return res - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 6, HasMarginals},
         A::Array{T, 6},
     ) where {T <: Number, HasMarginals}
@@ -339,7 +339,7 @@ function FrankWolfe.fast_dot(
     return res - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 7, HasMarginals},
         A::Array{T, 7},
     ) where {T <: Number, HasMarginals}
@@ -356,7 +356,7 @@ function FrankWolfe.fast_dot(
     return res - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, 8, HasMarginals},
         A::Array{T, 8},
     ) where {T <: Number, HasMarginals}
@@ -374,24 +374,24 @@ function FrankWolfe.fast_dot(
     return res - HasMarginals * A[end]
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellCorrelationsDS{T, N, HasMarginals},
         A::Array{T, N},
     ) where {T <: Number, N, HasMarginals}
     error(
-        "Combination of parameters not supported yet, please copy, paste, and trivially adapt fast_dot in types.jl",
+        "Combination of parameters not supported yet, please copy, paste, and trivially adapt LinearAlgebra.dot in types.jl",
     )
 end
 
 # specialised method for performance
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds1::BellCorrelationsDS{T, 2, HasMarginals},
         ds2::BellCorrelationsDS{T, 2, HasMarginals},
     ) where {T <: Number, HasMarginals}
     return dot(ds1.ax[1], ds2.ax[1]) * dot(ds1.ax[2], ds2.ax[2]) - HasMarginals
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds1::BellCorrelationsDS{T, N, HasMarginals},
         ds2::BellCorrelationsDS{T, N, HasMarginals},
     ) where {T <: Number, N, HasMarginals}
@@ -510,16 +510,16 @@ function set_array!(ds::BellProbabilitiesDS{T, N2}) where {T <: Number, N2}
     ds.array = get_array(ds)
 end
 
-FrankWolfe.fast_dot(A::Array, ds::BellProbabilitiesDS) = conj(FrankWolfe.fast_dot(ds, A))
+LinearAlgebra.dot(A::Array, ds::BellProbabilitiesDS) = conj(dot(ds, A))
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds::BellProbabilitiesDS{T, N2},
         A::Array{T, N2},
     ) where {T <: Number, N2}
     return dot(ds.array, A)
 end
 
-function FrankWolfe.fast_dot(
+function LinearAlgebra.dot(
         ds1::BellProbabilitiesDS{T, N2},
         ds2::BellProbabilitiesDS{T, N2},
     ) where {T <: Number, N2}
