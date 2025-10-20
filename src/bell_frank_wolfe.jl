@@ -16,7 +16,7 @@ Returns:
 Optional arguments:
  - `o`: same type as `p`, corresponds to the noise to be added, by default the center of the polytope,
  - `prob`: a boolean, indicates if `p` is a corelation or probability array,
- - `marg`: a boolean, indicates if `p` contains marginals,
+ - `marg`: a boolean, indicates if `p` contains marginals (by convention in the last index of each dimension),
  - `v0`: the visibility used to make a nonlocal `p` closer to the local polytope,
  - `epsilon`: the tolerance, used as a stopping criterion (when the primal value or the dual gap go below its value), by default 1e-7,
  - `verbose`: an integer, indicates the level of verbosity from 0 to 3,

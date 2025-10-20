@@ -1,7 +1,7 @@
 name = "BellPolytopes"
 uuid = "38bdb6f4-c11c-4b2a-9c62-3601ea4ec58a"
-authors = ["ZIB AISST"]
 version = "0.2.0"
+authors = ["ZIB AISST"]
 
 [deps]
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
@@ -16,6 +16,7 @@ Tullio = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
 [compat]
 Combinatorics = "1"
 FrankWolfe = "0.6"
+Ket = "0.7.0"
 LinearAlgebra = "1"
 Polyhedra = "0.8"
 Printf = "1"
@@ -26,7 +27,8 @@ Tullio = "0.3"
 julia = "1.9"
 
 [extras]
+Ket = "412c778c-4733-41d8-b706-9e072557ba34"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["Ket", "Test"]
