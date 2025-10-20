@@ -70,7 +70,7 @@ end
 
 @testset "Testing Bell-Frank-Wolfe with d=2, N=2, and cor/marg matrices   " begin
     # using the exact LMO at the end
-    p = circshift(tensor_correlation(state_phiplus(), HQVNB17_mes(3), 2; marg=true), (-1, -1))
+    p = move_marg(tensor_correlation(state_phiplus(), HQVNB17_mes(3), 2; marg=true))
     @test abs(bell_frank_wolfe(p; marg=true, mode_last=1)[3] - 0.613691) < 1e-5
     # with warm start
     active_set = bell_frank_wolfe(p; marg=true, max_iteration=10)[5]
@@ -83,9 +83,9 @@ end
     # HQVNB17 with symmetry
     @test abs(bell_frank_wolfe(p; marg=true)[3] - 0.613691) < 1e-5
 
-    p = circshift(tensor_correlation(state_phiplus(), HQVNB17_mes(5), 2; marg=true), (-1, -1))
+    p = move_marg(tensor_correlation(state_phiplus(), HQVNB17_mes(5), 2; marg=true))
     @test abs(bell_frank_wolfe(p; marg=true)[3] - 5.69) < 1e-1
-    #  @test abs(bell_frank_wolfe(circshift(tensor_correlation(state_phiplus(), HQVNB17_mes(7), 2; marg=true), (-1, -1)); marg=true)[3] - 23.02) < 1e-1
+    #  @test abs(bell_frank_wolfe(move_marg(tensor_correlation(state_phiplus(), HQVNB17_mes(7), 2; marg=true)); marg=true)[3] - 23.02) < 1e-1
 end
 
 @testset "Testing Bell-Frank-Wolfe with d=2, N=3, and correlation tensors " begin

@@ -1108,3 +1108,15 @@ function shrinking_squared(vecs::Vector{<:AbstractMatrix{T}}; verbose = true) wh
     return eta2
 end
 export shrinking_squared
+
+"""
+    move_marg(FC::AbstractArray, sense::Int = -1)
+
+Change convention for the placement of marginals.
+By default, converts from first to last index.
+If `sense=1`, convert back from last to first index.
+"""
+function move_marg(FC::AbstractArray{T, N}, sense = -1) where {T, N}
+    return circshift(FC, ntuple(i -> sense, Val(N)))
+end
+export move_marg
