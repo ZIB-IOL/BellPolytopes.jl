@@ -236,7 +236,7 @@ function bell_frank_wolfe(
         end
         if primal > dual_gap
             @printf("v_c ≤ %f\n", β)
-        else
+        elseif !isnan(shr2)
             ν = 1 / (1 + norm(vp - as.x, 2))
             @printf("v_c ≥ %f (%f)\n", shr2^(N / 2) * ν * v0, shr2^(N / 2) * v0)
         end
