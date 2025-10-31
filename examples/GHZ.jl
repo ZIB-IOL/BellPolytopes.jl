@@ -1,23 +1,28 @@
 # Tripartite GHZ example with m = 8 measurements on the XY plane
 using BellPolytopes
-using FrankWolfe
-using LinearAlgebra
+using Ket
+using Serialization
 
-N = 3 # tripartite scenario
+# tripartite scenario
+N = 3
+
+# shared state
+rho = state_ghz(2, N)
+
 # Bloch vectors of the measurements to be performed by all parties (regular polygon on the XY plane)
-measurements_vec = polygonXY_vec(8)
-rho = rho_GHZ(N) # shared state
-lower_bound_infinite, lower_bound, upper_bound, local_model, bell_inequality =
-    nonlocality_threshold(measurements_vec, N; rho=rho) # the marginals vanish in this case
+m = 8
+v = collect(hcat([[cos(x * pi / m), sin(x * pi / m), 0] for x in 0:m-1]...)')
+σ = gellmann(2)
+measurements = [[(σ[1] - v[i, 1] * σ[2] - v[i, 2] * σ[3] - v[i, 3] * σ[4]) / 2, (σ[1] + v[i, 1] * σ[2] + v[i, 2] * σ[3] + v[i, 3] * σ[4]) / 2] for i in axes(v, 1)]
+
+# probability tensor
+p = tensor_correlation(rho, measurements, N; marg = false) # the marginals vanish in this cas
+
+# Frank-Wolfe
+lower_bound, upper_bound, local_model, bell_inequality = nonlocality_threshold(p; sym = false)
 
 println("Correlation tensor")
-p = correlation_tensor(measurements_vec, N; rho=rho, marg=false)
 display(p[:, :, 1]) # only printing part of the tensor
-
-println()
-
-println("Lower bound for all projective measurements on the XY plane")
-println(lower_bound_infinite) # 0.46515...
 
 println()
 
