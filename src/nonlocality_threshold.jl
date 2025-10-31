@@ -25,28 +25,29 @@ function nonlocality_threshold(
         deflate = identity,
         inflate = identity,
         verbose = 0,
-        shortcut = 100,
+        shortcut = 10,
         kwargs...,
     ) where {T <: Number, N}
     _, _, _, o, sym, deflate, inflate = _bfw_init(p, 0, prob, marg, o, sym, deflate, inflate, verbose > 0)
     lower_bound = zero(T)
     upper_bound = one(T)
+    active_set = nothing
     local_model = nothing
     bell_inequality = nothing
-    while upper_bound - lower_bound > 10.0^(-precision)
-        res = bell_frank_wolfe(p; v0, epsilon, marg, o, sym, deflate, inflate, verbose, verbose_init = false, shortcut, kwargs...)
-        x, ds, primal, dual_gap, as, M, β = res
-        if dual_gap * shortcut ≥ primal && primal > 10epsilon && dual_gap > 10epsilon
+    while log10(upper_bound - lower_bound) > -precision
+        res = bell_frank_wolfe(p; v0, epsilon, marg, o, sym, deflate, inflate, verbose, verbose_init = false, active_set, shortcut, mode_last = -1, kwargs...)
+        x, ds, primal, dual_gap, active_set, M, β = res
+        if dual_gap ≥ primal && primal > 10epsilon && dual_gap > 10epsilon
             @warn "Please increase nb or max_iteration"
         end
         if dual_gap < primal
             if β < upper_bound
-                upper_bound = round(β; digits = precision)
+                upper_bound = round(β, RoundUp; digits = precision)
                 bell_inequality = M
-                if v0 == round(β; digits = precision)
-                    v0 = round(β - 10.0^(-precision); digits = precision)
+                if v0 == upper_bound
+                    v0 = round(upper_bound - 10.0^(-precision); digits = precision)
                 else
-                    v0 = round(β; digits = precision)
+                    v0 = upper_bound
                 end
             else
                 @warn "Unexpected output"
@@ -54,7 +55,7 @@ function nonlocality_threshold(
             end
         else
             lower_bound = v0
-            local_model = as
+            local_model = active_set
             if upper_bound < lower_bound
                 upper_bound = round(v0 + 2 * 10.0^(-precision); digits = precision)
             end
