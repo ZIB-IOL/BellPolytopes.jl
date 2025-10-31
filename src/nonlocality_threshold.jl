@@ -25,17 +25,18 @@ function nonlocality_threshold(
         deflate = identity,
         inflate = identity,
         verbose = 0,
+        shortcut = 100,
         kwargs...,
     ) where {T <: Number, N}
-    _, _, _, o, sym, deflate, inflate = _bfw_init(p, 0, prob, marg, o, sym, deflate, inflate, verbose)
+    _, _, _, o, sym, deflate, inflate = _bfw_init(p, 0, prob, marg, o, sym, deflate, inflate, verbose > 0)
     lower_bound = zero(T)
     upper_bound = one(T)
     local_model = nothing
     bell_inequality = nothing
     while upper_bound - lower_bound > 10.0^(-precision)
-        res = bell_frank_wolfe(p; v0, epsilon, marg, o, sym, deflate, inflate, kwargs...)
+        res = bell_frank_wolfe(p; v0, epsilon, marg, o, sym, deflate, inflate, verbose, verbose_init = false, shortcut, kwargs...)
         x, ds, primal, dual_gap, as, M, β = res
-        if primal > 10epsilon && dual_gap > 10epsilon
+        if dual_gap * shortcut ≥ primal && primal > 10epsilon && dual_gap > 10epsilon
             @warn "Please increase nb or max_iteration"
         end
         if dual_gap < primal

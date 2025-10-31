@@ -39,6 +39,7 @@ function bell_frank_wolfe(
         v0 = one(T),
         epsilon = 10Base.rtoldefault(T),
         verbose = 0,
+        verbose_init = verbose > 0,
         shr2 = NaN,
         mode::Int = 0,
         nb::Int = 10^2,
@@ -54,6 +55,7 @@ function bell_frank_wolfe(
         reset_dots_A::Bool = false, # warm start (technical)
         reset_dots_b::Bool = true, # warm start (technical)
         lazy::Bool = true, # default in FW package is false
+        shortcut = 0, # early termination criterion (outside only)
         max_iteration::Int = 10^9, # default in FW package is 10^4
         nb_increment_interval::Int = 10^4,
         callback_interval::Int = verbose > 0 ? 10^4 : typemax(Int),
@@ -66,7 +68,7 @@ function bell_frank_wolfe(
         kwargs...,
     ) where {T <: Number, N}
     Random.seed!(seed)
-    LMO, DS, m, o, sym, deflate, inflate = _bfw_init(p, v0, prob, marg, o, sym, deflate, inflate, verbose)
+    LMO, DS, m, o, sym, deflate, inflate = _bfw_init(p, v0, prob, marg, o, sym, deflate, inflate, verbose_init)
     if verbose > 0
         println("Visibility: ", v0)
     end
@@ -111,9 +113,6 @@ function bell_frank_wolfe(
             println("Active set initialised")
         end
     end
-    if verbose > 0
-        println()
-    end
     callback = build_callback(
         rp,
         v0,
@@ -121,6 +120,7 @@ function bell_frank_wolfe(
         shr2 ^ (prob ? (N ÷ 2) / 2 : N / 2),
         verbose,
         epsilon,
+        shortcut,
         nb_increment_interval,
         callback_interval,
         hyperplane_interval,
@@ -149,8 +149,7 @@ function bell_frank_wolfe(
     primal = res.primal
     dual_gap = res.dual_gap
     as = res.active_set
-    if verbose ≥ 2
-        println()
+    if verbose == 2
         @printf("Primal: %.2e\n", primal)
         @printf("FW gap: %.2e\n", dual_gap)
         @printf("#Atoms: %d\n", length(as))
@@ -196,7 +195,6 @@ function bell_frank_wolfe(
     if verbose > 0
         if verbose ≥ 2 && mode_last ≥ 0
             @printf("FW gap: %.2e\n", dual_gap) # recomputed FW gap (usually with a more reliable heuristic)
-            println()
         end
         if primal > dual_gap
             @printf("v_c ≤ %f\n", β)
@@ -204,6 +202,7 @@ function bell_frank_wolfe(
             ν = 1 / (1 + norm(vp - as.x, 2))
             @printf("v_c ≥ %f (%f)\n", shr2^(N / 2) * ν * v0, shr2^(N / 2) * v0)
         end
+        println()
     end
     if save
         serialize(file * ".dat", ActiveSetStorage(as))

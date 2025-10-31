@@ -1151,7 +1151,7 @@ function _bfw_init(p::Array{T, N}, v0, prob, marg, o, sym, deflate, inflate, ver
             sym = false
         end
     end
-    if verbose > 1
+    if verbose
         println("   #Inputs: ", all(diff(m) .== 0) ? m[end] - (marg && !prob) : m .- (marg && !prob))
         println(" Symmetric: ", sym)
         println(" Dimension: ", length(deflate(p)))
