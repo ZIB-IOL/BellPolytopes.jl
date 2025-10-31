@@ -55,7 +55,6 @@ function bell_frank_wolfe(
         reset_dots_b::Bool = true, # warm start (technical)
         lazy::Bool = true, # default in FW package is false
         max_iteration::Int = 10^9, # default in FW package is 10^4
-        renorm_interval::Int = 10^3,
         nb_increment_interval::Int = 10^4,
         callback_interval::Int = verbose > 0 ? 10^4 : typemax(Int),
         hyperplane_interval::Int = verbose > 0 ? 10callback_interval : typemax(Int),
@@ -122,7 +121,6 @@ function bell_frank_wolfe(
         shr2 ^ (prob ? (N ÷ 2) / 2 : N / 2),
         verbose,
         epsilon,
-        renorm_interval,
         nb_increment_interval,
         callback_interval,
         hyperplane_interval,
@@ -142,7 +140,6 @@ function bell_frank_wolfe(
         lazy,
         line_search = FrankWolfe.Shortstep(one(T)),
         max_iteration,
-        renorm_interval = typemax(Int),
         trajectory = false,
         verbose = false,
         kwargs...,

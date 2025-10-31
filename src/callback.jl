@@ -5,7 +5,6 @@ function build_callback(
         shr2,
         verbose,
         epsilon,
-        renorm_interval,
         nb_increment_interval,
         callback_interval,
         hyperplane_interval,
@@ -20,7 +19,6 @@ function build_callback(
     if verbose > 3
         println("Intervals")
         println("    Print: ", callback_interval)
-        println("   Renorm: ", renorm_interval)
         if hyperplane_interval != typemax(Int)
             println("    Upper: ", hyperplane_interval)
         end
@@ -52,10 +50,6 @@ function build_callback(
         )
     end
     function callback(state, active_set, args...)
-        if mod(state.t, renorm_interval) == 0
-            FrankWolfe.active_set_renormalize!(active_set)
-            FrankWolfe.compute_active_set_iterate!(active_set)
-        end
         if mod(state.t, nb_increment_interval) == 0
             state.lmo.lmo.nb += 1
         end
