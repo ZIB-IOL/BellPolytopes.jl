@@ -24,49 +24,17 @@ function nonlocality_threshold(
         sym = nothing,
         deflate = identity,
         inflate = identity,
+        verbose = 0,
         kwargs...,
     ) where {T <: Number, N}
-    if !prob
-        m = collect(size(p))
-        if o === nothing
-            o = zeros(T, size(p))
-            o[end] = marg
-        end
-        reynolds = reynolds_permutedims
-        build_deflate_inflate = build_deflate_inflate_permutedims
-    else
-        m = collect(size(p)[(N ÷ 2 + 1):end])
-        if o === nothing
-            o = ones(T, size(p)) / prod(size(p)[1:(N ÷ 2)])
-        end
-        reynolds = reynolds_permutelastdims
-        build_deflate_inflate = build_deflate_inflate_permutelastdims
-    end
-    # symmetry detection
-    if sym === nothing
-        if all(diff(m) .== 0) && p ≈ reynolds(p) && (v0 == 1 || o ≈ reynolds(o))
-            deflate, inflate = build_deflate_inflate(p)
-            sym = true
-        else
-            sym = false
-        end
-    end
+    _, _, _, o, sym, deflate, inflate = _bfw_init(p, 0, prob, marg, o, sym, deflate, inflate, verbose)
     lower_bound = zero(T)
     upper_bound = one(T)
     local_model = nothing
     bell_inequality = nothing
     while upper_bound - lower_bound > 10.0^(-precision)
-        x, ds, primal, dual_gap, as, M, β = bell_frank_wolfe(
-            p;
-            v0,
-            epsilon,
-            marg,
-            o,
-            sym,
-            deflate,
-            inflate,
-            kwargs...,
-        )
+        res = bell_frank_wolfe(p; v0, epsilon, marg, o, sym, deflate, inflate, kwargs...)
+        x, ds, primal, dual_gap, as, M, β = res
         if primal > 10epsilon && dual_gap > 10epsilon
             @warn "Please increase nb or max_iteration"
         end

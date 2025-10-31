@@ -67,47 +67,14 @@ function bell_frank_wolfe(
         kwargs...,
     ) where {T <: Number, N}
     Random.seed!(seed)
-    if !prob
-        LMO = BellCorrelationsLMO
-        DS = BellCorrelationsDS
-        m = collect(size(p))
-        if o === nothing
-            o = zeros(T, size(p))
-            o[end] = marg
-        end
-        reynolds = reynolds_permutedims
-        build_deflate_inflate = build_deflate_inflate_permutedims
-    else
-        LMO = BellProbabilitiesLMO
-        DS = BellProbabilitiesDS
-        m = collect(size(p)[(N ÷ 2 + 1):end])
-        if o === nothing
-            o = ones(T, size(p)) / prod(size(p)[1:(N ÷ 2)])
-        end
-        reynolds = reynolds_permutelastdims
-        build_deflate_inflate = build_deflate_inflate_permutelastdims
-    end
-    # symmetry detection
-    if sym === nothing
-        if all(diff(m) .== 0) && p ≈ reynolds(p) && (v0 == 1 || o ≈ reynolds(o))
-            deflate, inflate = build_deflate_inflate(p)
-            sym = true
-        else
-            sym = false
-        end
-    end
+    LMO, DS, m, o, sym, deflate, inflate = _bfw_init(p, v0, prob, marg, o, sym, deflate, inflate, verbose)
     if verbose > 0
         println("Visibility: ", v0)
     end
     # choosing the point on the line between o and p according to the visibility v0
-    ro = deflate(o)
-    rp = deflate(p)
+    ro = deflate(copy(o))
+    rp = deflate(copy(p))
     vp = v0 * rp + (one(T) - v0) * ro
-    if verbose > 1
-        println("   #Inputs: ", all(diff(m) .== 0) ? m[end] - (marg && !prob) : m .- (marg && !prob))
-        println(" Symmetric: ", sym)
-        println(" Dimension: ", length(vp))
-    end
     # create the LMO
     if sym
         lmo = FrankWolfe.SubspaceLMO(LMO(p, vp; mode, nb, marg), deflate, inflate)
