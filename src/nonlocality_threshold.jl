@@ -30,8 +30,10 @@ function nonlocality_threshold(
         verbose = 0,
         active_set = nothing,
         shortcut = 2,
+        time_limit = 120, # in seconds
         kwargs...,
     ) where {T <: Number, N}
+    time_start = time_ns()
     expand_permutedims = sym === nothing
     _, _, _, o, sym, deflate, inflate = _bfw_init(p, 0, prob, marg, o, sym, deflate, inflate, verbose > 0)
     expand_permutedims &= sym
@@ -39,7 +41,23 @@ function nonlocality_threshold(
     ass = nothing
     bell_inequality = nothing
     while round(log10(upper_bound - lower_bound); digits = 4) > -digits
-        res = bell_frank_wolfe(p; v0, epsilon, prob, marg, o, sym, deflate, inflate, verbose, verbose_init = false, active_set, shortcut, mode_last = -1, kwargs...)
+        res = bell_frank_wolfe(p;
+            v0,
+            epsilon,
+            prob,
+            marg,
+            o,
+            sym,
+            deflate,
+            inflate,
+            verbose,
+            verbose_init = false,
+            active_set,
+            shortcut,
+            mode_last = -1,
+            timeout = time_limit - (time_ns() - time_start) / 1e9,
+            kwargs...,
+        )
         x, ds, primal, dual_gap, active_set, M, β = res
         if dual_gap < primal
             if β < upper_bound
