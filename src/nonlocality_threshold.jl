@@ -1,5 +1,5 @@
 """
-    nonlocality_threshold(p::Array)
+    nonlocality_threshold(p::Array, lower_bound = 0, upper_bound = 1)
 
 Compute the nonlocality threshold of the probability/correlation tensor `p`.
 
@@ -14,7 +14,9 @@ Optional arguments:
  - for the other optional arguments, see `bell_frank_wolfe`.
 """
 function nonlocality_threshold(
-        p::Array{T, N};
+        p::Array{T, N},
+        lower_bound = zero(T),
+        upper_bound = one(T);
         precision = 4,
         prob::Bool = false,
         marg::Bool = false,
@@ -25,17 +27,15 @@ function nonlocality_threshold(
         deflate = identity,
         inflate = identity,
         verbose = 0,
+        active_set = nothing,
         shortcut = 10,
         kwargs...,
     ) where {T <: Number, N}
     _, _, _, o, sym, deflate, inflate = _bfw_init(p, 0, prob, marg, o, sym, deflate, inflate, verbose > 0)
-    lower_bound = zero(T)
-    upper_bound = one(T)
-    active_set = nothing
     local_model = nothing
     bell_inequality = nothing
     while log10(upper_bound - lower_bound) > -precision
-        res = bell_frank_wolfe(p; v0, epsilon, marg, o, sym, deflate, inflate, verbose, verbose_init = false, active_set, shortcut, mode_last = -1, kwargs...)
+        res = bell_frank_wolfe(p; v0, epsilon, prob, marg, o, sym, deflate, inflate, verbose, verbose_init = false, active_set, shortcut, mode_last = -1, kwargs...)
         x, ds, primal, dual_gap, active_set, M, β = res
         if dual_gap ≥ primal && primal > 10epsilon && dual_gap > 10epsilon
             @warn "Please increase nb or max_iteration"
@@ -55,13 +55,13 @@ function nonlocality_threshold(
             end
         else
             lower_bound = v0
-            local_model = active_set
+            local_model = ActiveSetStorage(active_set) # in-place mess otherwise
             if upper_bound < lower_bound
                 upper_bound = round(v0 + 2 * 10.0^(-precision); digits = precision)
             end
             v0 = (lower_bound + upper_bound) / 2
         end
     end
-    return lower_bound, upper_bound, local_model, bell_inequality
+    return lower_bound, upper_bound, load_active_set(local_model, T; deflate), bell_inequality
 end
 export nonlocality_threshold
