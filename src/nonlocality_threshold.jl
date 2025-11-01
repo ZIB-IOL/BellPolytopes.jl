@@ -58,7 +58,10 @@ function nonlocality_threshold(
             timeout = time_limit - (time_ns() - time_start) / 1e9,
             kwargs...,
         )
-        x, ds, primal, dual_gap, active_set, M, β = res
+        x, ds, primal, dual_gap, active_set, M, β, status = res
+        if status == FrankWolfe.STATUS_TIMEOUT
+            break
+        end
         if dual_gap < primal
             if β < upper_bound
                 upper_bound = round(β, RoundUp; digits = digits)

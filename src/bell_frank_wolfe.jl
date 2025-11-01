@@ -149,6 +149,7 @@ function bell_frank_wolfe(
     ds = res.v
     primal = res.primal
     dual_gap = res.dual_gap
+    status = res.status
     as = res.active_set
     if verbose == 2
         @printf("Primal: %.2e\n", primal)
@@ -210,7 +211,7 @@ function bell_frank_wolfe(
     if sym && inflate_output
         return inflate(x), ds.data, primal, dual_gap, as, inflate(M), β
     else
-        return x, ds, primal, dual_gap, as, M, β
+        return x, ds, primal, dual_gap, as, M, β, status
     end
 end
 export bell_frank_wolfe
