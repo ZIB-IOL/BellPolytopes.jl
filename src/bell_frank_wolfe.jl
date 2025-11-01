@@ -70,6 +70,7 @@ function bell_frank_wolfe(
     Random.seed!(seed)
     LMO, DS, m, o, sym, deflate, inflate = _bfw_init(p, v0, prob, marg, o, sym, deflate, inflate, verbose_init)
     if verbose > 0
+        !verbose_init && println()
         println("Visibility: ", v0)
     end
     # choosing the point on the line between o and p according to the visibility v0
@@ -109,7 +110,7 @@ function bell_frank_wolfe(
         end
         active_set_link_lmo!(active_set, lmo, -vp)
         active_set_reinitialise!(active_set; reset_dots_A, reset_dots_b)
-        if verbose > 1
+        if verbose > 1 && verbose_init
             println("Active set initialised")
         end
     end
@@ -202,7 +203,6 @@ function bell_frank_wolfe(
             ν = 1 / (1 + norm(vp - as.x, 2))
             @printf("v_c ≥ %f (%f)\n", shr2^(N / 2) * ν * v0, shr2^(N / 2) * v0)
         end
-        println()
     end
     if save
         serialize(file * ".dat", ActiveSetStorage(as))
