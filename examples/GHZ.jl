@@ -19,7 +19,7 @@ measurements = [[(σ[1] - v[i, 1] * σ[2] - v[i, 2] * σ[3] - v[i, 3] * σ[4]) /
 p = tensor_correlation(rho, measurements, N; marg = false) # the marginals vanish in this cas
 
 # Frank-Wolfe
-@time lower_bound, upper_bound, local_model, bell_inequality = nonlocality_threshold(p; sym = false)
+lower_bound, upper_bound, local_model, bell_inequality = nonlocality_threshold(p)
 
 println("Correlation tensor")
 display(p[:, :, 1]) # only printing part of the tensor
@@ -29,8 +29,8 @@ println()
 println("Lower bound")
 println(lower_bound) # 0.49315
 println("Local model")
-display(local_model.x[:, :, 1])
-println(local_model.x == sum(local_model.weights[i] * local_model.atoms[i] for i in 1:length(local_model))) # true
+# display(local_model)
+display(sum(weight * atom for (weight, atom) in local_model)[:, :, 1])
 
 println()
 

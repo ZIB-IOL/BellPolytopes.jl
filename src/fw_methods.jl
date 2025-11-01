@@ -627,7 +627,7 @@ end
 function _muladd_memory_mode(as, d::AbstractArray{T}, a, v) where {T <: Number}
     idx_a = _unsafe_find_atom(as, a)
     idx_v = _unsafe_find_atom(as, v)
-    d[1] = typemax(T)
+    @inbounds d[1] = typemax(T)
     if idx_v > idx_a
         @inbounds d[2] = ((as.dots_x[idx_a] + as.dots_b[idx_a]) - (as.dots_x[idx_v] + as.dots_b[idx_v])) / (as.dots_A[idx_a][idx_a] + as.dots_A[idx_v][idx_v] - 2as.dots_A[idx_v][idx_a])
     else

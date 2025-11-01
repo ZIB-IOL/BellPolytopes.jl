@@ -30,8 +30,8 @@ println()
 println("Lower bound")
 println(lower_bound) # 0.7071
 println("Local model")
-display(local_model.x)
-println(local_model.x == sum(local_model.weights[i] * local_model.atoms[i] for i in 1:length(local_model))) # true
+display(local_model)
+# display(sum(weight * atom for (weight, atom) in local_model))
 
 println()
 
