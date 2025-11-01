@@ -20,7 +20,7 @@ mesB = [[(σ[1] - vecB[i, 1] * σ[2] - vecB[i, 2] * σ[3] - vecB[i, 3] * σ[4]) 
 p = tensor_correlation(rho, mesA, mesB; marg = false)
 
 # Frank-Wolfe
-lower_bound, upper_bound, local_model, bell_inequality = nonlocality_threshold(p; sym = false)
+lower_bound, upper_bound, local_model, bell_inequality = nonlocality_threshold(p; sym = false, digits = 4)
 
 println("Correlation matrix")
 display(p)
