@@ -1,63 +1,78 @@
 """
-Compute the nonlocality threshold of the qubit measurements encoded by the Bloch vectors `vec` in a Bell scenario with `N` parties.
+    nonlocality_threshold(p::Array, lower_bound = 0, upper_bound = 1)
 
-Arguments:
- - `vec`: an `m × 3` matrix with Bloch vectors coordinates,
- - `N`: the number of parties.
+Compute the nonlocality threshold of the probability/correlation tensor `p`.
 
 Returns:
- - `lower_bound_infinite`: a lower bound on the nonlocality threshold under all projective measurements (in the subspace spanned by `vec` in the Bloch sphere),
- - `lower_bound`: a lower bound on the nonlocality threshold under the measurements provided in input,
- - `upper_bound`: a (heuristic) upper bound on the nonlocality threshold under the measurements provided in input, also valid for all projective measurements,
- - `local_model`: a decomposition of the correlation tensor obtained by applying the measurements encoded by the Bloch vectors `vec` on all `N` subsystems of the shared state `rho` with visibility `lower_bound`,
+ - `lower_bound`: a (exact up to analyticity step) lower bound on the nonlocality threshold of `p`,
+ - `upper_bound`: a (heuristic) upper bound on the nonlocality threshold of `p`
+ - `local_model`: a decomposition of the tensor `p` with visibility `lower_bound` (up to a distance `2√epsilon`),
  - `bell_inequality`: a (heuristic) Bell inequality corresponding to `upper_bound`.
 
 Optional arguments:
- - `rho`: the shared state, by default the singlet state in the bipartite case and the GHZ state otherwise,
- - `v0`: the initial visibility, which should be an upper bound on the nonlocality threshold, 1.0 by default,
- - `precision`: number of digits of `lower_bound`, 4 by default,
+ - `upper`: whether to start from the upper bound or the lower bound, `false` by default
+ - `digits`: number of digits of `lower_bound`, `4` by default,
  - for the other optional arguments, see `bell_frank_wolfe`.
 """
 function nonlocality_threshold(
-        vec::Union{TB, Vector{TB}},
-        N::Int;
-        rho = N == 2 ? rho_singlet(; type = T) : rho_GHZ(N; type = T),
-        epsilon = 1.0e-8,
+        p::Array{T, N},
+        lower_bound = zero(T),
+        upper_bound = one(T);
+        upper::Bool = false,
+        digits = 3,
+        prob::Bool = false,
         marg::Bool = false,
-        v0 = one(T),
-        precision = 4,
-        verbose = -1,
+        epsilon = Base.rtoldefault(T),
+        o = nothing,
+        sym = nothing,
+        deflate = identity,
+        inflate = identity,
+        verbose = 0,
+        active_set = nothing,
+        shortcut = 2,
+        time_limit = 120, # in seconds
         kwargs...,
-    ) where {TB <: AbstractMatrix{T}} where {T <: Number}
-    p = correlation_tensor(vec, N; rho, marg)
-    shr2 = shrinking_squared(vec; verbose = verbose > 0)
-    lower_bound = zero(T)
-    upper_bound = one(T)
-    local_model = nothing
+    ) where {T <: Number, N}
+    @assert floor(log10(Base.rtoldefault(T))) + digits ≤ 0
+    time_start = time_ns()
+    expand_permutedims = sym === nothing
+    _, _, _, o, sym, deflate, inflate = _bfw_init(p, 0, prob, marg, o, sym, deflate, inflate, verbose > 0)
+    expand_permutedims &= sym
+    v0 = upper ? upper_bound : lower_bound
+    ass = nothing
     bell_inequality = nothing
-    while upper_bound - lower_bound > 10.0^(-precision)
-        res = bell_frank_wolfe(
-            p;
+    while round(log10(upper_bound - lower_bound); digits = 4) > -digits
+        res = bell_frank_wolfe(p;
             v0,
-            verbose = verbose + (upper_bound == one(T)) / 2,
             epsilon,
-            shr2,
+            prob,
             marg,
-            sym = false,
+            o,
+            sym,
+            deflate,
+            inflate,
+            verbose,
+            verbose_init = false,
+            active_set,
+            shortcut,
+            mode_last = -1,
+            timeout = time_limit - (time_ns() - time_start) / 1e9,
             kwargs...,
         )
-        x, ds, primal, dual_gap, as, M, β = res
-        if primal > 10epsilon && dual_gap > 10epsilon
-            @warn "Please increase nb or max_iteration"
+        x, ds, primal, dual_gap, active_set, M, β, status = res
+        if status == FrankWolfe.STATUS_TIMEOUT
+            break
         end
         if dual_gap < primal
             if β < upper_bound
-                upper_bound = round(β; digits = precision)
+                upper_bound = round(β, RoundUp; digits = digits)
                 bell_inequality = M
-                if v0 == round(β; digits = precision)
-                    v0 = round(β - 10.0^(-precision); digits = precision)
+                if v0 == upper_bound
+                    v0 = round(upper_bound - 10.0^(-digits); digits)
+                elseif upper_bound - lower_bound > 10abs(v0 - β)
+                    v0 = round((lower_bound + upper_bound) / 2, RoundDown; digits)
                 else
-                    v0 = round(β; digits = precision)
+                    v0 = upper_bound
                 end
             else
                 @warn "Unexpected output"
@@ -65,20 +80,13 @@ function nonlocality_threshold(
             end
         else
             lower_bound = v0
-            local_model = as
+            ass = ActiveSetStorage(active_set)
             if upper_bound < lower_bound
-                upper_bound = round(v0 + 2 * 10.0^(-precision); digits = precision)
+                upper_bound = round(v0 + 2 * 10.0^(-digits); digits)
             end
-            v0 = (lower_bound + upper_bound) / 2
+            v0 = round((lower_bound + upper_bound) / 2, RoundDown; digits)
         end
     end
-    o = zeros(T, size(p))
-    if marg
-        o[end] = one(T)
-    end
-    ν = 1 / (1 + norm(lower_bound * p + (1 - lower_bound) * o - local_model.x, 2))
-    lower_bound_infinite = shr2^(N / 2) * ν * lower_bound
-    # when mode_last = 0, the upper bound is not valid until the actual local bound (and not only the heuristic one) is computed
-    return lower_bound_infinite, lower_bound, upper_bound, local_model, bell_inequality
+    return lower_bound, upper_bound, local_model(ass; deflate, expand_permutedims), bell_inequality
 end
 export nonlocality_threshold

@@ -5,7 +5,7 @@ function build_callback(
         shr2,
         verbose,
         epsilon,
-        renorm_interval,
+        shortcut,
         nb_increment_interval,
         callback_interval,
         hyperplane_interval,
@@ -14,13 +14,13 @@ function build_callback(
         file,
         save_interval,
     )
+    @assert shortcut ≥ 1
     if isnan(shr2)
         bound_interval = typemax(Int)
     end
     if verbose > 3
         println("Intervals")
         println("    Print: ", callback_interval)
-        println("   Renorm: ", renorm_interval)
         if hyperplane_interval != typemax(Int)
             println("    Upper: ", hyperplane_interval)
         end
@@ -39,38 +39,14 @@ function build_callback(
     verbose_hyperplane = (verbose || save) && hyperplane_interval != typemax(Int)
     verbose_bound = verbose && bound_interval != typemax(Int)
     if verbose
-        @printf(
-            stdout,
-            "%s    %s    %s    %s    %s   %s    %s\n",
-            lpad("Iteration", 12),
-            lpad("Primal", 10),
-            lpad("Dual gap", 10),
-            lpad("Time (sec)", 10),
-            lpad("#It/sec", 10),
-            lpad("#Atoms", 7),
-            lpad("#LMO", 7)
-        )
+        _print_headers()
     end
     function callback(state, active_set, args...)
-        if mod(state.t, renorm_interval) == 0
-            FrankWolfe.active_set_renormalize!(active_set)
-            FrankWolfe.compute_active_set_iterate!(active_set)
-        end
         if mod(state.t, nb_increment_interval) == 0
             state.lmo.lmo.nb += 1
         end
         if verbose && mod(state.t, callback_interval) == 0
-            @printf(
-                stdout,
-                "%s    %.4e    %.4e    %.4e    %.4e   %s    %s\n",
-                lpad(state.t, 12),
-                state.primal,
-                state.dual_gap,
-                state.time,
-                state.t / state.time,
-                lpad(length(active_set), 7),
-                lpad(state.lmo.lmo.cnt, 7)
-            )
+            _print_callback(state.t, state, active_set)
         end
         if verbose_hyperplane && mod(state.t, hyperplane_interval) == 0
             a = -state.gradient # v*p+(1-v)*o-active_set.x
@@ -89,10 +65,47 @@ function build_callback(
         if save && mod(state.t, save_interval) == 0
             serialize(file * "_tmp.dat", ActiveSetStorage(active_set))
         end
-        # if state.dual_gap < state.primal / 2
-            # return false
-        # end
-        return state.primal > epsilon
+        if shortcut > 0 && state.dual_gap < state.primal / shortcut
+            if verbose
+                _print_callback("Shortcut", state, active_set)
+            end
+            return false
+        end
+        if state.primal ≤ epsilon || state.dual_gap ≤ epsilon
+            if verbose
+                _print_callback("Last", state, active_set)
+            end
+            return false
+        end
+        return true
     end
     return callback
+end
+
+function _print_headers()
+    @printf(
+            stdout,
+            "%s    %s    %s    %s    %s   %s    %s\n",
+            lpad("Iteration", 12),
+            lpad("Primal", 10),
+            lpad("Dual gap", 10),
+            lpad("Time (sec)", 10),
+            lpad("#It/sec", 10),
+            lpad("#Atoms", 7),
+            lpad("#LMO", 7)
+           )
+end
+
+function _print_callback(it, state, active_set)
+    @printf(
+            stdout,
+            "%s    %.4e    %.4e    %.4e    %.4e   %s    %s\n",
+            lpad(it, 12),
+            state.primal,
+            state.dual_gap,
+            state.time,
+            state.t / state.time,
+            lpad(length(active_set), 7),
+            lpad(state.lmo.lmo.cnt, 7)
+           )
 end
