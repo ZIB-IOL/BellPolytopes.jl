@@ -19,7 +19,8 @@ Optional arguments:
  - `marg`: a boolean, indicates if `p` contains marginals (by convention in the last index of each dimension),
  - `v0`: the visibility used to make a nonlocal `p` closer to the local polytope,
  - `epsilon`: the tolerance, used as a stopping criterion (when the primal value or the dual gap go below its value), by default 1e-7,
- - `verbose`: an integer, indicates the level of verbosity from 0 to 3,
+ - `shortcut`: if positive, the ratio between primal and dual gap for early termination,
+ - `verbose`: an integer, indicates the level of verbosity from 0 to 4,
  - `shr2`: the potential underlying shrinking factor, used to display the lower bound in the callback,
  - `mode`: an integer, 0 is for the heuristic LMO, 1 for the enumeration LMO,
  - `nb`: an integer, number of random tries in the LMO, if heuristic, by default 10^2,
@@ -209,7 +210,7 @@ function bell_frank_wolfe(
         serialize(file * ".dat", ActiveSetStorage(as))
     end
     if sym && inflate_output
-        return inflate(x), ds.data, primal, dual_gap, as, inflate(M), β
+        return inflate(x), ds.data, primal, dual_gap, as, inflate(M), β, status
     else
         return x, ds, primal, dual_gap, as, M, β, status
     end

@@ -10,8 +10,8 @@ Returns:
  - `bell_inequality`: a (heuristic) Bell inequality corresponding to `upper_bound`.
 
 Optional arguments:
- - ``
- - `digits`: number of digits of `lower_bound`, 4 by default,
+ - `upper`: whether to start from the upper bound or the lower bound, `false` by default
+ - `digits`: number of digits of `lower_bound`, `4` by default,
  - for the other optional arguments, see `bell_frank_wolfe`.
 """
 function nonlocality_threshold(
@@ -33,6 +33,7 @@ function nonlocality_threshold(
         time_limit = 120, # in seconds
         kwargs...,
     ) where {T <: Number, N}
+    @assert floor(log10(Base.rtoldefault(T))) + digits ≤ 0
     time_start = time_ns()
     expand_permutedims = sym === nothing
     _, _, _, o, sym, deflate, inflate = _bfw_init(p, 0, prob, marg, o, sym, deflate, inflate, verbose > 0)
