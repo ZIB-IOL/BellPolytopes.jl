@@ -14,7 +14,7 @@ function build_callback(
         file,
         save_interval,
     )
-    @assert shortcut ≥ 1
+    @assert !(0 < shortcut < 1)
     if isnan(shr2)
         bound_interval = typemax(Int)
     end
