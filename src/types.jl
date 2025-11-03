@@ -578,8 +578,28 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
-    return res
+    return FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
+end
+
+function local_model(
+        ass::ActiveSetStorage{T, N, HasMarginals};
+        marg = HasMarginals,
+        deflate = identity,
+        expand_permutedims = false,
+    ) where {T <: Number, N, HasMarginals}
+    as = load_active_set(ass, T; marg, deflate = expand_permutedims ? identity : deflate)
+    if expand_permutedims
+        weights = repeat(as.weights / factorial(N); inner = factorial(N))
+        atoms = Vector{BellCorrelationsDS{T, N, marg}}(undef, factorial(N) * length(as))
+        i = 0
+        for atom in as.atoms, per in permutations(1:N)
+            i += 1
+            atoms[i] = BellCorrelationsDS(atom.ax[per], atom.lmo)
+        end
+        return collect(zip(weights, atoms))
+    else
+        return collect(zip(as.weights, as.atoms))
+    end
 end
 
 struct ActiveSetStorageMapsto{T, N, D, HasMarginals} <: AbstractActiveSetStorage
@@ -674,6 +694,25 @@ function load_active_set(
     end
     weights = T2.(ass.weights)
     weights /= sum(weights)
-    res = FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
-    return res
+    return FrankWolfe.ActiveSetQuadraticProductCaching([(weights[i], deflate(atoms[i])) for i in eachindex(ass.weights)], I, deflate(p))
+end
+
+function local_model(
+        ass::ActiveSetStorageMulti{T, N};
+        deflate = identity,
+        expand_permutedims = false,
+    ) where {T <: Number, N}
+    as = load_active_set(ass, T; deflate = expand_permutedims ? identity : deflate)
+    if expand_permutedims
+        weights = repeat(as.weights / factorial(N); inner = factorial(N))
+        atoms = Vector{BellProbabilitiesDS{T, N, marg}}(undef, factorial(N) * length(as))
+        i = 0
+        for atom in as.atoms, per in permutations(1:N)
+            i += 1
+            atoms[i] = BellCorrelationsDS(atom.ax[per], atom.lmo)
+        end
+        return collect(zip(weights, atoms))
+    else
+        return collect(zip(as.weights, as.atoms))
+    end
 end

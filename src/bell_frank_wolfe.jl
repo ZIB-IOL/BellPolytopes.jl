@@ -16,10 +16,11 @@ Returns:
 Optional arguments:
  - `o`: same type as `p`, corresponds to the noise to be added, by default the center of the polytope,
  - `prob`: a boolean, indicates if `p` is a corelation or probability array,
- - `marg`: a boolean, indicates if `p` contains marginals,
+ - `marg`: a boolean, indicates if `p` contains marginals (by convention in the last index of each dimension),
  - `v0`: the visibility used to make a nonlocal `p` closer to the local polytope,
  - `epsilon`: the tolerance, used as a stopping criterion (when the primal value or the dual gap go below its value), by default 1e-7,
- - `verbose`: an integer, indicates the level of verbosity from 0 to 3,
+ - `shortcut`: if positive, the ratio between primal and dual gap for early termination,
+ - `verbose`: an integer, indicates the level of verbosity from 0 to 4,
  - `shr2`: the potential underlying shrinking factor, used to display the lower bound in the callback,
  - `mode`: an integer, 0 is for the heuristic LMO, 1 for the enumeration LMO,
  - `nb`: an integer, number of random tries in the LMO, if heuristic, by default 10^2,
@@ -39,6 +40,7 @@ function bell_frank_wolfe(
         v0 = one(T),
         epsilon = 10Base.rtoldefault(T),
         verbose = 0,
+        verbose_init = verbose > 0,
         shr2 = NaN,
         d::Int = 1,
         mode::Int = 0,
@@ -55,8 +57,8 @@ function bell_frank_wolfe(
         reset_dots_A::Bool = false, # warm start (technical)
         reset_dots_b::Bool = true, # warm start (technical)
         lazy::Bool = true, # default in FW package is false
+        shortcut = 0, # early termination criterion (outside only)
         max_iteration::Int = 10^9, # default in FW package is 10^4
-        renorm_interval::Int = 10^3,
         nb_increment_interval::Int = 10^4,
         callback_interval::Int = verbose > 0 ? 10^4 : typemax(Int),
         hyperplane_interval::Int = verbose > 0 ? 10callback_interval : typemax(Int),
@@ -68,47 +70,15 @@ function bell_frank_wolfe(
         kwargs...,
     ) where {T <: Number, N}
     Random.seed!(seed)
-    if !prob
-        LMO = BellCorrelationsLMO
-        DS = BellCorrelationsDS
-        m = collect(size(p))
-        if o === nothing
-            o = zeros(T, size(p))
-            o[end] = marg
-        end
-        reynolds = reynolds_permutedims
-        build_deflate_inflate = build_deflate_inflate_permutedims
-    else
-        LMO = BellProbabilitiesLMO
-        DS = BellProbabilitiesDS
-        m = collect(size(p)[(N ÷ 2 + 1):end])
-        if o === nothing
-            o = ones(T, size(p)) / prod(size(p)[1:(N ÷ 2)])
-        end
-        reynolds = reynolds_permutelastdims
-        build_deflate_inflate = build_deflate_inflate_permutelastdims
-    end
-    # symmetry detection
-    if sym === nothing
-        if all(diff(m) .== 0) && p ≈ reynolds(p) && (v0 == 1 || o ≈ reynolds(o))
-            deflate, inflate = build_deflate_inflate(p)
-            sym = true
-        else
-            sym = false
-        end
-    end
+    LMO, DS, m, o, sym, deflate, inflate = _bfw_init(p, v0, prob, marg, o, sym, deflate, inflate, verbose_init)
     if verbose > 0
+        !verbose_init && println()
         println("Visibility: ", v0)
     end
     # choosing the point on the line between o and p according to the visibility v0
-    ro = deflate(o)
-    rp = deflate(p)
+    ro = deflate(copy(o))
+    rp = deflate(copy(p))
     vp = v0 * rp + (one(T) - v0) * ro
-    if verbose > 1
-        println("   #Inputs: ", all(diff(m) .== 0) ? m[end] - (marg && !prob) : m .- (marg && !prob))
-        println(" Symmetric: ", sym)
-        println(" Dimension: ", length(vp))
-    end
     # create the LMO
     if sym
         lmo = FrankWolfe.SubspaceLMO(LMO(p, vp; mode, nb, marg, d), deflate, inflate)
@@ -142,12 +112,9 @@ function bell_frank_wolfe(
         end
         active_set_link_lmo!(active_set, lmo, -vp)
         active_set_reinitialise!(active_set; reset_dots_A, reset_dots_b)
-        if verbose > 1
+        if verbose > 1 && verbose_init
             println("Active set initialised")
         end
-    end
-    if verbose > 0
-        println()
     end
     callback = build_callback(
         rp,
@@ -156,7 +123,7 @@ function bell_frank_wolfe(
         shr2 ^ (prob ? (N ÷ 2) / 2 : N / 2),
         verbose,
         epsilon,
-        renorm_interval,
+        shortcut,
         nb_increment_interval,
         callback_interval,
         hyperplane_interval,
@@ -176,7 +143,6 @@ function bell_frank_wolfe(
         lazy,
         line_search = FrankWolfe.Shortstep(one(T)),
         max_iteration,
-        renorm_interval = typemax(Int),
         trajectory = false,
         verbose = false,
         kwargs...,
@@ -185,9 +151,9 @@ function bell_frank_wolfe(
     ds = res.v
     primal = res.primal
     dual_gap = res.dual_gap
+    status = res.status
     as = res.active_set
-    if verbose ≥ 2
-        println()
+    if verbose == 2
         @printf("Primal: %.2e\n", primal)
         @printf("FW gap: %.2e\n", dual_gap)
         @printf("#Atoms: %d\n", length(as))
@@ -233,11 +199,10 @@ function bell_frank_wolfe(
     if verbose > 0
         if verbose ≥ 2 && mode_last ≥ 0
             @printf("FW gap: %.2e\n", dual_gap) # recomputed FW gap (usually with a more reliable heuristic)
-            println()
         end
         if primal > dual_gap
             @printf("v_c ≤ %f\n", β)
-        else
+        elseif !isnan(shr2)
             ν = 1 / (1 + norm(vp - as.x, 2))
             @printf("v_c ≥ %f (%f)\n", shr2^(N / 2) * ν * v0, shr2^(N / 2) * v0)
         end
@@ -246,9 +211,9 @@ function bell_frank_wolfe(
         serialize(file * ".dat", ActiveSetStorage(as))
     end
     if sym && inflate_output
-        return inflate(x), ds.data, primal, dual_gap, as, inflate(M), β
+        return inflate(x), ds.data, primal, dual_gap, as, inflate(M), β, status
     else
-        return x, ds, primal, dual_gap, as, M, β
+        return x, ds, primal, dual_gap, as, M, β, status
     end
 end
 export bell_frank_wolfe

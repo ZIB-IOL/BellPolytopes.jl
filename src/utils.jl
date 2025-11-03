@@ -1096,23 +1096,24 @@ function polyhedronisme(f::String, m::Int)
 end
 export polyhedronisme
 
+# http://neilsloane.com/grass/index.html
+function grassc(d::Int, n::Int)
+    v = reshape(parse.(Float64, readlines("../grassc/grassc." * string(d) * ".1." * string(n) * ".txt")), d, n)'
+    return collect(hcat([v[i, :] / norm(v[i, :]) for i in 1:size(v, 1)]...)')
+end
+
 """
 Compute the shrinking factor of a `m × 3` Bloch matrix, symmetrising it to account for antipodal vectors.
 """
 function shrinking_squared(vec::AbstractMatrix{T}; verbose = true) where {T <: Number}
+    d = size(vec, 2)
     pol = polyhedron(vrep([vec; -vec]))
-    eta2 = typemax(T)
-    for hs in halfspaces(hrep(pol))
-        tmp = hs.β^2 / dot(hs.a, hs.a)
-        if tmp < eta2
-            eta2 = tmp
-        end
-    end
+    shr = maximum_radius_with_center(pol, zeros(T, d))
     if verbose
-        @printf(" Bloch dim: %d\n", Polyhedra.dim(pol))
-        @printf("  Inradius: %.8f\n", Float64(sqrt(eta2)))
+        @printf(" Bloch dim: %d\n", dim(pol))
+        @printf("  Inradius: %.8f\n", Float64(shr))
     end
-    return eta2
+    return shr^2
 end
 
 function shrinking_squared(vecs::Vector{<:AbstractMatrix{T}}; verbose = true) where {T <: Number}
@@ -1126,3 +1127,53 @@ function shrinking_squared(vecs::Vector{<:AbstractMatrix{T}}; verbose = true) wh
     return eta2
 end
 export shrinking_squared
+
+"""
+    move_marg(FC::AbstractArray, sense::Int = -1)
+
+Change convention for the placement of marginals.
+By default, converts from first to last index.
+If `sense=1`, convert back from last to first index.
+"""
+function move_marg(FC::AbstractArray{T, N}, sense = -1) where {T, N}
+    return circshift(FC, ntuple(i -> sense, Val(N)))
+end
+export move_marg
+
+function _bfw_init(p::Array{T, N}, v0, prob, marg, o, sym, deflate, inflate, verbose) where {T <: Number, N}
+    if !prob
+        LMO = BellCorrelationsLMO
+        DS = BellCorrelationsDS
+        m = collect(size(p))
+        if o === nothing
+            o = zeros(T, size(p))
+            o[end] = marg
+        end
+        reynolds = reynolds_permutedims
+        build_deflate_inflate = build_deflate_inflate_permutedims
+    else
+        LMO = BellProbabilitiesLMO
+        DS = BellProbabilitiesDS
+        m = collect(size(p)[(N ÷ 2 + 1):end])
+        if o === nothing
+            o = ones(T, size(p)) / prod(size(p)[1:(N ÷ 2)])
+        end
+        reynolds = reynolds_permutelastdims
+        build_deflate_inflate = build_deflate_inflate_permutelastdims
+    end
+    # symmetry detection
+    if sym === nothing
+        if all(diff(m) .== 0) && p ≈ reynolds(p) && (v0 == 1 || o ≈ reynolds(o))
+            deflate, inflate = build_deflate_inflate(p)
+            sym = true
+        else
+            sym = false
+        end
+    end
+    if verbose
+        println("   #Inputs: ", all(diff(m) .== 0) ? m[end] - (marg && !prob) : m .- (marg && !prob))
+        println(" Symmetric: ", sym)
+        println(" Dimension: ", length(deflate(p)))
+    end
+    return LMO, DS, m, o, sym, deflate, inflate
+end
