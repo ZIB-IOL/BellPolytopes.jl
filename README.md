@@ -30,18 +30,18 @@ Let's say we want to characterise the nonlocality threshold obtained with the tw
 Using `BellPolytopes.jl`, here is what the code looks like.
 
 ```julia
-julia> using BellPolytopes, LinearAlgebra
+julia> using BellPolytopes, Ket, LinearAlgebra
 
-julia> N = 2; # bipartite scenario
-
-julia> rho = rho_GHZ(N) # two-qubit maximally entangled state
-4×4 Matrix{Float64}:
+julia> rho = state_phiplus(Float64) # two-qubit maximally entangled state
+4×4 Hermitian{Float64, Matrix{Float64}}:
  0.5  0.0  0.0  0.5
  0.0  0.0  0.0  0.0
  0.0  0.0  0.0  0.0
  0.5  0.0  0.0  0.5
 
-julia> measurements_vec = icosahedron_vec() # Bloch vectors forming an icosahedron
+julia> φ = (1 + √5) / 2;
+
+julia> v = [0 1 φ; 0 1 -φ; 1 φ 0; 1 -φ 0; φ 0 1; φ 0 -1] / sqrt(2 + φ) # Bloch vectors forming an icosahedron
 6×3 Matrix{Float64}:
  0.0        0.525731   0.850651
  0.0        0.525731  -0.850651
@@ -50,13 +50,11 @@ julia> measurements_vec = icosahedron_vec() # Bloch vectors forming an icosahedr
  0.850651   0.0        0.525731
  0.850651   0.0       -0.525731
 
-julia> _, lower_bound, upper_bound, local_model, bell_inequality, _ =
-       nonlocality_threshold(measurements_vec, N; rho = rho);
+julia> σ = gellmann(2);
 
-julia> println([lower_bound, upper_bound])
-[0.7784, 0.7784]
+julia> mes = [[(σ[1] - v[i, 1] * σ[2] - v[i, 2] * σ[3] - v[i, 3] * σ[4]) / 2, (σ[1] + v[i, 1] * σ[2] + v[i, 2] * σ[3] + v[i, 3] * σ[4]) / 2] for i in axes(v, 1)];
 
-julia> p = correlation_tensor(measurements_vec, N; rho = rho)
+julia> p = tensor_correlation(rho, mes, 2; marg = false)
 6×6 Matrix{Float64}:
   0.447214  -1.0       -0.447214   0.447214   0.447214  -0.447214
  -1.0        0.447214  -0.447214   0.447214  -0.447214   0.447214
@@ -65,13 +63,18 @@ julia> p = correlation_tensor(measurements_vec, N; rho = rho)
   0.447214  -0.447214   0.447214   0.447214   1.0        0.447214
  -0.447214   0.447214   0.447214   0.447214   0.447214   1.0
 
-julia> final_iterate = sum(local_model.weights[i] * local_model.atoms[i] for i in 1:length(local_model));
+julia> lower_bound, upper_bound, local_model, bell_inequality = nonlocality_threshold(p);
+
+julia> println([lower_bound, upper_bound])
+[0.778, 0.779]
+
+julia> final_iterate = sum(weight * atom for (weight, atom) in local_model);
 
 julia> norm(final_iterate - lower_bound * p) < 1e-3 # checking local model
 true
 
 julia> local_bound(bell_inequality)[1] / dot(bell_inequality, p) # checking the Bell inequality
-0.7783914488195466
+0.7785490499446976
 ```
 
 ## Under the hood
