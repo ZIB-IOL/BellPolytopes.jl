@@ -1082,19 +1082,14 @@ end
 Compute the shrinking factor of a `m × 3` Bloch matrix, symmetrising it to account for antipodal vectors.
 """
 function shrinking_squared(vec::AbstractMatrix{T}; verbose = true) where {T <: Number}
+    d = size(vec, 2)
     pol = polyhedron(vrep([vec; -vec]))
-    eta2 = typemax(T)
-    for hs in halfspaces(hrep(pol))
-        tmp = hs.β^2 / dot(hs.a, hs.a)
-        if tmp < eta2
-            eta2 = tmp
-        end
-    end
+    shr = maximum_radius_with_center(pol, zeros(T, d))
     if verbose
-        @printf(" Bloch dim: %d\n", Polyhedra.dim(pol))
-        @printf("  Inradius: %.8f\n", Float64(sqrt(eta2)))
+        @printf(" Bloch dim: %d\n", dim(pol))
+        @printf("  Inradius: %.8f\n", Float64(shr))
     end
-    return eta2
+    return shr^2
 end
 
 function shrinking_squared(vecs::Vector{<:AbstractMatrix{T}}; verbose = true) where {T <: Number}
