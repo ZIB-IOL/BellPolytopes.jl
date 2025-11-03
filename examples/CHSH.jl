@@ -1,19 +1,28 @@
 # Bipartite example recovering the CHSH inequality together with a local model
 using BellPolytopes
-using FrankWolfe
-using LinearAlgebra
+using Ket
 
-N = 2 # bipartite scenario
+# bipartite scenario
+N = 2
+
+# shared state
+rho = state_psiminus()
+
+σ = gellmann(2)
 # Bloch vectors of the measurements to be performed on Alice's side
-measurements_vecA = [1 0 0; 0 0 1]
+vecA = [1 0 0; 0 0 1]
+mesA = [[(σ[1] - vecA[i, 1] * σ[2] - vecA[i, 2] * σ[3] - vecA[i, 3] * σ[4]) / 2, (σ[1] + vecA[i, 1] * σ[2] + vecA[i, 2] * σ[3] + vecA[i, 3] * σ[4]) / 2] for i in axes(vecA, 1)]
 # Bloch vectors of the measurements to be performed on Bob's side
-measurements_vecB = [1 0 1; 1 0 -1] / sqrt(2)
-rho = rho_singlet() # shared state
-_, lower_bound, upper_bound, local_model, bell_inequality =
-    nonlocality_threshold([measurements_vecA, measurements_vecB], N; rho=rho)
+vecB = [1 0 1; 1 0 -1] / sqrt(2)
+mesB = [[(σ[1] - vecB[i, 1] * σ[2] - vecB[i, 2] * σ[3] - vecB[i, 3] * σ[4]) / 2, (σ[1] + vecB[i, 1] * σ[2] + vecB[i, 2] * σ[3] + vecB[i, 3] * σ[4]) / 2] for i in axes(vecB, 1)]
+
+# correlation tensor
+p = tensor_correlation(rho, mesA, mesB; marg = false)
+
+# Frank-Wolfe
+lower_bound, upper_bound, local_model, bell_inequality = nonlocality_threshold(p; sym = false)
 
 println("Correlation matrix")
-p = correlation_tensor([measurements_vecA, measurements_vecB], N; rho=rho, marg=false)
 display(p)
 
 println()
@@ -21,8 +30,8 @@ println()
 println("Lower bound")
 println(lower_bound) # 0.7071
 println("Local model")
-display(local_model.x)
-println(local_model.x == sum(local_model.weights[i] * local_model.atoms[i] for i in 1:length(local_model))) # true
+display(local_model)
+# display(sum(weight * atom for (weight, atom) in local_model))
 
 println()
 
@@ -30,3 +39,5 @@ println("Upper bound")
 println(upper_bound) # 0.70710678...
 println("Bell inequality")
 display(bell_inequality)
+
+println()
