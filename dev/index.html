@@ -24,7 +24,7 @@ julia&gt; σ = gellmann(2);
 
 julia&gt; mes = [[(σ[1] - v[i, 1] * σ[2] - v[i, 2] * σ[3] - v[i, 3] * σ[4]) / 2, (σ[1] + v[i, 1] * σ[2] + v[i, 2] * σ[3] + v[i, 3] * σ[4]) / 2] for i in axes(v, 1)];
 
-julia&gt; p = tensor_correlation(rho, mes, 2; marg = false)
+julia&gt; p = tensor_correlation(rho, mes, 2; marg=false)
 6×6 Matrix{Float64}:
   0.447214  -1.0       -0.447214   0.447214   0.447214  -0.447214
  -1.0        0.447214  -0.447214   0.447214  -0.447214   0.447214
@@ -43,32 +43,16 @@ julia&gt; final_iterate = sum(weight * atom for (weight, atom) in local_model);
 julia&gt; norm(final_iterate - lower_bound * p) &lt; 1e-3 # checking local model
 true
 
-julia&gt; local_bound(bell_inequality)[1] / dot(bell_inequality, p) # checking the Bell inequality
-0.7785490499446976</code></pre><h2 id="Under-the-hood"><a class="docs-heading-anchor" href="#Under-the-hood">Under the hood</a><a id="Under-the-hood-1"></a><a class="docs-heading-anchor-permalink" href="#Under-the-hood" title="Permalink"></a></h2><p>The computation is based on an efficient variant of the Frank-Wolfe algorithm to iteratively find the local point closest to the input correlation tensor. See this recent <a href="https://arxiv.org/abs/2211.14103">review</a> for an introduction to the method and the package <a href="https://github.com/ZIB-IOL/FrankWolfe.jl">FrankWolfe.jl</a> for the implementation on which this package relies.</p><p>In a nutshell, each step gets closer to the objective point:</p><ul><li>either by moving towards a <em>good</em> vertex of the local polytope,</li><li>or by astutely combining the vertices (or atoms) already found and stored in the <em>active set</em>.</li></ul><pre><code class="language-julia hljs">julia&gt; res = bell_frank_wolfe(p; v0=0.8, verbose=3, callback_interval=10^2, mode_last=-1);
-
-Visibility: 0.8
- Symmetric: true
+julia&gt; local_bound_correlation(bell_inequality)[1] / dot(bell_inequality, p) # checking the Bell inequality
+0.7785490499446976</code></pre><h2 id="Under-the-hood"><a class="docs-heading-anchor" href="#Under-the-hood">Under the hood</a><a id="Under-the-hood-1"></a><a class="docs-heading-anchor-permalink" href="#Under-the-hood" title="Permalink"></a></h2><p>The computation is based on an efficient variant of the Frank-Wolfe algorithm to iteratively find the local point closest to the input correlation tensor. See this <a href="https://arxiv.org/abs/2211.14103">review</a> for an introduction to the method and the package <a href="https://github.com/ZIB-IOL/FrankWolfe.jl">FrankWolfe.jl</a> for the implementation on which this package relies.</p><p>In a nutshell, each step gets closer to the objective point:</p><ul><li>either by moving towards a <em>good</em> vertex of the local polytope,</li><li>or by astutely combining the vertices (or atoms) already found and stored in the <em>active set</em>.</li></ul><pre><code class="language-julia hljs">julia&gt; res = bell_frank_wolfe(p; v0=0.8, verbose=3, callback_interval=10^2, mode_last=-1);
    #Inputs: 6
+ Symmetric: true
  Dimension: 21
-
-Intervals
-    Print: 100
-   Renorm: 100
-   Reduce: 10000
-    Upper: 1000
-Increment: 1000
-
+Visibility: 0.8
    Iteration        Primal      Dual gap    Time (sec)       #It/sec    #Atoms       #LMO
-         100    8.7570e-03    6.0089e-02    6.9701e-04    1.4347e+05        11         26
-         200    5.9241e-03    5.4948e-02    9.4910e-04    2.1073e+05        16         33
-         300    3.5594e-03    3.4747e-02    1.1942e-03    2.5122e+05        18         40
-         400    1.9068e-03    3.4747e-02    1.3469e-03    2.9697e+05        16         42
-         500    1.8093e-03    5.7632e-06    1.5409e-03    3.2448e+05        14         48
-
-    Primal: 1.81e-03
-  Dual gap: 2.60e-08
-      Time: 1.63e-03
-    It/sec: 3.28e+05
-    #Atoms: 14
-
-v_c ≤ 0.778392</code></pre><h2 id="Going-further"><a class="docs-heading-anchor" href="#Going-further">Going further</a><a id="Going-further-1"></a><a class="docs-heading-anchor-permalink" href="#Going-further" title="Permalink"></a></h2><p>More examples can be found in the corresponding folder of the package. They include the construction of a Bell inequality with a higher tolerance to noise as CHSH as well as multipartite instances.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="api/">API reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.15.0 on <span class="colophon-date" title="Monday 3 November 2025 09:19">Monday 3 November 2025</span>. Using Julia version 1.12.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+         100    7.5008e-03    1.2306e-01    7.0849e-03    1.4114e+04        15         23
+         200    1.8452e-03    4.2474e-02    9.2252e-03    2.1680e+04        14         27
+         300    1.8093e-03    2.2514e-07    1.2580e-02    2.3847e+04        14         36
+        Last    1.8093e-03    7.6190e-08    1.2739e-02    2.3786e+04        14         37
+        Last    1.8093e-03    7.6190e-08    1.3419e-02    2.2580e+04        14         38
+v_c ≤ 0.778392</code></pre><h2 id="Going-further"><a class="docs-heading-anchor" href="#Going-further">Going further</a><a id="Going-further-1"></a><a class="docs-heading-anchor-permalink" href="#Going-further" title="Permalink"></a></h2><p>More examples can be found in the corresponding folder of the package. They include the construction of a Bell inequality with a higher tolerance to noise as CHSH as well as multipartite and high-dimensional instances.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="api/">API reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.15.0 on <span class="colophon-date" title="Monday 3 November 2025 09:28">Monday 3 November 2025</span>. Using Julia version 1.12.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
