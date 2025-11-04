@@ -22,7 +22,6 @@ function nonlocality_threshold(
         digits = 3,
         prob::Bool = false,
         marg::Bool = false,
-        epsilon = Base.rtoldefault(T),
         o = nothing,
         sym = nothing,
         deflate = identity,
@@ -44,7 +43,6 @@ function nonlocality_threshold(
     while round(log10(upper_bound - lower_bound); digits = 4) > -digits
         res = bell_frank_wolfe(p;
             v0,
-            epsilon,
             prob,
             marg,
             o,

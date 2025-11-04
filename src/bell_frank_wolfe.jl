@@ -40,7 +40,7 @@ function bell_frank_wolfe(
         v0 = one(T),
         epsilon = 10Base.rtoldefault(T),
         verbose = 0,
-        verbose_init = verbose > 0,
+        verbose_init = verbose > 0, # when used in nonlocality_threshold
         shr2 = NaN,
         mode::Int = 0,
         nb::Int = 10^2,
