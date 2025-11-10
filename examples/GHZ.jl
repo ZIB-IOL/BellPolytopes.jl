@@ -1,6 +1,7 @@
 # Tripartite GHZ example with m = 8 measurements on the XY plane
 using BellPolytopes
 using Ket
+using LinearAlgebra
 using Serialization
 
 # tripartite scenario
@@ -11,9 +12,9 @@ rho = state_ghz(N)
 
 # Bloch vectors of the measurements to be performed by all parties (regular polygon on the XY plane)
 m = 8
-v = collect(hcat([[cos(x * pi / m), sin(x * pi / m), 0] for x in 0:m-1]...)')
-σ = gellmann(2)
-measurements = [[(σ[1] - v[i, 1] * σ[2] - v[i, 2] * σ[3] - v[i, 3] * σ[4]) / 2, (σ[1] + v[i, 1] * σ[2] + v[i, 2] * σ[3] + v[i, 3] * σ[4]) / 2] for i in axes(v, 1)]
+v = [[cos(x * pi / m), sin(x * pi / m), 0] for x in 0:m-1]
+povm_dichotomic(A) = [A, I - A]
+measurements = povm_dichotomic.(bloch_operator.(v))
 
 # probability tensor
 p = tensor_correlation(rho, measurements, N; marg = false) # the marginals vanish in this cas

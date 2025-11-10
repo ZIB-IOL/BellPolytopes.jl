@@ -50,9 +50,9 @@ julia> v = [0 1 φ; 0 1 -φ; 1 φ 0; 1 -φ 0; φ 0 1; φ 0 -1] / sqrt(2 + φ) # 
  0.850651   0.0        0.525731
  0.850651   0.0       -0.525731
 
-julia> σ = gellmann(2);
+julia> povm_dichotomic(A) = [A, I - A]
 
-julia> mes = [[(σ[1] - v[i, 1] * σ[2] - v[i, 2] * σ[3] - v[i, 3] * σ[4]) / 2, (σ[1] + v[i, 1] * σ[2] + v[i, 2] * σ[3] + v[i, 3] * σ[4]) / 2] for i in axes(v, 1)];
+julia> mes = povm_dichotomic.(bloch_operator.(eachrow(v)));
 
 julia> p = tensor_correlation(rho, mes, 2; marg=false)
 6×6 Matrix{Float64}:
