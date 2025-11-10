@@ -7,7 +7,7 @@ using Serialization
 N = 3
 
 # shared state
-rho = state_ghz(2, N)
+rho = state_ghz(N)
 
 # Bloch vectors of the measurements to be performed by all parties (regular polygon on the XY plane)
 m = 8
