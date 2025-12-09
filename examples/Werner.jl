@@ -1,6 +1,7 @@
 # Bipartite example showing a better resistance to noise than the CHSH inequality
 using BellPolytopes
 using Ket
+using LinearAlgebra
 
 # bipartite scenario
 N = 2
@@ -11,8 +12,8 @@ rho = state_psiminus()
 # Bloch vectors of the measurements to be performed by all parties
 # obtained with https://github.com/sebastiendesignolle/polyhedronisme
 v = polyhedronisme("../polyhedra/polyhedronisme-SASuSAuO.obj", 33)
-σ = gellmann(2)
-measurements = [[(σ[1] - v[i, 1] * σ[2] - v[i, 2] * σ[3] - v[i, 3] * σ[4]) / 2, (σ[1] + v[i, 1] * σ[2] + v[i, 2] * σ[3] + v[i, 3] * σ[4]) / 2] for i in axes(v, 1)]
+povm_dichotomic(A) = [A, I - A]
+measurements = povm_dichotomic.(bloch_operator.(eachrow(v)))
 
 # correlation tensor
 p = tensor_correlation(rho, measurements, N; marg = false)

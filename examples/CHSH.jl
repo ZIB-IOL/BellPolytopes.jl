@@ -1,6 +1,7 @@
 # Bipartite example recovering the CHSH inequality together with a local model
 using BellPolytopes
 using Ket
+using LinearAlgebra
 
 # bipartite scenario
 N = 2
@@ -8,13 +9,13 @@ N = 2
 # shared state
 rho = state_psiminus()
 
-σ = gellmann(2)
+povm_dichotomic(A) = [A, I - A]
 # Bloch vectors of the measurements to be performed on Alice's side
-vecA = [1 0 0; 0 0 1]
-mesA = [[(σ[1] - vecA[i, 1] * σ[2] - vecA[i, 2] * σ[3] - vecA[i, 3] * σ[4]) / 2, (σ[1] + vecA[i, 1] * σ[2] + vecA[i, 2] * σ[3] + vecA[i, 3] * σ[4]) / 2] for i in axes(vecA, 1)]
+vecA = [[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]
+mesA = povm_dichotomic.(bloch_operator.(vecA))
 # Bloch vectors of the measurements to be performed on Bob's side
-vecB = [1 0 1; 1 0 -1] / sqrt(2)
-mesB = [[(σ[1] - vecB[i, 1] * σ[2] - vecB[i, 2] * σ[3] - vecB[i, 3] * σ[4]) / 2, (σ[1] + vecB[i, 1] * σ[2] + vecB[i, 2] * σ[3] + vecB[i, 3] * σ[4]) / 2] for i in axes(vecB, 1)]
+vecB = [[1/√2, 0.0, 1/√2], [1/√2, 0.0, -1/√2]]
+mesB = povm_dichotomic.(bloch_operator.(vecB))
 
 # correlation tensor
 p = tensor_correlation(rho, mesA, mesB; marg = false)
