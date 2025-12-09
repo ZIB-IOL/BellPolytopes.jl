@@ -1,6 +1,6 @@
 name = "BellPolytopes"
 uuid = "38bdb6f4-c11c-4b2a-9c62-3601ea4ec58a"
-version = "0.3.0"
+version = "0.2.0"
 authors = ["ZIB AISST"]
 
 [deps]
@@ -17,7 +17,7 @@ Tullio = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
 [compat]
 Combinatorics = "1"
 FrankWolfe = "0.6"
-Ket = "0.7.0"
+Ket = "0.8"
 LinearAlgebra = "1"
 Polyhedra = "0.8"
 Printf = "1"

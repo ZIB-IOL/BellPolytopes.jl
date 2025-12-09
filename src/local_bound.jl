@@ -1,16 +1,9 @@
 """
-Compute the local bound of a Bell inequality parametrised by `M`.
+    local_bound_correlation(FC; marg = false)
+
+Compute the local bound of a Bell inequality in correlator notation parametrised by `FC`.
 No symmetry detection is implemented yet, used mostly for pedagogy and tests.
 """
-function local_bound(p; prob::Bool = false, kwargs...)
-    if prob
-        return local_bound_probability(p; kwargs...)
-    else
-        return local_bound_correlation(p; kwargs...)
-    end
-end
-export local_bound
-
 function local_bound_correlation(
         M::Array{T, N};
         marg::Bool = false,
@@ -23,6 +16,12 @@ function local_bound_correlation(
 end
 export local_bound_correlation
 
+"""
+    local_bound_correlation(FP; marg = false)
+
+Compute the local bound of a Bell inequality in probability notation parametrised by `FP`.
+No symmetry detection is implemented yet, used mostly for pedagogy and tests.
+"""
 function local_bound_probability(
         M::Array{T, N};
         mode::Int = 0,
