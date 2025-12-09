@@ -30,18 +30,18 @@ Let's say we want to characterise the nonlocality threshold obtained with the tw
 Using `BellPolytopes.jl`, here is what the code looks like.
 
 ```julia
-julia> using BellPolytopes, LinearAlgebra
+julia> using BellPolytopes, Ket, LinearAlgebra
 
-julia> N = 2; # bipartite scenario
-
-julia> rho = rho_GHZ(N) # two-qubit maximally entangled state
-4×4 Matrix{Float64}:
+julia> rho = state_phiplus(Float64) # two-qubit maximally entangled state
+4×4 Hermitian{Float64, Matrix{Float64}}:
  0.5  0.0  0.0  0.5
  0.0  0.0  0.0  0.0
  0.0  0.0  0.0  0.0
  0.5  0.0  0.0  0.5
 
-julia> measurements_vec = icosahedron_vec() # Bloch vectors forming an icosahedron
+julia> φ = (1 + √5) / 2;
+
+julia> v = [0 1 φ; 0 1 -φ; 1 φ 0; 1 -φ 0; φ 0 1; φ 0 -1] / sqrt(2 + φ) # Bloch vectors forming an icosahedron
 6×3 Matrix{Float64}:
  0.0        0.525731   0.850651
  0.0        0.525731  -0.850651
@@ -50,13 +50,11 @@ julia> measurements_vec = icosahedron_vec() # Bloch vectors forming an icosahedr
  0.850651   0.0        0.525731
  0.850651   0.0       -0.525731
 
-julia> _, lower_bound, upper_bound, local_model, bell_inequality, _ =
-       nonlocality_threshold(measurements_vec, N; rho = rho);
+julia> povm_dichotomic(A) = [A, I - A]
 
-julia> println([lower_bound, upper_bound])
-[0.7784, 0.7784]
+julia> mes = povm_dichotomic.(bloch_operator.(eachrow(v)));
 
-julia> p = correlation_tensor(measurements_vec, N; rho = rho)
+julia> p = tensor_correlation(rho, mes, 2; marg=false)
 6×6 Matrix{Float64}:
   0.447214  -1.0       -0.447214   0.447214   0.447214  -0.447214
  -1.0        0.447214  -0.447214   0.447214  -0.447214   0.447214
@@ -65,19 +63,24 @@ julia> p = correlation_tensor(measurements_vec, N; rho = rho)
   0.447214  -0.447214   0.447214   0.447214   1.0        0.447214
  -0.447214   0.447214   0.447214   0.447214   0.447214   1.0
 
-julia> final_iterate = sum(local_model.weights[i] * local_model.atoms[i] for i in 1:length(local_model));
+julia> lower_bound, upper_bound, local_model, bell_inequality = nonlocality_threshold(p);
+
+julia> println([lower_bound, upper_bound])
+[0.778, 0.779]
+
+julia> final_iterate = sum(weight * atom for (weight, atom) in local_model);
 
 julia> norm(final_iterate - lower_bound * p) < 1e-3 # checking local model
 true
 
-julia> local_bound(bell_inequality)[1] / dot(bell_inequality, p) # checking the Bell inequality
-0.7783914488195466
+julia> local_bound_correlation(bell_inequality)[1] / dot(bell_inequality, p) # checking the Bell inequality
+0.7785490499446976
 ```
 
 ## Under the hood
 
 The computation is based on an efficient variant of the Frank-Wolfe algorithm to iteratively find the local point closest to the input correlation tensor.
-See this recent [review](https://arxiv.org/abs/2211.14103) for an introduction to the method and the package [FrankWolfe.jl](https://github.com/ZIB-IOL/FrankWolfe.jl) for the implementation on which this package relies.
+See this [review](https://arxiv.org/abs/2211.14103) for an introduction to the method and the package [FrankWolfe.jl](https://github.com/ZIB-IOL/FrankWolfe.jl) for the implementation on which this package relies.
 
 In a nutshell, each step gets closer to the objective point:
 * either by moving towards a *good* vertex of the local polytope,
@@ -85,36 +88,20 @@ In a nutshell, each step gets closer to the objective point:
 
 ```julia
 julia> res = bell_frank_wolfe(p; v0=0.8, verbose=3, callback_interval=10^2, mode_last=-1);
-
-Visibility: 0.8
- Symmetric: true
    #Inputs: 6
+ Symmetric: true
  Dimension: 21
-
-Intervals
-    Print: 100
-   Renorm: 100
-   Reduce: 10000
-    Upper: 1000
-Increment: 1000
-
+Visibility: 0.8
    Iteration        Primal      Dual gap    Time (sec)       #It/sec    #Atoms       #LMO
-         100    8.7570e-03    6.0089e-02    6.9701e-04    1.4347e+05        11         26
-         200    5.9241e-03    5.4948e-02    9.4910e-04    2.1073e+05        16         33
-         300    3.5594e-03    3.4747e-02    1.1942e-03    2.5122e+05        18         40
-         400    1.9068e-03    3.4747e-02    1.3469e-03    2.9697e+05        16         42
-         500    1.8093e-03    5.7632e-06    1.5409e-03    3.2448e+05        14         48
-
-    Primal: 1.81e-03
-  Dual gap: 2.60e-08
-      Time: 1.63e-03
-    It/sec: 3.28e+05
-    #Atoms: 14
-
+         100    7.5008e-03    1.2306e-01    7.0849e-03    1.4114e+04        15         23
+         200    1.8452e-03    4.2474e-02    9.2252e-03    2.1680e+04        14         27
+         300    1.8093e-03    2.2514e-07    1.2580e-02    2.3847e+04        14         36
+        Last    1.8093e-03    7.6190e-08    1.2739e-02    2.3786e+04        14         37
+        Last    1.8093e-03    7.6190e-08    1.3419e-02    2.2580e+04        14         38
 v_c ≤ 0.778392
 ```
 
 ## Going further
 
 More examples can be found in the corresponding folder of the package.
-They include the construction of a Bell inequality with a higher tolerance to noise as CHSH as well as multipartite instances.
+They include the construction of a Bell inequality with a higher tolerance to noise as CHSH as well as multipartite and high-dimensional instances.
