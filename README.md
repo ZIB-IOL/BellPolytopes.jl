@@ -50,8 +50,6 @@ julia> v = [0 1 φ; 0 1 -φ; 1 φ 0; 1 -φ 0; φ 0 1; φ 0 -1] / sqrt(2 + φ) # 
  0.850651   0.0        0.525731
  0.850651   0.0       -0.525731
 
-julia> povm_dichotomic(A) = [A, I - A]
-
 julia> mes = povm_dichotomic.(bloch_operator.(eachrow(v)));
 
 julia> p = tensor_correlation(rho, mes, 2; marg=false)
