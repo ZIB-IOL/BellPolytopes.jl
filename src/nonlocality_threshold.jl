@@ -63,7 +63,7 @@ function nonlocality_threshold(
         end
         if dual_gap < primal
             if β < upper_bound
-                upper_bound = round(β, RoundUp; digits = digits)
+                upper_bound = max(lower_bound, round(β, RoundUp; digits))
                 bell_inequality = M
                 if v0 == upper_bound
                     v0 = round(upper_bound - 10.0^(-digits); digits)
