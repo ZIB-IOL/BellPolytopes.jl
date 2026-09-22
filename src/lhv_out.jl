@@ -41,6 +41,9 @@ function OutBellCorrelationsLMO(
         marg::Bool = false,
         use_array::Bool = false,
     ) where {T <: Number, N, IT}
+    N == 2 || throw(ArgumentError("outcome-dependent correlations require two parties"))
+    nb > 0 || throw(ArgumentError("nb must be positive"))
+    size(p, 1) > 2marg && size(p, 2) > marg || throw(ArgumentError("input dimensions must be positive"))
     if IT <: FrankWolfe.SubspaceVector
         AT = FrankWolfe.SubspaceVector{false, T, OutBellCorrelationsDS{T, N, marg, use_array}, Vector{T}}
     else
@@ -66,6 +69,7 @@ function OutBellCorrelationsLMO(
         nb = lmo.nb,
         kwargs...
     ) where {T1 <: Number, N, Mode, HasMarginals, AT1, IT1, IT2}
+    nb > 0 || throw(ArgumentError("nb must be positive"))
     if T2 == T1 && mode == Mode && marg == HasMarginals && IT1 == IT2
         lmo.nb = nb
         return lmo
@@ -77,12 +81,12 @@ function OutBellCorrelationsLMO(
     elseif HasMarginals
         m = lmo.m .- 1
         m[1] -= 1
-        tmp = [zeros(T2, m[n]) for n in 1:N]
+        tmp = [zeros(T2, m[2] - marg) for _ in 1:2]
         ci = CartesianIndices(Tuple(m))
     else
         m = lmo.m .+ 1
         m[1] += 1
-        tmp = [zeros(T2, m[n]) for n in 1:N]
+        tmp = [zeros(T2, m[2] - marg) for _ in 1:2]
         ci = CartesianIndices(Tuple(m))
     end
     if IT2 <: FrankWolfe.SubspaceVector
@@ -96,7 +100,7 @@ function OutBellCorrelationsLMO(
         tmp,
         nb,
         lmo.cnt,
-        lmo.ci,
+        ci,
     )
 end
 
@@ -186,26 +190,16 @@ function OutBellCorrelationsDS(
     if T2 == T1 && marg == HasMarginals && use_array == UseArray
         return ds
     end
-    if marg == HasMarginals
-        ax = ds.ax
-        byp = ds.byp
-        bym = ds.bym
-    elseif HasMarginals
-        ax = ds.ax[1:end-2]
-        byp = ds.byp[1:end-1]
-        bym = ds.bym[1:end-1]
-    else
-        ax = vcat(ds.ax, 1)
-        byp = vcat(ds.byp, 1)
-        bym = vcat(ds.bym, 1)
-    end
-    res = BellCorrelationsDS{T2, N, marg, use_array}(
-        T2.(ax),
-        T2.(byp),
-        T2.(bym),
-        OutBellCorrelationsLMO(ds.lmo, zero(T2); T2, marg, use_array),
+    # Marginals only change the tensor interface; the strategies stay physical.
+    return OutBellCorrelationsDS(
+        T2.(ds.ax), T2.(ds.byp), T2.(ds.bym),
+        OutBellCorrelationsLMO(ds.lmo, zero(T2); T2, marg, use_array);
+        use_array,
     )
-    return res
+end
+
+function OutBellCorrelationsDS(vds::Vector{<:OutBellCorrelationsDS}, ::Type{T2}; kwargs...) where {T2 <: Number}
+    return [OutBellCorrelationsDS(ds; T2, kwargs...) for ds in vds]
 end
 
 # function OutBellCorrelationsDS(
@@ -302,7 +296,7 @@ end
 # Base.copy(D::OutLHVDS) = OutLHVDS(copy(D.ax), copy(D.byp), copy(D.bym))
 
 function update_indexes!(ds::OutBellCorrelationsDS{T, 2}) where {T <: Number}
-    ds.indp = findall(ds.ax .== one(eltype(T)))
+    ds.indp = findall(ds.ax .== one(T))
     ds.indm = deleteat!([1:length(ds.ax);], ds.indp)
 end
 
@@ -340,7 +334,7 @@ function get_array(ds::OutBellCorrelationsDS{T, N}) where {T <: Number, N}
 end
 
 function set_array!(ds::OutBellCorrelationsDS{T, N, HasMarginals, true}) where {T <: Number, N, HasMarginals}
-    ds.array = get_array(ds, ds.lmo)
+    ds.array = get_array(ds)
 end
 
 function set_array!(ds::OutBellCorrelationsDS{T, N, HasMarginals, false}) where {T <: Number, N, HasMarginals}
@@ -357,7 +351,7 @@ Here there are marginals, so:
 Base.@propagate_inbounds function Base.getindex(
     ds::OutBellCorrelationsDS{T, 2, true, false}, x, y
 ) where {T <: Number}
-    @boundscheck (checkbounds([ds.ax; [0, 0]], x); checkbounds([ds.byp; 0], y))
+    @boundscheck checkbounds(ds, x, y)
     nx, ny = size(ds)
     # Treat the correlator terms:
     @inbounds if x < nx - 1 && y < ny
@@ -454,15 +448,15 @@ function LinearAlgebra.dot(
     els = Int(0)
 
     # Correlator part (same as HasMarginals=false):
-    intersection = length(findall(in(ds1.indp), ds2.indp))
+    intersection = count(in(ds1.indp), ds2.indp)
     s += intersection * ds1.byp' * ds2.byp
     els += intersection
 
-    intersection = length(findall(in(ds1.indm), ds2.indm))
+    intersection = count(in(ds1.indm), ds2.indm)
     s += intersection * ds1.bym' * ds2.bym
     els += intersection
 
-    intersection = length(findall(in(ds1.indp), ds2.indm))
+    intersection = count(in(ds1.indp), ds2.indm)
     s -= intersection * ds1.byp' * ds2.bym
     els += intersection
 
@@ -478,9 +472,6 @@ function LinearAlgebra.dot(
     return s
 end
 
-LinearAlgebra.dot(A::Array, ds::OutBellCorrelationsDS) = dot(A, ds)
-LinearAlgebra.dot(ds::OutBellCorrelationsDS, A::Array) = dot(ds, A)
-LinearAlgebra.dot(ds1::OutBellCorrelationsDS, ds2::OutBellCorrelationsDS) = dot(ds1, ds2)
 
 # TODO: Worth implementing the symmetrised/usearray versions?
 
@@ -505,17 +496,17 @@ function ActiveSetStorage(
         mx -= 2
         my -= 1
     end
-    @assert mx == length(as.atoms[1].ax)
-    @assert my == length(as.atoms[1].byp) && my == length(as.atoms[1].bym)
+    @assert mx == length(as.atoms[1].data.ax)
+    @assert my == length(as.atoms[1].data.byp) && my == length(as.atoms[1].data.bym)
     ax = BitArray(undef, length(as), mx)
     byp = BitArray(undef, length(as), my)
     bym = BitArray(undef, length(as), my)
     for i in eachindex(as)
-        @view(ax[i, :]) .= as.atoms[i].ax[1:mx] .> zero(T)
-        @view(byp[i, :]) .= as.atoms[i].byp[1:my] .> zero(T)
-        @view(bym[i, :]) .= as.atoms[i].bym[1:my] .> zero(T)
+        @view(ax[i, :]) .= as.atoms[i].data.ax[1:mx] .> zero(T)
+        @view(byp[i, :]) .= as.atoms[i].data.byp[1:my] .> zero(T)
+        @view(bym[i, :]) .= as.atoms[i].data.bym[1:my] .> zero(T)
     end
-    return ActiveSetStorageOutBell{T, 2, HasMarginals}(as.weights, ax, byp, bym, as.atoms[1].lmo.data)
+    return ActiveSetStorageOutBell{T, 2, HasMarginals}(copy(as.weights), ax, byp, bym)
 end
 
 function load_active_set(
@@ -531,12 +522,12 @@ function load_active_set(
     p = zeros(T2, marg ? mx + 2 : mx, marg ? my + 1 : my)
     # why an lmo with p = zeros instead of storing p?
     lmo = OutBellCorrelationsLMO(p, deflate(p); marg, use_array)
-    atoms = OutBellCorrelationsDS{T2, 2, sym, marg, use_array}[]
+    atoms = OutBellCorrelationsDS{T2, 2, marg, use_array}[]
     @inbounds for i in 1:length(ass.weights)
         ax = T2.(2 * ass.ax[i, :] .- 1)
         byp = T2.(2 * ass.byp[i, :] .- 1)
         bym = T2.(2 * ass.bym[i, :] .- 1)
-        atom = OutBellCorrelationsDS(ax, byp, bym, lmo)
+        atom = OutBellCorrelationsDS(ax, byp, bym, lmo; use_array)
         push!(atoms, atom)
     end
     weights = T2.(ass.weights)
@@ -580,32 +571,28 @@ function FrankWolfe.compute_extreme_point(
 
     for i in 1:lmo.nb
         # Randomize starting point
-        rand!(ax, [-one(T), one(T)])
-        rand!(byp, [-one(T), one(T)])
-        rand!(bym, [-one(T), one(T)])
+        rand!(ax, (-one(T), one(T)))
+        rand!(byp, (-one(T), one(T)))
+        rand!(bym, (-one(T), one(T)))
 
         # Optimize ax, byp, bym to minimize the function...
-        sc1 = zero(T)
-        sc2 = one(T)
+        sc1 = typemax(T)
         tmpBp = lmo.tmp[1]
         tmpBm = lmo.tmp[2]
-        @inbounds while sc1 < sc2
+        @inbounds while true
             sc2 = sc1
             for x in 1:nx
                 # Optimize a_x:
-                if ax[x] > zero(T)
-                    s = dot(@view(Q[x, 1:ny]), byp)
-                else
-                    s = dot(@view(Q[x, 1:ny]), bym)
-                end
+                # Compare both outcomes, including Bob's response to each one.
+                s = dot(@view(Q[x, 1:ny]), byp) + dot(@view(Q[x, 1:ny]), bym)
                 if HasMarginals
-                    s += Q[x, ny + 1] # Alice's marginal.
+                    s += 2Q[x, ny + 1]
                 end
                 ax[x] = s > zero(T) ? -one(T) : one(T)
             end
 
             # Update indexes...
-            indp = findall(ax .== one(eltype(T)))
+            indp = findall(ax .== one(T))
             indm = deleteat!([1:length(ax);], indp)
 
             tmpBp .= zero(T)
@@ -635,6 +622,7 @@ function FrankWolfe.compute_extreme_point(
             if HasMarginals
                 sc1 += dot(@view(Q[1:nx, ny + 1]), ax)
             end
+            sc1 < sc2 || break
         end
 
         # Copy the best value into the storage
@@ -682,6 +670,9 @@ function OutBellProbabilitiesLMO(
         nb::Int = 100,
         kwargs...
     ) where {T <: Number, N2, IT}
+    N2 == 4 || throw(ArgumentError("outcome-dependent probabilities require two parties"))
+    nb > 0 || throw(ArgumentError("nb must be positive"))
+    all(>(0), size(p)) || throw(ArgumentError("input and output dimensions must be positive"))
     N = N2 ÷ 2
     if IT <: FrankWolfe.SubspaceVector
         AT = FrankWolfe.SubspaceVector{false, T, OutBellProbabilitiesDS{T, N2}, Vector{T}}
@@ -708,11 +699,12 @@ function OutBellProbabilitiesLMO(
         nb = lmo.nb,
         kwargs...
     ) where {T1 <: Number, N2, Mode, AT1, IT1, IT2}
+    nb > 0 || throw(ArgumentError("nb must be positive"))
     if T2 == T1 && mode == Mode && IT1 == IT2
         lmo.nb = nb
         return lmo
     end
-    if IT1 <: FrankWolfe.SubspaceVector
+    if IT2 <: FrankWolfe.SubspaceVector
         AT2 = FrankWolfe.SubspaceVector{false, T2, OutBellProbabilitiesDS{T2, N2}, Vector{T2}}
     else
         AT2 = OutBellProbabilitiesDS{T2, N2}
@@ -777,7 +769,7 @@ function OutBellProbabilitiesDS(
         ds.ax,
         ds.bya,
         OutBellProbabilitiesLMO(ds.lmo, zero(T2); T2),
-        zeros(T, zeros(Int, N2)...),
+        zeros(T2, zeros(Int, N2)...),
     )
     set_array!(res)
     return res
@@ -791,7 +783,7 @@ function OutBellProbabilitiesDS(
         kwargs...
     ) where {T1 <: Number, N2, T2 <: Number}
     array = zeros(T2, size(vds[1]))
-    lmo = OutBellProbabilitiesLMO(array)
+    lmo = OutBellProbabilitiesLMO(array, array)
     res = OutBellProbabilitiesDS{T2, N2}[]
     for ds in vds
         atom = OutBellProbabilitiesDS{T2, N2}(ds.ax, ds.bya, lmo, array)
@@ -805,7 +797,7 @@ function FrankWolfe._unsafe_equal(ds1::OutBellProbabilitiesDS{T, N2}, ds2::OutBe
     if ds1 === ds2
         return true
     end
-    if ds1.ax == ds2.ax && all([b1 == b2 for (b1, b2) in zip(ds1.bya, ds2.bya)]) # maybe use the array instead
+    if ds1.ax == ds2.ax && ds1.bya == ds2.bya # maybe use the array instead
         return true
     end
     return false
@@ -880,7 +872,7 @@ function ActiveSetStorage(
             @view(bya[a][i, :]) .= as.atoms[i].data.bya[a]
         end
     end
-    return ActiveSetStorageOutBellMulti{T, N}(as.atoms[1].data.lmo.o, as.weights, ax, bya, [as.atoms[1].data.lmo.cnt])
+    return ActiveSetStorageOutBellMulti{T, N}(copy(as.atoms[1].data.lmo.o), copy(as.weights), ax, bya, [as.atoms[1].data.lmo.cnt])
 end
 
 function load_active_set(
@@ -893,6 +885,7 @@ function load_active_set(
     m = [size(ass.ax, 2), size(ass.bya[1], 2)]
     p = zeros(T2, vcat(o, m)...)
     lmo = OutBellProbabilitiesLMO(p, deflate(p))
+    lmo.cnt = ass.data[1]
     atoms = OutBellProbabilitiesDS{T2, 2N}[]
     @inbounds for i in 1:length(ass.weights)
         ax = Vector{Int}(undef, m[1])
@@ -932,9 +925,8 @@ function FrankWolfe.compute_extreme_point(
     scm = typemax(T)
     for i in 1:lmo.nb
         rand!(ax, 1:oA) # random start
-        sc1 = zero(T)
-        sc2 = one(T)
-        @inbounds while sc1 < sc2
+        sc1 = typemax(T)
+        @inbounds while true
             sc2 = sc1
             # given a_x, b_y^a is argmin_b ∑_{x | a_x = a} A[a, b_y^a, x, y]
             for y in 1:mB
@@ -968,6 +960,7 @@ function FrankWolfe.compute_extreme_point(
             for x in 1:mA
                 sc1 += lmo.tmpA[x, ax[x]]
             end
+            sc1 < sc2 || break
         end
         sc = sc1
         if sc < scm
@@ -981,4 +974,11 @@ function FrankWolfe.compute_extreme_point(
     dsm = OutBellProbabilitiesDS(axm, byam, lmo)
     lmo.cnt += 1
     return dsm
+end
+
+function local_model(ass::Union{ActiveSetStorageOutBell{T}, ActiveSetStorageOutBellMulti{T}};
+        deflate = identity, expand_permutedims = false, kwargs...) where {T <: Number}
+    expand_permutedims && throw(ArgumentError("party permutations do not preserve outcome dependence"))
+    as = load_active_set(ass, T; deflate, kwargs...)
+    return collect(zip(as.weights, as.atoms))
 end

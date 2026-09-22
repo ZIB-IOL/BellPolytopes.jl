@@ -9,9 +9,8 @@ function alternating_minimisation!(
         lmo::BellCorrelationsLMO{T, 2, 0, HasMarginals},
         A::Array{T, 2},
     ) where {T <: Number, HasMarginals}
-    sc1 = zero(T)
-    sc2 = one(T)
-    @inbounds while sc1 < sc2
+    sc1 = typemax(T)
+    @inbounds while true
         sc2 = sc1
         # given a_x, min_b ∑_y b_y (∑_x A_xy a_x) so that b_y is the opposite sign of ∑_x A_xy a_x
         mul!(lmo.tmp[2], A', ax[1])
@@ -24,6 +23,7 @@ function alternating_minimisation!(
             ax[1][x2] = lmo.tmp[1][x2] > zero(T) ? -one(T) : one(T)
         end
         sc1 = dot(ax[1], lmo.tmp[1])
+        sc1 < sc2 || break
     end
     return sc1
 end
@@ -33,26 +33,30 @@ function alternating_minimisation!(
         lmo::BellCorrelationsLMO{T, 3, 0, HasMarginals},
         A::Array{T, 3},
     ) where {T <: Number, HasMarginals}
-    sc1 = zero(T)
-    sc2 = one(T)
-    @inbounds while sc1 < sc2
+    sc1 = typemax(T)
+    @inbounds while true
         sc2 = sc1
         # given a_x and b_y, min_c ∑_z c_z (∑_xy A_xyz a_x b_y) so that c_z is the opposite sign of ∑_xy A_xyz a_x b_y
-        @tullio lmo.tmp[3][x3] = A[x1, x2, x3] * ax[1][x1] * ax[2][x2]
+        # bind each vector separately: nested indexing in Tullio assumes uniform sizes.
+        tmp = lmo.tmp[3]
+        @tullio tmp[x3] = A[x1, x2, x3] * $(ax[1])[x1] * $(ax[2])[x2]
         for x3 in 1:(length(ax[3]) - HasMarginals)
             ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
         # given a_x and c_z, min_b ∑_y b_y (∑_xz A_xyz a_x c_z) so that b_y is the opposite sign of ∑_xz A_xyz a_x c_z
-        @tullio lmo.tmp[2][x2] = A[x1, x2, x3] * ax[1][x1] * ax[3][x3]
+        tmp = lmo.tmp[2]
+        @tullio tmp[x2] = A[x1, x2, x3] * $(ax[1])[x1] * $(ax[3])[x3]
         for x2 in 1:(length(ax[2]) - HasMarginals)
             ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
         # given b_y and c_z, min_a ∑_x a_x (∑_yz A_xyz b_y c_z) so that a_x is the opposite sign of ∑_yz A_xyz b_y c_z
-        @tullio lmo.tmp[1][x1] = A[x1, x2, x3] * ax[2][x2] * ax[3][x3]
+        tmp = lmo.tmp[1]
+        @tullio tmp[x1] = A[x1, x2, x3] * $(ax[2])[x2] * $(ax[3])[x3]
         for x1 in 1:(length(ax[1]) - HasMarginals)
             ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
         sc1 = dot(ax[1], lmo.tmp[1])
+        sc1 < sc2 || break
     end
     return sc1
 end
@@ -62,27 +66,31 @@ function alternating_minimisation!(
         lmo::BellCorrelationsLMO{T, 4, 0, HasMarginals},
         A::Array{T, 4},
     ) where {T <: Number, HasMarginals}
-    sc1 = zero(T)
-    sc2 = one(T)
-    @inbounds while sc1 < sc2
+    sc1 = typemax(T)
+    @inbounds while true
         sc2 = sc1
-        @tullio lmo.tmp[4][x4] = A[x1, x2, x3, x4] * ax[1][x1] * ax[2][x2] * ax[3][x3]
+        tmp = lmo.tmp[4]
+        @tullio tmp[x4] = A[x1, x2, x3, x4] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[3])[x3]
         for x4 in 1:(length(ax[4]) - HasMarginals)
             ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[3][x3] = A[x1, x2, x3, x4] * ax[1][x1] * ax[2][x2] * ax[4][x4]
+        tmp = lmo.tmp[3]
+        @tullio tmp[x3] = A[x1, x2, x3, x4] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[4])[x4]
         for x3 in 1:(length(ax[3]) - HasMarginals)
             ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[2][x2] = A[x1, x2, x3, x4] * ax[1][x1] * ax[3][x3] * ax[4][x4]
+        tmp = lmo.tmp[2]
+        @tullio tmp[x2] = A[x1, x2, x3, x4] * $(ax[1])[x1] * $(ax[3])[x3] * $(ax[4])[x4]
         for x2 in 1:(length(ax[2]) - HasMarginals)
             ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[1][x1] = A[x1, x2, x3, x4] * ax[2][x2] * ax[3][x3] * ax[4][x4]
+        tmp = lmo.tmp[1]
+        @tullio tmp[x1] = A[x1, x2, x3, x4] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[4])[x4]
         for x1 in 1:(length(ax[1]) - HasMarginals)
             ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
         sc1 = dot(ax[1], lmo.tmp[1])
+        sc1 < sc2 || break
     end
     return sc1
 end
@@ -92,31 +100,36 @@ function alternating_minimisation!(
         lmo::BellCorrelationsLMO{T, 5, 0, HasMarginals},
         A::Array{T, 5},
     ) where {T <: Number, HasMarginals}
-    sc1 = zero(T)
-    sc2 = one(T)
-    @inbounds while sc1 < sc2
+    sc1 = typemax(T)
+    @inbounds while true
         sc2 = sc1
-        @tullio lmo.tmp[5][x5] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4]
+        tmp = lmo.tmp[5]
+        @tullio tmp[x5] = A[x1, x2, x3, x4, x5] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[4])[x4]
         for x5 in 1:(length(ax[5]) - HasMarginals)
             ax[5][x5] = lmo.tmp[5][x5] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[4][x4] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5]
+        tmp = lmo.tmp[4]
+        @tullio tmp[x4] = A[x1, x2, x3, x4, x5] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[5])[x5]
         for x4 in 1:(length(ax[4]) - HasMarginals)
             ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[3][x3] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5]
+        tmp = lmo.tmp[3]
+        @tullio tmp[x3] = A[x1, x2, x3, x4, x5] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[4])[x4] * $(ax[5])[x5]
         for x3 in 1:(length(ax[3]) - HasMarginals)
             ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[2][x2] = A[x1, x2, x3, x4, x5] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5]
+        tmp = lmo.tmp[2]
+        @tullio tmp[x2] = A[x1, x2, x3, x4, x5] * $(ax[1])[x1] * $(ax[3])[x3] * $(ax[4])[x4] * $(ax[5])[x5]
         for x2 in 1:(length(ax[2]) - HasMarginals)
             ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[1][x1] = A[x1, x2, x3, x4, x5] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
+        tmp = lmo.tmp[1]
+        @tullio tmp[x1] = A[x1, x2, x3, x4, x5] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[4])[x4] * $(ax[5])[x5]
         for x1 in 1:(length(ax[1]) - HasMarginals)
             ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
         sc1 = dot(ax[1], lmo.tmp[1])
+        sc1 < sc2 || break
     end
     return sc1
 end
@@ -126,35 +139,41 @@ function alternating_minimisation!(
         lmo::BellCorrelationsLMO{T, 6, 0, HasMarginals},
         A::Array{T, 6},
     ) where {T <: Number, HasMarginals}
-    sc1 = zero(T)
-    sc2 = one(T)
-    @inbounds while sc1 < sc2
+    sc1 = typemax(T)
+    @inbounds while true
         sc2 = sc1
-        @tullio lmo.tmp[6][x6] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
+        tmp = lmo.tmp[6]
+        @tullio tmp[x6] = A[x1, x2, x3, x4, x5, x6] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[4])[x4] * $(ax[5])[x5]
         for x6 in 1:(length(ax[6]) - HasMarginals)
             ax[6][x6] = lmo.tmp[6][x6] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[5][x5] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[6][x6]
+        tmp = lmo.tmp[5]
+        @tullio tmp[x5] = A[x1, x2, x3, x4, x5, x6] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[4])[x4] * $(ax[6])[x6]
         for x5 in 1:(length(ax[5]) - HasMarginals)
             ax[5][x5] = lmo.tmp[5][x5] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[4][x4] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5] * ax[6][x6]
+        tmp = lmo.tmp[4]
+        @tullio tmp[x4] = A[x1, x2, x3, x4, x5, x6] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[5])[x5] * $(ax[6])[x6]
         for x4 in 1:(length(ax[4]) - HasMarginals)
             ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[3][x3] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+        tmp = lmo.tmp[3]
+        @tullio tmp[x3] = A[x1, x2, x3, x4, x5, x6] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[4])[x4] * $(ax[5])[x5] * $(ax[6])[x6]
         for x3 in 1:(length(ax[3]) - HasMarginals)
             ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[2][x2] = A[x1, x2, x3, x4, x5, x6] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+        tmp = lmo.tmp[2]
+        @tullio tmp[x2] = A[x1, x2, x3, x4, x5, x6] * $(ax[1])[x1] * $(ax[3])[x3] * $(ax[4])[x4] * $(ax[5])[x5] * $(ax[6])[x6]
         for x2 in 1:(length(ax[2]) - HasMarginals)
             ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[1][x1] = A[x1, x2, x3, x4, x5, x6] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+        tmp = lmo.tmp[1]
+        @tullio tmp[x1] = A[x1, x2, x3, x4, x5, x6] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[4])[x4] * $(ax[5])[x5] * $(ax[6])[x6]
         for x1 in 1:(length(ax[1]) - HasMarginals)
             ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
         sc1 = dot(ax[1], lmo.tmp[1])
+        sc1 < sc2 || break
     end
     return sc1
 end
@@ -164,46 +183,53 @@ function alternating_minimisation!(
         lmo::BellCorrelationsLMO{T, 7, 0, HasMarginals},
         A::Array{T, 7},
     ) where {T <: Number, HasMarginals}
-    sc1 = zero(T)
-    sc2 = one(T)
-    @inbounds while sc1 < sc2
+    sc1 = typemax(T)
+    @inbounds while true
         sc2 = sc1
-        @tullio lmo.tmp[7][x7] =
-            A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+        tmp = lmo.tmp[7]
+        @tullio tmp[x7] =
+            A[x1, x2, x3, x4, x5, x6, x7] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[4])[x4] * $(ax[5])[x5] * $(ax[6])[x6]
         for x7 in 1:(length(ax[7]) - HasMarginals)
             ax[7][x7] = lmo.tmp[7][x7] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[6][x6] =
-            A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[7][x7]
+        tmp = lmo.tmp[6]
+        @tullio tmp[x6] =
+            A[x1, x2, x3, x4, x5, x6, x7] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[4])[x4] * $(ax[5])[x5] * $(ax[7])[x7]
         for x6 in 1:(length(ax[6]) - HasMarginals)
             ax[6][x6] = lmo.tmp[6][x6] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[5][x5] =
-            A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[6][x6] * ax[7][x7]
+        tmp = lmo.tmp[5]
+        @tullio tmp[x5] =
+            A[x1, x2, x3, x4, x5, x6, x7] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[4])[x4] * $(ax[6])[x6] * $(ax[7])[x7]
         for x5 in 1:(length(ax[5]) - HasMarginals)
             ax[5][x5] = lmo.tmp[5][x5] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[4][x4] =
-            A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[3][x3] * ax[5][x5] * ax[6][x6] * ax[7][x7]
+        tmp = lmo.tmp[4]
+        @tullio tmp[x4] =
+            A[x1, x2, x3, x4, x5, x6, x7] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[5])[x5] * $(ax[6])[x6] * $(ax[7])[x7]
         for x4 in 1:(length(ax[4]) - HasMarginals)
             ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[3][x3] =
-            A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[2][x2] * ax[4][x4] * ax[5][x5] * ax[6][x6] * ax[7][x7]
+        tmp = lmo.tmp[3]
+        @tullio tmp[x3] =
+            A[x1, x2, x3, x4, x5, x6, x7] * $(ax[1])[x1] * $(ax[2])[x2] * $(ax[4])[x4] * $(ax[5])[x5] * $(ax[6])[x6] * $(ax[7])[x7]
         for x3 in 1:(length(ax[3]) - HasMarginals)
             ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[2][x2] =
-            A[x1, x2, x3, x4, x5, x6, x7] * ax[1][x1] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6] * ax[7][x7]
+        tmp = lmo.tmp[2]
+        @tullio tmp[x2] =
+            A[x1, x2, x3, x4, x5, x6, x7] * $(ax[1])[x1] * $(ax[3])[x3] * $(ax[4])[x4] * $(ax[5])[x5] * $(ax[6])[x6] * $(ax[7])[x7]
         for x2 in 1:(length(ax[2]) - HasMarginals)
             ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[1][x1] =
-            A[x1, x2, x3, x4, x5, x6, x7] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6] * ax[7][x7]
+        tmp = lmo.tmp[1]
+        @tullio tmp[x1] =
+            A[x1, x2, x3, x4, x5, x6, x7] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[4])[x4] * $(ax[5])[x5] * $(ax[6])[x6] * $(ax[7])[x7]
         for x1 in 1:(length(ax[1]) - HasMarginals)
             ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
         sc1 = dot(ax[1], lmo.tmp[1])
+        sc1 < sc2 || break
     end
     return sc1
 end
@@ -213,107 +239,115 @@ function alternating_minimisation!(
         lmo::BellCorrelationsLMO{T, 8, 0, HasMarginals},
         A::Array{T, 8},
     ) where {T <: Number, HasMarginals}
-    sc1 = zero(T)
-    sc2 = one(T)
-    @inbounds while sc1 < sc2
+    sc1 = typemax(T)
+    @inbounds while true
         sc2 = sc1
-        @tullio lmo.tmp[8][x8] =
+        tmp = lmo.tmp[8]
+        @tullio tmp[x8] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
-            ax[1][x1] *
-            ax[2][x2] *
-            ax[3][x3] *
-            ax[4][x4] *
-            ax[5][x5] *
-            ax[6][x6] *
-            ax[7][x7]
+            $(ax[1])[x1] *
+            $(ax[2])[x2] *
+            $(ax[3])[x3] *
+            $(ax[4])[x4] *
+            $(ax[5])[x5] *
+            $(ax[6])[x6] *
+            $(ax[7])[x7]
         for x8 in 1:(length(ax[8]) - HasMarginals)
             ax[8][x8] = lmo.tmp[8][x8] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[7][x7] =
+        tmp = lmo.tmp[7]
+        @tullio tmp[x7] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
-            ax[1][x1] *
-            ax[2][x2] *
-            ax[3][x3] *
-            ax[4][x4] *
-            ax[5][x5] *
-            ax[6][x6] *
-            ax[8][x8]
+            $(ax[1])[x1] *
+            $(ax[2])[x2] *
+            $(ax[3])[x3] *
+            $(ax[4])[x4] *
+            $(ax[5])[x5] *
+            $(ax[6])[x6] *
+            $(ax[8])[x8]
         for x7 in 1:(length(ax[7]) - HasMarginals)
             ax[7][x7] = lmo.tmp[7][x7] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[6][x6] =
+        tmp = lmo.tmp[6]
+        @tullio tmp[x6] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
-            ax[1][x1] *
-            ax[2][x2] *
-            ax[3][x3] *
-            ax[4][x4] *
-            ax[5][x5] *
-            ax[7][x7] *
-            ax[8][x8]
+            $(ax[1])[x1] *
+            $(ax[2])[x2] *
+            $(ax[3])[x3] *
+            $(ax[4])[x4] *
+            $(ax[5])[x5] *
+            $(ax[7])[x7] *
+            $(ax[8])[x8]
         for x6 in 1:(length(ax[6]) - HasMarginals)
             ax[6][x6] = lmo.tmp[6][x6] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[5][x5] =
+        tmp = lmo.tmp[5]
+        @tullio tmp[x5] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
-            ax[1][x1] *
-            ax[2][x2] *
-            ax[3][x3] *
-            ax[4][x4] *
-            ax[6][x6] *
-            ax[7][x7] *
-            ax[8][x8]
+            $(ax[1])[x1] *
+            $(ax[2])[x2] *
+            $(ax[3])[x3] *
+            $(ax[4])[x4] *
+            $(ax[6])[x6] *
+            $(ax[7])[x7] *
+            $(ax[8])[x8]
         for x5 in 1:(length(ax[5]) - HasMarginals)
             ax[5][x5] = lmo.tmp[5][x5] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[4][x4] =
+        tmp = lmo.tmp[4]
+        @tullio tmp[x4] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
-            ax[1][x1] *
-            ax[2][x2] *
-            ax[3][x3] *
-            ax[5][x5] *
-            ax[6][x6] *
-            ax[7][x7] *
-            ax[8][x8]
+            $(ax[1])[x1] *
+            $(ax[2])[x2] *
+            $(ax[3])[x3] *
+            $(ax[5])[x5] *
+            $(ax[6])[x6] *
+            $(ax[7])[x7] *
+            $(ax[8])[x8]
         for x4 in 1:(length(ax[4]) - HasMarginals)
             ax[4][x4] = lmo.tmp[4][x4] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[3][x3] =
+        tmp = lmo.tmp[3]
+        @tullio tmp[x3] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
-            ax[1][x1] *
-            ax[2][x2] *
-            ax[4][x4] *
-            ax[5][x5] *
-            ax[6][x6] *
-            ax[7][x7] *
-            ax[8][x8]
+            $(ax[1])[x1] *
+            $(ax[2])[x2] *
+            $(ax[4])[x4] *
+            $(ax[5])[x5] *
+            $(ax[6])[x6] *
+            $(ax[7])[x7] *
+            $(ax[8])[x8]
         for x3 in 1:(length(ax[3]) - HasMarginals)
             ax[3][x3] = lmo.tmp[3][x3] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[2][x2] =
+        tmp = lmo.tmp[2]
+        @tullio tmp[x2] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
-            ax[1][x1] *
-            ax[3][x3] *
-            ax[4][x4] *
-            ax[5][x5] *
-            ax[6][x6] *
-            ax[7][x7] *
-            ax[8][x8]
+            $(ax[1])[x1] *
+            $(ax[3])[x3] *
+            $(ax[4])[x4] *
+            $(ax[5])[x5] *
+            $(ax[6])[x6] *
+            $(ax[7])[x7] *
+            $(ax[8])[x8]
         for x2 in 1:(length(ax[2]) - HasMarginals)
             ax[2][x2] = lmo.tmp[2][x2] > zero(T) ? -one(T) : one(T)
         end
-        @tullio lmo.tmp[1][x1] =
+        tmp = lmo.tmp[1]
+        @tullio tmp[x1] =
             A[x1, x2, x3, x4, x5, x6, x7, x8] *
-            ax[2][x2] *
-            ax[3][x3] *
-            ax[4][x4] *
-            ax[5][x5] *
-            ax[6][x6] *
-            ax[7][x7] *
-            ax[8][x8]
+            $(ax[2])[x2] *
+            $(ax[3])[x3] *
+            $(ax[4])[x4] *
+            $(ax[5])[x5] *
+            $(ax[6])[x6] *
+            $(ax[7])[x7] *
+            $(ax[8])[x8]
         for x1 in 1:(length(ax[1]) - HasMarginals)
             ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
         end
         sc1 = dot(ax[1], lmo.tmp[1])
+        sc1 < sc2 || break
     end
     return sc1
 end
@@ -333,9 +367,8 @@ function alternating_minimisation!(
         lmo::BellProbabilitiesLMO{T, 4, 0},
         A::Array{T, 4},
     ) where {T <: Number}
-    sc1 = zero(T)
-    sc2 = one(T)
-    @inbounds while sc1 < sc2
+    sc1 = typemax(T)
+    @inbounds while true
         sc2 = sc1
         # given a_x, b_y is argmin_b ∑_x A[a_x, b, x, y]
         for x2 in 1:length(ax[2])
@@ -368,6 +401,7 @@ function alternating_minimisation!(
         for x1 in 1:length(ax[1])
             sc1 += lmo.tmp[1][x1, ax[1][x1]]
         end
+        sc1 < sc2 || break
     end
     return sc1
 end
@@ -377,9 +411,8 @@ function alternating_minimisation!(
         lmo::BellProbabilitiesLMO{T, 6, 0},
         A::Array{T, 6},
     ) where {T <: Number}
-    sc1 = zero(T)
-    sc2 = one(T)
-    @inbounds while sc1 < sc2
+    sc1 = typemax(T)
+    @inbounds while true
         sc2 = sc1
         for x3 in 1:length(ax[3])
             for a3 in 1:lmo.o[3]
@@ -422,6 +455,7 @@ function alternating_minimisation!(
         for x1 in 1:length(ax[1])
             sc1 += lmo.tmp[1][x1, ax[1][x1]]
         end
+        sc1 < sc2 || break
     end
     return sc1
 end
@@ -431,9 +465,8 @@ function alternating_minimisation!(
         lmo::BellProbabilitiesLMO{T, 8, 0},
         A::Array{T, 8},
     ) where {T <: Number}
-    sc1 = zero(T)
-    sc2 = one(T)
-    @inbounds while sc1 < sc2
+    sc1 = typemax(T)
+    @inbounds while true
         sc2 = sc1
         for x4 in 1:length(ax[4])
             for a4 in 1:lmo.o[4]
@@ -488,6 +521,7 @@ function alternating_minimisation!(
         for x1 in 1:length(ax[1])
             sc1 += lmo.tmp[1][x1, ax[1][x1]]
         end
+        sc1 < sc2 || break
     end
     return sc1
 end
@@ -497,9 +531,8 @@ function alternating_minimisation!(
         lmo::BellProbabilitiesLMO{T, 10, 0},
         A::Array{T, 10},
     ) where {T <: Number}
-    sc1 = zero(T)
-    sc2 = one(T)
-    @inbounds while sc1 < sc2
+    sc1 = typemax(T)
+    @inbounds while true
         sc2 = sc1
         for x5 in 1:length(ax[5])
             for a5 in 1:lmo.o[5]
@@ -566,6 +599,7 @@ function alternating_minimisation!(
         for x1 in 1:length(ax[1])
             sc1 += lmo.tmp[1][x1, ax[1][x1]]
         end
+        sc1 < sc2 || break
     end
     return sc1
 end
@@ -588,6 +622,11 @@ end
 function active_set_reinitialise!(as::FrankWolfe.ActiveSetQuadraticProductCaching; reset_dots_A = false, reset_dots_b = true)
     FrankWolfe.active_set_cleanup!(as; update = false)
     FrankWolfe.active_set_renormalize!(as)
+    if reset_dots_A
+        as.dots_x .= 0
+        as.weights_prev .= 0
+        as.modified .= true
+    end
     @inbounds for idx in eachindex(as)
         if reset_dots_A
             for idy in 1:idx
@@ -607,7 +646,7 @@ end
 ############
 
 function reynolds_permutedims(A::Array{T, 2}) where {T <: Number}
-    return (A + A') / 2
+    return (A + transpose(A)) / 2
 end
 
 function reynolds_permutedims(A::Array{T, N}) where {T <: Number, N}
@@ -825,7 +864,7 @@ end
 function build_deflate_inflate_permutedims(p::Array{T, N}) where {T <: Number, N}
     m = size(p, 1)
     @assert all(m .== size(p))
-    orbs = [unique(permutations(c)) for c in with_replacement_combinations(Int8.(1:m), N)]
+    orbs = [unique(permutations(c)) for c in with_replacement_combinations(1:m, N)]
     dimension = length(orbs)
     mul = length.(orbs)
     sqmul = sqrt.(T.(mul))
@@ -864,11 +903,13 @@ function build_deflate_inflate_permutedims(p::Array{T, N}) where {T <: Number, N
 end
 
 function build_deflate_inflate_q(::Type{T}, q::Array{<:Integer, N}) where {T <: Number, N}
+    !isempty(q) && minimum(q) > 0 || throw(ArgumentError("orbit labels must be positive"))
     dim = maximum(q) # deflated dimension
     mul = zeros(Int, dim) # multiplicities, used to have matching scalar products
     for qi in q
         mul[qi] += 1
     end
+    all(>(0), mul) || throw(ArgumentError("orbit labels must be consecutive"))
     sqmul = sqrt.(T.(mul)) # precomputed for speed
     function deflate(A::AbstractArray{S, N}, lmo = nothing) where {S <: AbstractFloat}
         vec = zeros(S, dim)
@@ -888,11 +929,15 @@ function build_deflate_inflate_q(::Type{T}, q::Array{<:Integer, N}) where {T <: 
     end
     function inflate(sa::FrankWolfe.SubspaceVector{false}, lmo = nothing)
         aux = sa.vec ./ sqmul
-        @inbounds sa.data .= aux[q]
+        @inbounds for (i, qi) in pairs(q)
+            sa.data[i] = aux[qi]
+        end
         return sa.data
     end
     function inflate(sa::FrankWolfe.SubspaceVector{true}, lmo = nothing)
-        @inbounds sa.data .= sa.vec[q]
+        @inbounds for (i, qi) in pairs(q)
+            sa.data[i] = sa.vec[qi]
+        end
         return sa.data
     end
     return deflate, inflate
@@ -901,12 +946,19 @@ end
 function q_unique(p::Array{T}; round_first = true) where {T <: Number}
     if round_first
         p = round.(p; digits = 8)
+    else
+        p = copy(p)
     end
     p[abs.(p) .< Base.rtoldefault(T)] .= 0
-    unique_p = unique(p)
+    unique_p = T[]
     q = zeros(Int, size(p))
     for i in eachindex(q)
-        q[i] = findfirst(u -> u ≈ p[i], unique_p)
+        qi = findfirst(u -> u ≈ p[i], unique_p)
+        if qi === nothing
+            push!(unique_p, p[i])
+            qi = length(unique_p)
+        end
+        q[i] = qi
     end
     return q
 end
@@ -1056,6 +1108,7 @@ Compute a rational approximation of a `m × 3` Bloch matrix.
 """
 function pythagorean_approximation(vecfloat::Matrix{T}; epsilon = 1.0e-16) where {T <: Number}
     m = size(vecfloat, 1)
+    vecfloat = copy(vecfloat)
     vecfloat[abs.(vecfloat) .< epsilon] .= zero(T) # remove the elements that are almost zero
     res = zeros(Rational{BigInt}, m, 3)
     for i in 1:m
@@ -1117,16 +1170,16 @@ end
 export move_marg
 
 function _bfw_init(p::Array{T, N}, v0, prob, out, marg, o, sym, deflate, inflate, verbose) where {T <: Number, N}
+    all(>(0), size(p)) || throw(ArgumentError("tensor dimensions must be positive"))
+    !prob || iseven(N) || throw(ArgumentError("probability tensors must have an even number of dimensions"))
+    o === nothing || size(o) == size(p) || throw(DimensionMismatch("p and o must have the same size"))
     if !prob
         LMO = out ? OutBellCorrelationsLMO : BellCorrelationsLMO
         DS = out ? OutBellCorrelationsDS : BellCorrelationsDS
         m = collect(size(p))
         if o === nothing
             o = zeros(T, size(p))
-            o[end] = marg
-            if out
-                o[end-1, end] = marg
-            end
+            o[end] = marg && !out
         end
         reynolds = reynolds_permutedims
         build_deflate_inflate = build_deflate_inflate_permutedims
@@ -1142,12 +1195,15 @@ function _bfw_init(p::Array{T, N}, v0, prob, out, marg, o, sym, deflate, inflate
     end
     # symmetry detection
     if sym === nothing
-        if !out && all(diff(m) .== 0) && p ≈ reynolds(p) && (v0 == 1 || o ≈ reynolds(o))
+        symmetric_scenario = !out && all(diff(m) .== 0) && (!prob || all(==(size(p, 1)), size(p)[1:(N ÷ 2)]))
+        if symmetric_scenario && applicable(build_deflate_inflate, p) && p ≈ reynolds(p) && (v0 == 1 || o ≈ reynolds(o))
             deflate, inflate = build_deflate_inflate(p)
             sym = true
         else
             sym = false
         end
+    elseif sym && deflate === identity && inflate === identity
+        deflate, inflate = build_deflate_inflate(p)
     end
     if verbose
         if out && marg

@@ -1,0 +1,39 @@
+BellPolytopes.jl: lhv+out merge and source fixes
+
+Merged main at f499fd9 (Fix analyticity factor with marginals), including
+its preceding source audit (a2007af) and expanded unit tests (79a4f51).
+Keep target compensation explicit through shrinking_target(p, eta).
+Preserve the specialized branch APIs and tensor representations.
+
+Bring the shared constructor, asymmetric-input, active-set cache, validation,
+reporting, and utility fixes into this branch. Extend the convergence fix to
+branch-specific heuristics: compare completed sweeps and stop when the objective
+no longer decreases, instead of initially comparing it with zero. Use views for
+argmin slices and tuple-valued random signs where applicable.
+
+Branch-specific fixes
+---------------------
+- Resolve the out argument throughout initialization and threshold searches.
+- Keep analyticity correction restricted to standard Bell tensors (out=false).
+  Outcome-dependent marginals use two Bob rows and zero padding, so the standard
+  blockwise formula must not be applied to them. Their bounds remain numerical.
+- Fix the default outcome-dependent correlation noise centre to have zero padding.
+- Correct Alice's alternating update to compare both possible outcomes with
+  their respective Bob responses; the former update used only the current one.
+- Fix outcome-dependent strategy conversions, marginal-layout conversions,
+  temporary-buffer dimensions, Cartesian indices, dense array storage, and
+  probability conversion to a new iterate type.
+- Remove recursive dot-product fallbacks and replace allocated intersection
+  lists with counts; avoid allocation in marginal indexing bounds checks.
+- Repair active-set serialization/loading and local-model reconstruction;
+  copy saved weights/outcome dimensions and handle compressed atom data.
+- Adapt the inherited initialization test to this branch's out argument.
+
+Validation
+----------
+The inherited complete test suite passed: 1,766 checks (15 original checks and
+1,751 audit/analyticity checks), using Julia 1.13.0 with --check-bounds=yes.
+Temporary smoke checks also passed for specialized solvers, type conversions,
+active-set round trips, and threshold/local-model reconstruction. Small exact
+oracle comparisons and dense scalar-product checks were included where relevant.
+No new branch-specific unit-test suite was added; that remains the next step.

@@ -12,9 +12,15 @@ function build_callback(
         bound_interval,
         save,
         file,
-        save_interval,
+        save_interval;
+        marg = false,
+        inflate = identity,
+        target = p,
     )
     @assert !(0 < shortcut < 1)
+    all(>(0), (nb_increment_interval, callback_interval, hyperplane_interval, bound_interval, save_interval)) ||
+        throw(ArgumentError("callback intervals must be positive"))
+    !save || file isa AbstractString || throw(ArgumentError("file must be provided when save=true"))
     if isnan(shr2)
         bound_interval = typemax(Int)
     end
@@ -59,7 +65,7 @@ function build_callback(
             end
         end
         if verbose_bound && mod(state.t, bound_interval) == 0
-            ν = 1 / (1 + norm(v * p + (1 - v) * o - active_set.x, 2))
+            ν = _analyticity_factor(active_set.x, target, v; marg, inflate)
             @printf("v_c ≥ %f (%f)\n", shr2 * ν * v, shr2 * v)
         end
         if save && mod(state.t, save_interval) == 0

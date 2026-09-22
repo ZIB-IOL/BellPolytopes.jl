@@ -12,7 +12,6 @@ rho = state_psiminus()
 # Bloch vectors of the measurements to be performed by all parties
 # obtained with https://github.com/sebastiendesignolle/polyhedronisme
 v = polyhedronisme("../polyhedra/polyhedronisme-SASuSAuO.obj", 33)
-povm_dichotomic(A) = [A, I - A]
 measurements = povm_dichotomic.(bloch_operator.(eachrow(v)))
 
 # correlation tensor

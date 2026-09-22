@@ -9,7 +9,6 @@ N = 2
 # shared state
 rho = state_psiminus()
 
-povm_dichotomic(A) = [A, I - A]
 # Bloch vectors of the measurements to be performed on Alice's side
 vecA = [[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]
 mesA = povm_dichotomic.(bloch_operator.(vecA))
