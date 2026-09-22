@@ -15,6 +15,9 @@ function build_callback(
         save_interval,
     )
     @assert !(0 < shortcut < 1)
+    all(>(0), (nb_increment_interval, callback_interval, hyperplane_interval, bound_interval, save_interval)) ||
+        throw(ArgumentError("callback intervals must be positive"))
+    !save || file isa AbstractString || throw(ArgumentError("file must be provided when save=true"))
     if isnan(shr2)
         bound_interval = typemax(Int)
     end

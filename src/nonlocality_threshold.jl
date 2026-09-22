@@ -9,9 +9,12 @@ Returns:
  - `local_model`: a decomposition of the tensor `p` with visibility `lower_bound` (up to a distance `2√epsilon`),
  - `bell_inequality`: a (heuristic) Bell inequality corresponding to `upper_bound`.
 
+The local model or Bell inequality is `nothing` if the search terminates before
+finding the corresponding certificate.
+
 Optional arguments:
  - `upper`: whether to start from the upper bound or the lower bound, `false` by default
- - `digits`: number of digits of `lower_bound`, `4` by default,
+ - `digits`: number of digits of `lower_bound`, `3` by default,
  - for the other optional arguments, see `bell_frank_wolfe`.
 """
 function nonlocality_threshold(
@@ -32,6 +35,7 @@ function nonlocality_threshold(
         time_limit = 120, # in seconds
         kwargs...,
     ) where {T <: Number, N}
+    lower_bound ≤ upper_bound || throw(ArgumentError("lower_bound must not exceed upper_bound"))
     @assert floor(log10(Base.rtoldefault(T))) + digits ≤ 0
     time_start = time_ns()
     expand_permutedims = sym === nothing
@@ -85,6 +89,7 @@ function nonlocality_threshold(
             v0 = round((lower_bound + upper_bound) / 2, RoundDown; digits)
         end
     end
-    return lower_bound, upper_bound, local_model(ass; deflate, expand_permutedims), bell_inequality
+    model = ass === nothing ? nothing : local_model(ass; deflate, expand_permutedims)
+    return lower_bound, upper_bound, model, bell_inequality
 end
 export nonlocality_threshold
