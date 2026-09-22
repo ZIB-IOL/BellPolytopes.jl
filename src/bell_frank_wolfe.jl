@@ -1,6 +1,10 @@
 """
 Calls the lazy pairwise blended conditional gradient algorithm from Frank-Wolfe package.
 
+The supplied `p` is always the finite target: measurement-shrinking compensation
+is explicit through `shrinking_target`. Returned inequalities and `β` refer to
+that finite target; `shr2` scales only the displayed lower bounds.
+
 Arguments:
  - `p`: a correlation/probability tensor of order `N`.
 
@@ -22,7 +26,7 @@ Optional arguments:
  - `epsilon`: the tolerance, used as a stopping criterion (when the primal value or the dual gap go below its value), by default `10Base.rtoldefault(T)`,
  - `shortcut`: if positive, the ratio between primal and dual gap for early termination,
  - `verbose`: an integer, indicates the level of verbosity from 0 to 4,
- - `shr2`: the potential underlying shrinking factor, used to display the lower bound in the callback,
+ - `shr2`: a squared measurement shrinking factor (or one per party), used to display corrected white-noise correlation bounds; compensate marginal targets explicitly with `shrinking_target`,
  - `mode`: an integer, 0 is for the heuristic LMO, 1 for the enumeration LMO,
  - `nb`: an integer, number of random tries in the LMO, if heuristic, by default 10^2,
  - `TL`: type of the last call of the LMO,
@@ -70,6 +74,11 @@ function bell_frank_wolfe(
     ) where {T <: Number, N}
     Random.seed!(seed)
     LMO, DS, m, o, sym, deflate, inflate = _bfw_init(p, v0, prob, marg, o, sym, deflate, inflate, verbose_init)
+    shrinking = _shrinking_product(shr2, prob ? N ÷ 2 : N)
+    if !isnan(shrinking)
+        !prob && _is_white_noise(o, marg) ||
+            throw(ArgumentError("shr2 lower bounds require correlation tensors and the white-noise centre"))
+    end
     if verbose > 0
         !verbose_init && println()
         println("Visibility: ", v0)
@@ -119,7 +128,7 @@ function bell_frank_wolfe(
         rp,
         v0,
         ro,
-        shr2 ^ (prob ? (N ÷ 2) / 2 : N / 2),
+        shrinking,
         verbose,
         epsilon,
         shortcut,
@@ -129,7 +138,10 @@ function bell_frank_wolfe(
         bound_interval,
         save,
         file,
-        save_interval,
+        save_interval;
+        marg,
+        inflate,
+        target = p,
     )
     # main call to FW
     res = FrankWolfe.blended_pairwise_conditional_gradient(
@@ -202,9 +214,9 @@ function bell_frank_wolfe(
         end
         if primal > dual_gap
             @printf("v_c ≤ %f\n", β)
-        elseif !isnan(shr2)
-            ν = 1 / (1 + norm(vp_last - as.x, 2))
-            @printf("v_c ≥ %f (%f)\n", shr2^(N / 2) * ν * v0, shr2^(N / 2) * v0)
+        elseif !isnan(shrinking)
+            ν = _analyticity_factor(as.x, p, v0; marg, inflate)
+            @printf("v_c ≥ %f (%f)\n", shrinking * ν * v0, shrinking * v0)
         end
     end
     if save
