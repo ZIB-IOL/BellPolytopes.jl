@@ -1,0 +1,38 @@
+BellPolytopes.jl: mapsto merge and source fixes
+
+Merged main at f499fd9 (Fix analyticity factor with marginals), including
+its preceding source audit (a2007af) and expanded unit tests (79a4f51).
+Keep target compensation explicit through shrinking_target(p, eta).
+Preserve the specialized branch APIs and tensor representations.
+
+Bring the shared constructor, asymmetric-input, active-set cache, validation,
+reporting, and utility fixes into this branch. Extend the convergence fix to
+branch-specific heuristics: compare completed sweeps and stop when the objective
+no longer decreases, instead of initially comparing it with zero. Use views for
+argmin slices and tuple-valued random signs where applicable.
+
+Branch-specific fixes
+---------------------
+- Preserve vector-valued strategies and the d keyword in both solvers.
+- Restrict d>1 to bipartite full correlations. The marginal blockwise factor is
+  used only by the scalar Bell path; vector-valued full correlations retain the
+  ordinary norm correction. Embed scalar noise atoms in the first vector
+  component when mixing a returned model with white noise.
+- Fix vector-strategy scalar products (the product of two Frobenius products
+  was incorrect for d>1), scalar/matrix indexing dispatch, and D=1 conversions.
+- Preserve vector dimension and matrix shape in batched conversions, and fix
+  probability-strategy equality's undefined loop variable.
+- Copy vector-valued storage snapshots, restore counters, and reconstruct local
+  models, including symmetry expansion.
+- Handle zero vectors during normalization without generating NaNs; handle
+  zero-radius and one-component rational normalization.
+- Resolve grassc data files relative to the source directory.
+
+Validation
+----------
+The inherited complete test suite passed: 1,766 checks (15 original checks and
+1,751 audit/analyticity checks), using Julia 1.13.0 with --check-bounds=yes.
+Temporary smoke checks also passed for specialized solvers, type conversions,
+active-set round trips, and threshold/local-model reconstruction. Small exact
+oracle comparisons and dense scalar-product checks were included where relevant.
+No new branch-specific unit-test suite was added; that remains the next step.
