@@ -30,6 +30,8 @@ function BellCorrelationsLMO(
         marg::Bool = false,
         kwargs...
     ) where {T <: Number, N, IT}
+    nb > 0 || throw(ArgumentError("nb must be positive"))
+    all(>(0), size(p)) || throw(ArgumentError("input dimensions must be positive"))
     if IT <: FrankWolfe.SubspaceVector
         AT = FrankWolfe.SubspaceVector{false, T, BellCorrelationsDS{T, N, marg}, Vector{T}}
     else
@@ -54,6 +56,7 @@ function BellCorrelationsLMO(
         nb = lmo.nb,
         kwargs...
     ) where {T1 <: Number, N, Mode, HasMarginals, AT1, IT1, IT2}
+    nb > 0 || throw(ArgumentError("nb must be positive"))
     if T2 == T1 && mode == Mode && marg == HasMarginals && IT1 == IT2
         lmo.nb = nb
         return lmo
@@ -82,7 +85,7 @@ function BellCorrelationsLMO(
         tmp,
         nb,
         lmo.cnt,
-        lmo.ci,
+        ci,
     )
 end
 
@@ -113,13 +116,16 @@ function BellProbabilitiesLMO(
         nb::Int = 100,
         kwargs...
     ) where {T <: Number, N2, IT}
+    iseven(N2) || throw(ArgumentError("probability tensors must have an even number of dimensions"))
+    nb > 0 || throw(ArgumentError("nb must be positive"))
+    all(>(0), size(p)) || throw(ArgumentError("input and output dimensions must be positive"))
     N = N2 ÷ 2
     if IT <: FrankWolfe.SubspaceVector
         AT = FrankWolfe.SubspaceVector{false, T, BellProbabilitiesDS{T, N2}, Vector{T}}
     else
         AT = BellProbabilitiesDS{T, N2}
     end
-    if mode ≥ 2 # sequential scenario AB₁B₂
+    if mode ≥ 2 && N2 > 4 # sequential scenario AB₁B₂
         if N2 == 6
             tmp = [zeros(T, size(p, 4), size(p, 1)), zeros(T, size(p, 5), size(p, 2)), zeros(T, size(p, 5) * size(p, 6), size(p, 3))]
         elseif N2 == 8
@@ -149,11 +155,12 @@ function BellProbabilitiesLMO(
         nb = lmo.nb,
         kwargs...
     ) where {T1 <: Number, N2, Mode, AT1, IT1, IT2}
+    nb > 0 || throw(ArgumentError("nb must be positive"))
     if T2 == T1 && mode == Mode && IT1 == IT2
         lmo.nb = nb
         return lmo
     end
-    if IT1 <: FrankWolfe.SubspaceVector
+    if IT2 <: FrankWolfe.SubspaceVector
         AT2 = FrankWolfe.SubspaceVector{false, T2, BellProbabilitiesDS{T2, N2}, Vector{T2}}
     else
         AT2 = BellProbabilitiesDS{T2, N2}
@@ -210,7 +217,7 @@ function BellCorrelationsDS(
     elseif HasMarginals
         ax = [axn[1:(end - 1)] for axn in ds.ax]
     else
-        ax = [vcat(axn, one(T1)) for axn in ax]
+        ax = [vcat(axn, one(T1)) for axn in ds.ax]
     end
     res = BellCorrelationsDS{T2, N, marg}(
         broadcast.(T2, ax),
@@ -227,7 +234,9 @@ function BellCorrelationsDS(
         marg = HasMarginals,
         kwargs...
     ) where {T1 <: Number, N, HasMarginals, T2 <: Number}
-    lmo = BellCorrelationsLMO(zeros(T2, size(vds[1])); marg)
+    m = collect(size(vds[1])) .+ Int(marg) .- Int(HasMarginals)
+    p = zeros(T2, m...)
+    lmo = BellCorrelationsLMO(p, p; marg)
     res = BellCorrelationsDS{T2, N, marg}[]
     for ds in vds
         if marg == HasMarginals
@@ -235,7 +244,7 @@ function BellCorrelationsDS(
         elseif HasMarginals
             ax = [axn[1:(end - 1)] for axn in ds.ax]
         else
-            ax = [vcat(axn, one(T)) for axn in ax]
+            ax = [vcat(axn, one(T1)) for axn in ds.ax]
         end
         atom = BellCorrelationsDS{T2, N, marg}(
             broadcast.(T2, ax),
@@ -300,7 +309,7 @@ Base.@propagate_inbounds function Base.getindex(
 end
 
 # required for reinitialise! for now
-function set_array!(ds::BellCorrelationsDS{T, N}, lmo::BellCorrelationsLMO{T, N}) where {T <: Number, N}
+function set_array!(ds::BellCorrelationsDS{T, N}, lmo::BellCorrelationsLMO{T, N} = ds.lmo) where {T <: Number, N}
 end
 
 LinearAlgebra.dot(A::Array, ds::BellCorrelationsDS) = conj(dot(ds, A))
@@ -318,7 +327,7 @@ function LinearAlgebra.dot(
         A::Array{T, 3},
     ) where {T <: Number, HasMarginals}
     res = zero(T)
-    @tullio res = A[x1, x2, x3] * ds.ax[1][x1] * ds.ax[2][x2] * ds.ax[3][x3]
+    @tullio res = A[x1, x2, x3] * $(ds.ax[1])[x1] * $(ds.ax[2])[x2] * $(ds.ax[3])[x3]
     return res - HasMarginals * A[end]
 end
 
@@ -327,7 +336,7 @@ function LinearAlgebra.dot(
         A::Array{T, 4},
     ) where {T <: Number, HasMarginals}
     res = zero(T)
-    @tullio res = A[x1, x2, x3, x4] * ds.ax[1][x1] * ds.ax[2][x2] * ds.ax[3][x3] * ds.ax[4][x4]
+    @tullio res = A[x1, x2, x3, x4] * $(ds.ax[1])[x1] * $(ds.ax[2])[x2] * $(ds.ax[3])[x3] * $(ds.ax[4])[x4]
     return res - HasMarginals * A[end]
 end
 
@@ -336,7 +345,7 @@ function LinearAlgebra.dot(
         A::Array{T, 5},
     ) where {T <: Number, HasMarginals}
     res = zero(T)
-    @tullio res = A[x1, x2, x3, x4, x5] * ds.ax[1][x1] * ds.ax[2][x2] * ds.ax[3][x3] * ds.ax[4][x4] * ds.ax[5][x5]
+    @tullio res = A[x1, x2, x3, x4, x5] * $(ds.ax[1])[x1] * $(ds.ax[2])[x2] * $(ds.ax[3])[x3] * $(ds.ax[4])[x4] * $(ds.ax[5])[x5]
     return res - HasMarginals * A[end]
 end
 
@@ -346,7 +355,7 @@ function LinearAlgebra.dot(
     ) where {T <: Number, HasMarginals}
     res = zero(T)
     @tullio res =
-        A[x1, x2, x3, x4, x5, x6] * ds.ax[1][x1] * ds.ax[2][x2] * ds.ax[3][x3] * ds.ax[4][x4] * ds.ax[5][x5] * ds.ax[6][x6]
+        A[x1, x2, x3, x4, x5, x6] * $(ds.ax[1])[x1] * $(ds.ax[2])[x2] * $(ds.ax[3])[x3] * $(ds.ax[4])[x4] * $(ds.ax[5])[x5] * $(ds.ax[6])[x6]
     return res - HasMarginals * A[end]
 end
 
@@ -357,13 +366,13 @@ function LinearAlgebra.dot(
     res = zero(T)
     @tullio res =
         A[x1, x2, x3, x4, x5, x6, x7] *
-        ds.ax[1][x1] *
-        ds.ax[2][x2] *
-        ds.ax[3][x3] *
-        ds.ax[4][x4] *
-        ds.ax[5][x5] *
-        ds.ax[6][x6] *
-        ds.ax[7][x7]
+        $(ds.ax[1])[x1] *
+        $(ds.ax[2])[x2] *
+        $(ds.ax[3])[x3] *
+        $(ds.ax[4])[x4] *
+        $(ds.ax[5])[x5] *
+        $(ds.ax[6])[x6] *
+        $(ds.ax[7])[x7]
     return res - HasMarginals * A[end]
 end
 
@@ -374,14 +383,14 @@ function LinearAlgebra.dot(
     res = zero(T)
     @tullio res =
         A[x1, x2, x3, x4, x5, x6, x7, x8] *
-        ds.ax[1][x1] *
-        ds.ax[2][x2] *
-        ds.ax[3][x3] *
-        ds.ax[4][x4] *
-        ds.ax[5][x5] *
-        ds.ax[6][x6] *
-        ds.ax[7][x7] *
-        ds.ax[8][x8]
+        $(ds.ax[1])[x1] *
+        $(ds.ax[2])[x2] *
+        $(ds.ax[3])[x3] *
+        $(ds.ax[4])[x4] *
+        $(ds.ax[5])[x5] *
+        $(ds.ax[6])[x6] *
+        $(ds.ax[7])[x7] *
+        $(ds.ax[8])[x8]
     return res - HasMarginals * A[end]
 end
 
@@ -473,7 +482,7 @@ function BellProbabilitiesDS(
         kwargs...
     ) where {T1 <: Number, N2, T2 <: Number}
     array = zeros(T2, size(vds[1]))
-    lmo = BellProbabilitiesLMO(array)
+    lmo = BellProbabilitiesLMO(vds[1].lmo, array; T2)
     res = BellProbabilitiesDS{T2, N2}[]
     for ds in vds
         atom = BellProbabilitiesDS{T2, N2}(ds.ax, lmo, array)
@@ -544,7 +553,7 @@ end
 function get_array(ds::BellProbabilitiesDS{T, N2}) where {T <: Number, N2}
     res = zeros(T, size(ds))
     @inbounds for x in CartesianIndices(Tuple(length.(ds.ax)))
-        res[CartesianIndex(Tuple([ds.ax[n][x.I[n]] for n in 1:length(ds.ax)])), x] = one(T)
+        res[CartesianIndex(ntuple(n -> ds.ax[n][x[n]], N2 ÷ 2)), x] = one(T)
     end
     return res
 end
@@ -596,7 +605,7 @@ function ActiveSetStorage(
             @view(ax[n][i, :]) .= as.atoms[i].data.ax[n][1:m[n]] .> zero(T)
         end
     end
-    return ActiveSetStorage{T, N, HasMarginals}(as.weights, ax, [as.atoms[1].data.lmo.cnt])
+    return ActiveSetStorage{T, N, HasMarginals}(copy(as.weights), ax, [as.atoms[1].data.lmo.cnt])
 end
 
 function load_active_set(
@@ -609,6 +618,7 @@ function load_active_set(
     m = size.(ass.ax, (2,))
     p = zeros(T2, (marg ? m .+ 1 : m)...)
     lmo = BellCorrelationsLMO(p, deflate(p); marg)
+    lmo.cnt = ass.data[1]
     atoms = BellCorrelationsDS{T2, N, marg}[]
     @inbounds for i in eachindex(ass.weights)
         ax = [ones(T2, marg ? m[n] + 1 : m[n]) for n in 1:N]
@@ -661,15 +671,14 @@ function ActiveSetStorage(
         },
     } where {T <: Number, N2}
     N = N2 ÷ 2
-    omax = maximum(as.atoms[1].data.lmo.o)
-    m = as.atoms[1].data.lmo.m
+    m = length.(as.atoms[1].data.ax)
     ax = [Matrix{Int8}(undef, length(as), m[n]) for n in 1:N]
     for i in eachindex(as)
         for n in 1:N
             @view(ax[n][i, :]) .= as.atoms[i].data.ax[n]
         end
     end
-    return ActiveSetStorageMulti{T, N}(as.atoms[1].data.lmo.o, as.weights, ax, [as.atoms[1].data.lmo.cnt])
+    return ActiveSetStorageMulti{T, N}(copy(as.atoms[1].data.lmo.o), copy(as.weights), ax, (mode(as.atoms[1].data.lmo) < 2 ? [as.atoms[1].data.lmo.cnt] : [as.atoms[1].data.lmo.cnt, mode(as.atoms[1].data.lmo), copy(as.atoms[1].data.lmo.m)]))
 end
 
 function load_active_set(
@@ -680,8 +689,11 @@ function load_active_set(
     ) where {T1 <: Number, N, T2 <: Number}
     o = ass.o
     m = [size(ass.ax[n], 2) for n in 1:N]
-    p = zeros(T2, vcat(o, m)...)
-    lmo = BellProbabilitiesLMO(p, deflate(p))
+    mode = length(ass.data) ≥ 3 ? ass.data[2] : 0
+    inputs = length(ass.data) ≥ 3 ? ass.data[3] : m
+    p = zeros(T2, vcat(o, inputs)...)
+    lmo = BellProbabilitiesLMO(p, deflate(p); mode)
+    lmo.cnt = ass.data[1]
     atoms = BellProbabilitiesDS{T2, 2N}[]
     @inbounds for i in 1:length(ass.weights)
         ax = [Vector{Int}(undef, m[n]) for n in 1:N]
@@ -703,12 +715,13 @@ function local_model(
     ) where {T <: Number, N}
     as = load_active_set(ass, T; deflate = expand_permutedims ? identity : deflate)
     if expand_permutedims
+        mode(as.atoms[1].lmo) < 2 || throw(ArgumentError("party permutations do not preserve sequential ordering"))
         weights = repeat(as.weights / factorial(N); inner = factorial(N))
-        atoms = Vector{BellProbabilitiesDS{T, N, marg}}(undef, factorial(N) * length(as))
+        atoms = Vector{BellProbabilitiesDS{T, 2N}}(undef, factorial(N) * length(as))
         i = 0
         for atom in as.atoms, per in permutations(1:N)
             i += 1
-            atoms[i] = BellCorrelationsDS(atom.ax[per], atom.lmo)
+            atoms[i] = BellProbabilitiesDS(atom.ax[per], atom.lmo)
         end
         return collect(zip(weights, atoms))
     else

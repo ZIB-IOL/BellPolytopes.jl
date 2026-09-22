@@ -13,7 +13,7 @@ function FrankWolfe.compute_extreme_point(
     scm = typemax(T)
     for i in 1:lmo.nb
         for n in 1:(N - 1)
-            rand!(ax[n], [-one(T), one(T)])
+            rand!(ax[n], (-one(T), one(T)))
             if HasMarginals
                 ax[n][end] = one(T)
             end
@@ -92,7 +92,8 @@ function FrankWolfe.compute_extreme_point(
         for λa2 in (sym ? λa3 : 0):(2^m[2] - 1)
             digits!(intax[2], λa2; base = 2)
             ax[2][1:m[2]] .= 2intax[2] .- 1
-            @tullio lmo.tmp[1][x1] = A[x1, x2, x3] * ax[2][x2] * ax[3][x3]
+            tmp = lmo.tmp[1]
+            @tullio tmp[x1] = A[x1, x2, x3] * $(ax[2])[x2] * $(ax[3])[x3]
             for x1 in 1:(length(ax[1]) - HasMarginals)
                 ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
             end
@@ -139,7 +140,8 @@ function FrankWolfe.compute_extreme_point(
             for λa2 in (sym ? λa3 : 0):(2^m[2] - 1)
                 digits!(intax[2], λa2; base = 2)
                 ax[2][1:m[2]] .= 2intax[2] .- 1
-                @tullio lmo.tmp[1][x1] = A[x1, x2, x3, x4] * ax[2][x2] * ax[3][x3] * ax[4][x4]
+                tmp = lmo.tmp[1]
+                @tullio tmp[x1] = A[x1, x2, x3, x4] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[4])[x4]
                 for x1 in 1:(length(ax[1]) - HasMarginals)
                     ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
                 end
@@ -190,7 +192,8 @@ function FrankWolfe.compute_extreme_point(
                 for λa2 in (sym ? λa3 : 0):(2^m[2] - 1)
                     digits!(intax[2], λa2; base = 2)
                     ax[2][1:m[2]] .= 2intax[2] .- 1
-                    @tullio lmo.tmp[1][x1] = A[x1, x2, x3, x4, x5] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5]
+                    tmp = lmo.tmp[1]
+                    @tullio tmp[x1] = A[x1, x2, x3, x4, x5] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[4])[x4] * $(ax[5])[x5]
                     for x1 in 1:(length(ax[1]) - HasMarginals)
                         ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
                     end
@@ -245,8 +248,9 @@ function FrankWolfe.compute_extreme_point(
                     for λa2 in (sym ? λa3 : 0):(2^m[2] - 1)
                         digits!(intax[2], λa2; base = 2)
                         ax[2][1:m[2]] .= 2intax[2] .- 1
-                        @tullio lmo.tmp[1][x1] =
-                            A[x1, x2, x3, x4, x5, x6] * ax[2][x2] * ax[3][x3] * ax[4][x4] * ax[5][x5] * ax[6][x6]
+                        tmp = lmo.tmp[1]
+                        @tullio tmp[x1] =
+                            A[x1, x2, x3, x4, x5, x6] * $(ax[2])[x2] * $(ax[3])[x3] * $(ax[4])[x4] * $(ax[5])[x5] * $(ax[6])[x6]
                         for x1 in 1:(length(ax[1]) - HasMarginals)
                             ax[1][x1] = lmo.tmp[1][x1] > zero(T) ? -one(T) : one(T)
                         end
@@ -370,7 +374,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
         for x1 in 1:length(ax[1])
-            ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+            ax[1][x1] = argmin(@view(lmo.tmp[1][x1, :]))[1]
         end
         sc = zero(T)
         for x1 in 1:length(ax[1])
@@ -422,7 +426,7 @@ function FrankWolfe.compute_extreme_point(
             end
         end
         for x2 in 1:length(ax[2])
-            ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
+            ax[2][x2] = argmin(@view(lmo.tmp[2][x2, :]))[1]
         end
         sc = zero(T)
         for x2 in 1:length(ax[2])
@@ -436,7 +440,7 @@ function FrankWolfe.compute_extreme_point(
             empty!(setm)
         end
         if verbose && sc ≈ scm
-            println(rpad(string([λa2]), 2 + ndigits(lmo.o[1]^lmo.m[1])), " ", string(-scm))
+            println(rpad(string([λa1]), 2 + ndigits(lmo.o[1]^lmo.m[1])), " ", string(-scm))
         end
         if count && sc ≈ scm
             push!(setm, collect(BellProbabilitiesDS(ax, lmo)))
@@ -478,7 +482,7 @@ function FrankWolfe.compute_extreme_point(
                 end
             end
             for x1 in 1:length(ax[1])
-                ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+                ax[1][x1] = argmin(@view(lmo.tmp[1][x1, :]))[1]
             end
             sc = zero(T)
             for x1 in 1:length(ax[1])
@@ -535,7 +539,7 @@ function FrankWolfe.compute_extreme_point(
                 end
             end
             for x1 in 1:lmo.m[1]
-                ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+                ax[1][x1] = argmin(@view(lmo.tmp[1][x1, :]))[1]
             end
             sc = zero(T)
             for x1 in 1:lmo.m[1]
@@ -594,7 +598,7 @@ function FrankWolfe.compute_extreme_point(
                 end
             end
             for x3 in 1:lmo.m[3], x2 in 1:lmo.m[2]
-                ax[3][(x2 - 1) * lmo.m[3] + x3] = argmin(lmo.tmp[3][(x2 - 1) * lmo.m[3] + x3, :])[1]
+                ax[3][(x2 - 1) * lmo.m[3] + x3] = argmin(@view(lmo.tmp[3][(x2 - 1) * lmo.m[3] + x3, :]))[1]
             end
             sc = zero(T)
             for x3 in 1:lmo.m[3], x2 in 1:lmo.m[2]
@@ -653,7 +657,7 @@ function FrankWolfe.compute_extreme_point(
                 end
             end
             for x2 in 1:lmo.m[2]
-                ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
+                ax[2][x2] = argmin(@view(lmo.tmp[2][x2, :]))[1]
             end
             sc = zero(T)
             for x2 in 1:lmo.m[2]
@@ -742,7 +746,7 @@ function FrankWolfe.compute_extreme_point(
                     end
                 end
                 for x1 in 1:length(ax[1])
-                    ax[1][x1] = argmin(lmo.tmp[1][x1, :])[1]
+                    ax[1][x1] = argmin(@view(lmo.tmp[1][x1, :]))[1]
                 end
                 sc = zero(T)
                 for x1 in 1:length(ax[1])
@@ -803,7 +807,7 @@ function FrankWolfe.compute_extreme_point(
                     end
                 end
                 for x1 in 1:lmo.m[1], x2 in 1:lmo.m[2]
-                    ax[1][(x2 - 1) * lmo.m[1] + x1] = argmin(lmo.tmp[1][(x2 - 1) * lmo.m[1] + x1, :])[1]
+                    ax[1][(x2 - 1) * lmo.m[1] + x1] = argmin(@view(lmo.tmp[1][(x2 - 1) * lmo.m[1] + x1, :]))[1]
                 end
                 sc = zero(T)
                 for x1 in 1:lmo.m[1], x2 in 1:lmo.m[2]
@@ -866,7 +870,7 @@ function FrankWolfe.compute_extreme_point(
                     end
                 end
                 for x4 in 1:lmo.m[4], x3 in 1:lmo.m[3]
-                    ax[4][(x3 - 1) * lmo.m[4] + x4] = argmin(lmo.tmp[4][(x3 - 1) * lmo.m[4] + x4, :])[1]
+                    ax[4][(x3 - 1) * lmo.m[4] + x4] = argmin(@view(lmo.tmp[4][(x3 - 1) * lmo.m[4] + x4, :]))[1]
                 end
                 sc = zero(T)
                 for x4 in 1:lmo.m[4], x3 in 1:lmo.m[3]
@@ -929,7 +933,7 @@ function FrankWolfe.compute_extreme_point(
                     end
                 end
                 for x3 in 1:lmo.m[3]
-                    ax[3][x3] = argmin(lmo.tmp[3][x3, :])[1]
+                    ax[3][x3] = argmin(@view(lmo.tmp[3][x3, :]))[1]
                 end
                 sc = zero(T)
                 for x3 in 1:lmo.m[3]
@@ -992,7 +996,7 @@ function FrankWolfe.compute_extreme_point(
                     end
                 end
                 for x2 in 1:lmo.m[2]
-                    ax[2][x2] = argmin(lmo.tmp[2][x2, :])[1]
+                    ax[2][x2] = argmin(@view(lmo.tmp[2][x2, :]))[1]
                 end
                 sc = zero(T)
                 for x2 in 1:lmo.m[2]
@@ -1110,6 +1114,10 @@ end
 function _muladd_memory_mode(as, d::AbstractArray{T}, a, v) where {T <: Number}
     idx_a = _unsafe_find_atom(as, a)
     idx_v = _unsafe_find_atom(as, v)
+    if length(d) < 2 || idx_a < 1 || idx_v < 1 || idx_a == idx_v
+        @. d = a - v
+        return d
+    end
     @inbounds d[1] = typemax(T)
     if idx_v > idx_a
         @inbounds d[2] = ((as.dots_x[idx_a] + as.dots_b[idx_a]) - (as.dots_x[idx_v] + as.dots_b[idx_v])) / (as.dots_A[idx_a][idx_a] + as.dots_A[idx_v][idx_v] - 2as.dots_A[idx_v][idx_a])
@@ -1165,7 +1173,8 @@ function FrankWolfe.perform_line_search(
     if d[1] == typemax(T)
         return min(max(d[2], 0), gamma_max)
     else
-        #  return min(max((dot(gradient, x) - (d[1] - d[2])) * inv(dot(x, x) + d[3]), 0), gamma_max)
-        return min(max(dot(gradient, d) * inv(line_search.L * dot(d, d)), 0), gamma_max)
+        normd2 = dot(d, d)
+        iszero(normd2) && return zero(T)
+        return min(max(dot(gradient, d) * inv(line_search.L * normd2), 0), gamma_max)
     end
 end
