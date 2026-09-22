@@ -1,34 +1,38 @@
 """
 Calls the lazy pairwise blended conditional gradient algorithm from Frank-Wolfe package.
 
+The supplied `p` is always the finite target: measurement-shrinking compensation
+is explicit through `shrinking_target`. Returned inequalities and `β` refer to
+that finite target; `shr2` scales only the displayed lower bounds.
+
 Arguments:
  - `p`: a correlation/probability tensor of order `N`.
 
 Returns:
  - `x`: a correlation/probability tensor of order `N`, the output of the Frank-Wolfe algorithm,
  - `ds`: a deterministic strategy, the atom returned by the last LMO,
- - `primal`: `½|x-v₀*p|²`,
- - `dual_gap`: `⟨x-v₀*p, x-ds⟩`,
+ - `primal`: `½|x-(v₀*p+(1-v₀)*o)|²`,
+ - `dual_gap`: `⟨x-(v₀*p+(1-v₀)*o), x-ds⟩`,
  - `active_set`: all deterministic strategies used for the decomposition of the last iterate `x`, contains fields `weights`, `atoms`, and `x`,
  - `M`: a Bell inequality, meaningful only if the dual gap is small enough,
- - `β`: the local bound of the inequality parametrised by `M`, reliable only if the last LMO is exact.
+ - `β`: the visibility bound along the line from `o` to `p`, reliable only if the last LMO is exact,
+ - `status`: the termination status returned by FrankWolfe.
 
 Optional arguments:
  - `o`: same type as `p`, corresponds to the noise to be added, by default the center of the polytope,
- - `prob`: a boolean, indicates if `p` is a corelation or probability array,
+ - `prob`: a boolean, indicates if `p` is a correlation or probability array,
  - `marg`: a boolean, indicates if `p` contains marginals (by convention in the last index of each dimension),
  - `v0`: the visibility used to make a nonlocal `p` closer to the local polytope,
- - `epsilon`: the tolerance, used as a stopping criterion (when the primal value or the dual gap go below its value), by default 1e-7,
+ - `epsilon`: the tolerance, used as a stopping criterion (when the primal value or the dual gap go below its value), by default `10Base.rtoldefault(T)`,
  - `shortcut`: if positive, the ratio between primal and dual gap for early termination,
  - `verbose`: an integer, indicates the level of verbosity from 0 to 4,
- - `shr2`: the potential underlying shrinking factor, used to display the lower bound in the callback,
+ - `shr2`: a squared measurement shrinking factor (or one per party), used to display corrected white-noise correlation bounds; compensate marginal targets explicitly with `shrinking_target`,
  - `mode`: an integer, 0 is for the heuristic LMO, 1 for the enumeration LMO,
  - `nb`: an integer, number of random tries in the LMO, if heuristic, by default 10^2,
  - `TL`: type of the last call of the LMO,
  - `mode_last`: an integer, mode of the last call of the LMO, -1 for no last call,
- - `nb_last`: an integer, number of random tries in the last LMO, if heuristic, by default 10^5,
+ - `nb_last`: an integer, number of random tries in the last LMO, if heuristic, by default `10nb`,
  - `sym`: a boolean, indicates if the symmetry of the input should be used, by default automatic choice,
- - `use_array`: a boolean, indicates to store the full deterministic strategies to trade memory for speed in multipartite scenarios,
  - `callback_interval`: an integer, print interval if `verbose` = 3,
  - `seed`: an integer, the initial random seed.
 """
@@ -70,7 +74,13 @@ function bell_frank_wolfe(
         kwargs...,
     ) where {T <: Number, N}
     Random.seed!(seed)
+    sym === nothing && prob && mode > 2 && (sym = false)
     LMO, DS, m, o, sym, deflate, inflate = _bfw_init(p, v0, prob, marg, o, sym, deflate, inflate, verbose_init)
+    shrinking = _shrinking_product(shr2, prob ? N ÷ 2 : N)
+    if !isnan(shrinking)
+        !prob && _is_white_noise(o, marg) ||
+            throw(ArgumentError("shr2 lower bounds require correlation tensors and the white-noise centre"))
+    end
     if verbose > 0
         !verbose_init && println()
         println("Visibility: ", v0)
@@ -120,7 +130,7 @@ function bell_frank_wolfe(
         rp,
         v0,
         ro,
-        shr2 ^ (prob ? (N ÷ 2) / 2 : N / 2),
+        shrinking,
         verbose,
         epsilon,
         shortcut,
@@ -130,7 +140,10 @@ function bell_frank_wolfe(
         bound_interval,
         save,
         file,
-        save_interval,
+        save_interval;
+        marg,
+        inflate,
+        target = p,
     )
     # main call to FW
     res = FrankWolfe.blended_pairwise_conditional_gradient(
@@ -160,20 +173,25 @@ function bell_frank_wolfe(
         @printf("  #LMO: %d\n", lmo.lmo.cnt)
     end
     if sym
-        atoms = [FrankWolfe.SubspaceVector(DS(atom.data; T2 = TL), TL.(atom.vec)) for atom in as.atoms]
-        vp_last = FrankWolfe.SubspaceVector(TL.(vp.data), TL.(vp.vec))
+        atoms = T == TL ? as.atoms : [FrankWolfe.SubspaceVector(DS(atom.data; T2 = TL), TL.(atom.vec)) for atom in as.atoms]
+        vp_last = T == TL ? vp : FrankWolfe.SubspaceVector(TL.(vp.data), TL.(vp.vec))
     else
-        atoms = [DS(atom; T2 = TL) for atom in as.atoms]
-        vp_last = TL.(vp)
+        atoms = T == TL ? as.atoms : [DS(atom; T2 = TL) for atom in as.atoms]
+        vp_last = T == TL ? vp : TL.(vp)
     end
     as = T == TL ? as : FrankWolfe.ActiveSetQuadraticProductCaching([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
     FrankWolfe.compute_active_set_iterate!(as)
     x = as.x
-    tmp = abs(dot(vp - x, rp))
+    tmp = abs(dot(vp_last - x, rp))
     if sym
-        M = FrankWolfe.SubspaceVector(TL.(vp.data - inflate(x)) / (tmp == 0 ? 1 : tmp), TL.(vp.vec - x.vec) / (tmp == 0 ? 1 : tmp))
+        M = FrankWolfe.SubspaceVector(TL.(vp_last.data - inflate(x)) / (tmp == 0 ? 1 : tmp), TL.(vp_last.vec - x.vec) / (tmp == 0 ? 1 : tmp))
     else
-        M = TL.((vp - x) / (tmp == 0 ? 1 : tmp))
+        M = TL.((vp_last - x) / (tmp == 0 ? 1 : tmp))
+    end
+    # renormalise the inequality by its smallest element, neglecting entries orders of magnitude smaller than the maximum
+    if cutoff_last > 0
+        M[log.(abs.(M)) .< maximum(log.(abs.(M))) - cutoff_last] .= zero(TL)
+        M ./= minimum(abs.(M[abs.(M) .> zero(TL)]); init = one(TL)) # init to avoid error for zero array
     end
     if mode_last ≥ 0 # bypass the last LMO with a negative mode
         if sym
@@ -189,22 +207,18 @@ function bell_frank_wolfe(
             ds = DS(ds; T2 = TL)
         end
     end
-    # renormalise the inequality by its smallest element, neglecting entries orders of magnitude smaller than the maximum
-    if cutoff_last > 0
-        M[log.(abs.(M)) .< maximum(log.(abs.(M))) - cutoff_last] .= zero(TL)
-        M ./= minimum(abs.(M[abs.(M) .> zero(TL)]); init = one(TL)) # init to avoid error for zero array
-    end
     β = (dot(M, ds) - dot(M, ro)) / (dot(M, rp) - dot(M, ro)) # local/global max found by the LMO
-    dual_gap = dot(x - vp, x) - dot(x - vp, ds)
+    gradient_last = x - vp_last
+    dual_gap = dot(gradient_last, x) - dot(gradient_last, ds)
     if verbose > 0
         if verbose ≥ 2 && mode_last ≥ 0
             @printf("FW gap: %.2e\n", dual_gap) # recomputed FW gap (usually with a more reliable heuristic)
         end
         if primal > dual_gap
             @printf("v_c ≤ %f\n", β)
-        elseif !isnan(shr2)
-            ν = 1 / (1 + norm(vp - as.x, 2))
-            @printf("v_c ≥ %f (%f)\n", shr2^(N / 2) * ν * v0, shr2^(N / 2) * v0)
+        elseif !isnan(shrinking)
+            ν = _analyticity_factor(as.x, p, v0; marg, inflate)
+            @printf("v_c ≥ %f (%f)\n", shrinking * ν * v0, shrinking * v0)
         end
     end
     if save

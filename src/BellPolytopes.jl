@@ -13,6 +13,7 @@ using Tullio
 include("types.jl")
 include("fw_methods.jl")
 include("utils.jl")
+include("analyticity.jl")
 include("callback.jl")
 include("bell_frank_wolfe.jl")
 include("local_bound.jl")
