@@ -41,6 +41,66 @@
     @test inflate(deflate(collect(1.0:128.0))) == collect(1.0:128.0)
 end
 
+@testset "Pythagorean approximations in arbitrary dimensions" begin
+    rng = MersenneTwister(129)
+    for T in (Float32, Float64, BigFloat), d in (1, 2, 3, 4, 7)
+        v = T.(randn(rng, 5, d))
+        foreach(normalize!, eachrow(v))
+        original = copy(v)
+        exact = BP.pythagorean_approximation(view(v, :, :); epsilon = 0)
+        @test eltype(exact) == Rational{BigInt}
+        @test size(exact) == size(v)
+        @test all(==(1), sum(abs2, exact; dims = 2))
+        @test T.(exact) ≈ v
+        @test v == original
+        axes = vcat(Matrix{T}(I, d, d), -Matrix{T}(I, d, d))
+        @test BP.pythagorean_approximation(axes) == axes
+        zero_vector = zeros(T, d)
+        @test BP._normalize!(zero_vector) === zero_vector
+        @test zero_vector == [one(T); zeros(T, d-1)]
+        row = copy(v[1, :]) .* 2
+        @test BP._normalize!(row) === row
+        @test row ≈ v[1, :]
+    end
+    # Preserve already exact rows, even when not aligned with an axis.
+    q = Rational{BigInt}[3//5 -4//5 0; 0 0 -1]
+    @test BP.pythagorean_approximation(q) == q
+    for a in (0//big(1), 1//big(1), 3//big(7)), sign in (-1, 1)
+        row = Rational{BigInt}[sign, 0, 0]
+        @test BP._normalize!(row, a) === row
+        @test row == [sign*a, 0, 0]
+        row = zeros(Rational{BigInt}, 4)
+        @test BP._normalize!(row, a) === row
+        @test sum(abs2, row) == a^2
+    end
+    # acos(x) loses a small tail when x rounds to ±1; the half-angle chart
+    # must preserve it, including the sign of the last nonzero coordinate.
+    for sign in (-1, 1)
+        v = reshape([sign*1.0, 0.0, -1e-12, 0.0], 1, :)
+        q = BP.pythagorean_approximation(v; epsilon = 0)
+        @test sum(abs2, q) == 1
+        @test Float64(q[3]) ≈ -1e-12 rtol=1e-12
+    end
+    setprecision(256) do
+        v = reshape(normalize(BigFloat[1, -2, 3, -4]), 1, :)
+        q = BP.pythagorean_approximation(v; epsilon = 0)
+        @test norm(BigFloat.(q) - v) < big"1e-70"
+        @test BP._unsafe_acos(-one(BigFloat)-eps(BigFloat)) == BigFloat(pi)
+        @test BP._unsafe_acos(-one(BigFloat)-eps(BigFloat)) isa BigFloat
+    end
+    @test size(BP.pythagorean_approximation(zeros(0, 4))) == (0, 4)
+    for v in (zeros(1, 0), zeros(1, 3), ones(1, 3), fill(NaN, 1, 2), fill(Inf, 1, 2))
+        @test_throws ArgumentError BP.pythagorean_approximation(v)
+    end
+    for epsilon in (-1, Inf, NaN)
+        @test_throws ArgumentError BP.pythagorean_approximation(ones(1, 1); epsilon)
+    end
+    @test_throws ArgumentError BP._normalize!(Float64[])
+    @test_throws ArgumentError BP._normalize!(Rational{BigInt}[])
+    @test_throws ArgumentError BP._normalize!([Inf])
+    @test_throws ArgumentError BP._normalize!(Rational{BigInt}[1], -1//big(1))
+end
+
 @testset "Utility functions preserve their inputs" begin
     A = reshape(collect(1:24), 2, 3, 4)
     @test move_marg(move_marg(A), 1) == A
