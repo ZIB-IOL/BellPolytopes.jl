@@ -12,4 +12,5 @@ const BP = BellPolytopes
     include("utilities.jl")
     include("integration.jl")
     include("analyticity.jl")
+    include("dyadic.jl")
 end
