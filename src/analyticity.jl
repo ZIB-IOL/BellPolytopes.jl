@@ -78,28 +78,41 @@ function shrinking_target!(
 end
 export shrinking_target, shrinking_target!
 
-"""
-    analyticity_factor(residual::AbstractArray{<:Real}; marg = true)
-    analyticity_factor(x, q, v0; marg = true)
+function _check_radius(radius::Real)
+    isfinite(radius) && radius > zero(radius) ||
+        throw(ArgumentError("radius must be finite and strictly positive"))
+    return nothing
+end
 
-Return the blockwise residual correction `1 / (1 + sum(norm(residual_S)))`, where
+"""
+    analyticity_factor(residual::AbstractArray{<:Real}; marg = true, radius = 1)
+    analyticity_factor(x, q, v0; marg = true, radius = 1, o = nothing)
+
+Return the blockwise residual correction `1 / (1 + sum(norm(residual_S))/radius)`, where
 `S` ranges over nonempty subsets of parties. Marginals occupy the last index of
 each axis; exclude the fixed all-identity coordinate. Norms are Euclidean norms
-of vectorised blocks. Without marginals, return `1 / (1 + norm(residual))`.
+of vectorised blocks. Without marginals, return `1 / (1 + norm(residual)/radius)`.
+`radius` must be finite and strictly positive, and certify a local ball about the
+noise `o` in this same norm, within the normalised correlation affine space.
+The default unit radius applies to white noise; it is not generally valid for
+other noise. Locality of the ball is the caller's responsibility.
 
 The second form uses the residual `v0*q + (1-v0)*o - x`, with white-noise centre
-`o`. The input `x` must be a normalised local point and, with marginals, the
-all-identity coordinates of `x` and `q` must equal one. The function does not check
+by default. The input `x` must be a normalised local point and, with marginals, the
+all-identity coordinates of `x`, `q`, and `o` must equal one. The function does not check
 locality or normalisation. The corrected finite visibility is the returned factor
-times `v0`; for `q = shrinking_target(p, eta)`, the global white-noise visibility
+times `v0`, along the same noise line: the corrected point is
+`o + factor*(v0*q + (1-v0)*o - o)`. For white noise and
+`q = shrinking_target(p, eta)`, the global white-noise visibility
 is additionally multiplied by `prod(eta)` (or `eta^N` for a common factor).
 
 Pass full correlation tensors, not probabilities or symmetry-reduced coordinates.
 Floating-point evaluation is a numerical estimate; rigorous certificates require
 upper bounds on residual norms and lower bounds on shrinking factors.
 """
-function analyticity_factor(residual::AbstractArray{T, N}; marg::Bool = true) where {T <: Real, N}
+function analyticity_factor(residual::AbstractArray{T, N}; marg::Bool = true, radius::Real = 1) where {T <: Real, N}
     _correlation_axes(residual, marg)
+    _check_radius(radius)
     all(isfinite, residual) || throw(ArgumentError("the residual contains nonfinite entries"))
     if !marg
         delta = norm(residual)
@@ -110,30 +123,36 @@ function analyticity_factor(residual::AbstractArray{T, N}; marg::Bool = true) wh
             delta += norm(view(residual, indices...))
         end
     end
-    return inv(one(delta) + delta)
+    return inv(one(delta) + delta / radius)
 end
 
 function analyticity_factor(
         x::AbstractArray{<:Real, N}, q::AbstractArray{<:Real, N}, v0::Real;
         marg::Bool = true,
+        radius::Real = 1,
+        o = nothing,
     ) where {N}
     axes(x) == axes(q) || throw(DimensionMismatch("the local point and target must have identical axes"))
     isfinite(v0) && zero(v0) ≤ v0 ≤ one(v0) || throw(ArgumentError("v0 must lie in [0, 1]"))
     _correlation_axes(q, marg)
     Base.require_one_based_indexing(x)
     residual = v0 .* q .- x
-    if marg
+    if o !== nothing
+        axes(o) == axes(q) || throw(DimensionMismatch("the noise and target must have identical axes"))
+        _correlation_axes(o, marg)
+        residual = residual .+ (one(v0) - v0) .* o
+    elseif marg
         residual[CartesianIndex(size(residual))] += one(v0) - v0
     end
-    return analyticity_factor(residual; marg)
+    return analyticity_factor(residual; marg, radius)
 end
 export analyticity_factor
 
 # Inflation writes into the full-data buffer; copy the iterate to leave the
 # active set and its cached data untouched, including for custom symmetries.
-function _analyticity_factor(x, q, v0; marg, inflate)
+function _analyticity_factor(x, q, v0; marg, inflate, radius = 1, o = nothing)
     full_x = x isa FrankWolfe.SubspaceVector ? inflate(collect(x)) : x
-    return analyticity_factor(full_x, q, v0; marg)
+    return analyticity_factor(full_x, q, v0; marg, radius, o)
 end
 
 function _is_white_noise(o, marg)

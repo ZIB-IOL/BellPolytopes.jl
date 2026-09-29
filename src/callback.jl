@@ -16,7 +16,10 @@ function build_callback(
         marg = false,
         inflate = identity,
         target = p,
+        noise = o isa FrankWolfe.SubspaceVector ? inflate(collect(o)) : o,
+        radius::Real = 1,
     )
+    _check_radius(radius)
     @assert !(0 < shortcut < 1)
     all(>(0), (nb_increment_interval, callback_interval, hyperplane_interval, bound_interval, save_interval)) ||
         throw(ArgumentError("callback intervals must be positive"))
@@ -65,7 +68,7 @@ function build_callback(
             end
         end
         if verbose_bound && mod(state.t, bound_interval) == 0
-            ν = _analyticity_factor(active_set.x, target, v; marg, inflate)
+            ν = _analyticity_factor(active_set.x, target, v; marg, inflate, radius, o = noise)
             @printf("v_c ≥ %f (%f)\n", shr2 * ν * v, shr2 * v)
         end
         if save && mod(state.t, save_interval) == 0

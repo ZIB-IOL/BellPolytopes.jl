@@ -25,6 +25,7 @@ Optional arguments:
  - `upper`: whether to start from the upper bound or the lower bound, `false` by default
  - `digits`: number of digits of `lower_bound`, `3` by default,
  - `analyticity`: apply the residual correction, by default for correlation tensors with white noise. Set to `false` to return the uncorrected numerical bracket. `digits` controls that bracket; the corrected lower bound can be smaller.
+ - `radius`: local radius used by `analyticity_factor` and displayed bounds. With nonwhite noise, only the displayed bounds are corrected; returned bounds and models retain the uncorrected finite-scenario convention.
  - for the other optional arguments, see `bell_frank_wolfe`.
 """
 function nonlocality_threshold(
@@ -36,6 +37,7 @@ function nonlocality_threshold(
         prob::Bool = false,
         marg::Bool = false,
         o = nothing,
+        radius::Real = 1,
         sym = nothing,
         deflate = identity,
         inflate = identity,
@@ -46,6 +48,7 @@ function nonlocality_threshold(
         time_limit = 120, # in seconds
         kwargs...,
     ) where {T <: Number, N}
+    _check_radius(radius)
     lower_bound ≤ upper_bound || throw(ArgumentError("lower_bound must not exceed upper_bound"))
     @assert floor(log10(Base.rtoldefault(T))) + digits ≤ 0
     time_start = time_ns()
@@ -67,6 +70,7 @@ function nonlocality_threshold(
             prob,
             marg,
             o,
+            radius,
             sym,
             deflate,
             inflate,
@@ -99,7 +103,7 @@ function nonlocality_threshold(
             end
         else
             lower_bound = v0
-            correction = analyticity ? _analyticity_factor(active_set.x, p, v0; marg, inflate) : one(T)
+            correction = analyticity ? _analyticity_factor(active_set.x, p, v0; marg, inflate, radius, o) : one(T)
             candidate = correction * v0
             if candidate ≥ corrected_lower
                 corrected_lower = candidate

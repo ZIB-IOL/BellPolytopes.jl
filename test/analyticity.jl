@@ -146,18 +146,17 @@ end
     @test BP._shrinking_product(0.25, 3) == 0.125
     @test BP._shrinking_product((0.25, 1.0, 0.0625), 3) == 0.125
     @test isnan(BP._shrinking_product(NaN, 3))
-    @test_throws ArgumentError bell_frank_wolfe(p; marg = true, o = p, shr2 = 0.25)
     @test_throws ArgumentError bell_frank_wolfe(fill(0.25, 2, 2, 2, 2); prob = true, shr2 = 0.25)
 end
 
 @testset "Corrected thresholds and local models" begin
     p0 = [1.0 1.0; 1.0 -1.0]
-    for marg in (false, true), sym in (false, true, nothing)
+    for marg in (false, true), sym in (false, true, nothing), radius in (1, 0.3)
         p = marg ? [p0 zeros(2); zeros(1, 2) 1] : p0
         o = zero(p)
         marg && (o[end] = 1)
         raw = nonlocality_threshold(p; marg, sym, mode = 1, digits = 2, epsilon = 1e-5, analyticity = false)
-        corrected = nonlocality_threshold(p; marg, sym, mode = 1, digits = 2, epsilon = 1e-5)
+        corrected = nonlocality_threshold(p; marg, sym, mode = 1, digits = 2, epsilon = 1e-5, radius)
         @test corrected[1] ≤ raw[1]
         @test corrected[2] == raw[2]
         @test corrected[1] ≤ 0.5 ≤ corrected[2]
@@ -167,7 +166,7 @@ end
         reconstruct(model) = sum(w * (a isa FrankWolfe.SubspaceVector ? inflate(collect(a)) : Array(a)) for (w, a) in model)
         raw_x = reconstruct(raw[3])
         corrected_x = reconstruct(corrected[3])
-        nu = analyticity_factor(raw_x, p, raw[1]; marg)
+        nu = analyticity_factor(raw_x, p, raw[1]; marg, radius)
         @test corrected[1] ≈ nu * raw[1] atol = 1e-12
         @test corrected_x ≈ nu * raw_x + (1 - nu) * o atol = 1e-12
         @test norm(corrected_x - corrected[1] * p - (1 - corrected[1]) * o) ≤ sqrt(2e-5)
@@ -203,4 +202,65 @@ end
     reduced.data .= -123 # deliberately stale: vec is authoritative
     @test BP._analyticity_factor(reduced, target, 0.5; marg = true, inflate) ≈ analyticity_factor(x, target, 0.5)
     @test all(==(-123), reduced.data)
+end
+
+@testset "Local radii and affine noise centres" begin
+    for T in (Float32, Float64, BigFloat, Rational{BigInt}), marg in (false, true)
+        residual = T[3 0 6; 4 0 8; 12 5 0]
+        delta = marg ? T(28) : norm(residual)
+        for radius in (T(1 // 4), one(T), T(2))
+            @test analyticity_factor(residual; marg, radius) ≈ inv(1 + delta / radius)
+            @test analyticity_factor(zero(residual); marg, radius) == 1
+        end
+    end
+    p = [0.2 0.4 0.1; 0.4 -0.3 0.2; 0.1 0.2 1.0]
+    white = zero(p)
+    white[end] = 1
+    o = 0.2p + 0.8white
+    v = 0.6
+    radius = 0.3
+    for sym in (false, true)
+        deflate, inflate = sym ? BP.build_deflate_inflate_permutedims(p) : (identity, identity)
+        x = 0.9 * (v * p + (1 - v) * o) + 0.1o
+        residual = v * p + (1 - v) * o - x
+        delta = norm(residual[1:2, 1:2]) + norm(residual[1:2, 3]) + norm(residual[3, 1:2])
+        expected = radius / (radius + delta)
+        @test analyticity_factor(x, p, v; o, radius) ≈ expected
+        @test analyticity_factor(x, p, v; o, radius, marg = false) ≈ inv(1 + norm(residual) / radius)
+        reduced = deflate(copy(x))
+        before = copy(reduced)
+        @test BP._analyticity_factor(reduced, p, v; marg = true, inflate, o, radius) ≈ expected
+        @test reduced == before
+        callback = BP.build_callback(deflate(copy(p)), v, deflate(copy(o)), 1.0,
+            3, 1e-10, 0, typemax(Int), typemax(Int), typemax(Int), 1, false, nothing, typemax(Int);
+            marg = true, inflate, target = p, radius)
+        lmo = BP.BellCorrelationsLMO(p, p; marg = true)
+        _, output = capture_analyticity_output() do
+            callback((; t = 1, lmo, primal = 1.0, dual_gap = 2.0), (; x = reduced))
+        end
+        bound = parse(Float64, match(r"v_c ≥ ([0-9.e+-]+)", output)[1])
+        @test bound ≈ v * expected atol = 5e-7
+        res, output = capture_analyticity_output() do
+            bell_frank_wolfe(p; o, radius, marg = true, v0 = v, sym, mode = 1,
+                shr2 = 1, verbose = 1, epsilon = 1e-4, inflate_output = false)
+        end
+        expected = BP._analyticity_factor(res[5].x, p, v; marg = true, inflate, o, radius)
+        bound = parse(Float64, match(r"v_c ≥ ([0-9.e+-]+)", output)[1])
+        @test bound ≈ v * expected atol = 5e-7
+        threshold, output = capture_analyticity_output() do
+            nonlocality_threshold(p, 0.0, 0.5; o, radius, marg = true, sym,
+                mode = 1, digits = 1, epsilon = 1e-4, shr2 = 1, verbose = 1)
+        end
+        model_x = sum(w * (a isa FrankWolfe.SubspaceVector ? inflate(collect(a)) : Array(a))
+            for (w, a) in threshold[3])
+        expected = threshold[1] * analyticity_factor(model_x, p, threshold[1]; o, radius)
+        bound = parse(Float64, last(collect(eachmatch(r"v_c ≥ ([0-9.e+-]+)", output)))[1])
+        @test bound ≈ expected atol = 5e-7
+    end
+    @test_throws DimensionMismatch analyticity_factor(p, p, v; o = zeros(2, 2))
+    for radius in (0, -1, Inf, NaN)
+        @test_throws ArgumentError analyticity_factor(zero(p); radius)
+        @test_throws ArgumentError bell_frank_wolfe(p; radius)
+        @test_throws ArgumentError nonlocality_threshold(p; radius)
+    end
 end
