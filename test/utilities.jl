@@ -147,3 +147,80 @@ end
     @test shrinking_squared(Matrix{Float64}(I, 3, 3); verbose = false) ≈ 1 / 3
     @test shrinking_squared([Matrix{Float64}(I, 3, 3)]; verbose = false) ≈ 1 / 3
 end
+
+@testset "Exact squared shrinking factors" begin
+    for T in (Int, BigInt, Rational{Int}, Rational{BigInt}), d in 1:4
+        vertices = Matrix{T}(I, d, d)
+        original = copy(vertices)
+        eta2 = shrinking_squared_exact(view(vertices, :, :); verbose = false)
+        @test eta2 == 1//d
+        @test eta2 isa Rational{BigInt}
+        @test vertices == original
+        @test shrinking_squared_exact(vcat(vertices, -vertices); antipodal = false, verbose = false) == eta2
+        @test shrinking_squared_exact(vcat(vertices, vertices); verbose = false) == eta2
+    end
+    vertices = Matrix{Int}(I, 3, 3)
+    @test shrinking_squared_exact(3vertices, 5; verbose = false) == 3//25
+    @test shrinking_squared_exact(vertices .* big(2)^100, big(2)^100; verbose = false) == 1//3
+    @test shrinking_squared_exact(reshape([-1//4, 3//4], :, 1); antipodal = false, verbose = false) == 1//16
+    @test shrinking_squared_exact(reshape([-1//4, 3//4], :, 1); verbose = false) == 9//16
+    square = Rational{BigInt}[1//2 1//2; 1//2 -1//2; -1//2 1//2; -1//2 -1//2]
+    @test shrinking_squared_exact(square; antipodal = false, verbose = false) == 1//4
+    vecs = [Rational{BigInt}.(vertices), Rational{BigInt}.(vertices) / 2]
+    @test shrinking_squared_exact(view(vecs, :); verbose = false) == 1//12
+    @test shrinking_squared(view(vecs, :); verbose = false) ≈ 1//12
+    @test_throws ArgumentError shrinking_squared(Matrix{Float64}[]; verbose = false)
+    @test_throws ArgumentError shrinking_squared_exact(Matrix{Int}[]; verbose = false)
+    @test_throws ArgumentError shrinking_squared_exact(Float64.(vertices); verbose = false)
+    @test_throws ArgumentError shrinking_squared_exact(zeros(Int, 0, 3); verbose = false)
+    @test_throws ArgumentError shrinking_squared_exact(zeros(Int, 3, 0); verbose = false)
+    @test_throws ArgumentError shrinking_squared_exact(2vertices; verbose = false)
+    @test_throws ArgumentError shrinking_squared_exact([1 0 0; 0 1 0]; verbose = false)
+    @test_throws ArgumentError shrinking_squared_exact(vertices; antipodal = false, verbose = false)
+    @test_throws ArgumentError shrinking_squared_exact([0 0; 1 0; 0 1]; antipodal = false, verbose = false)
+    for denominator in (0, -1)
+        @test_throws ArgumentError shrinking_squared_exact(vertices, denominator; verbose = false)
+    end
+end
+
+@testset "Transfer of certified shrinking bounds" begin
+    old = [1 0; 0 1; -1 0; 0 -1]
+    new = Rational{BigInt}.(3old) / 4
+    for bits in (3, 20, 60, 150)
+        eta2 = shrinking_squared_transfer(old, 1//2, new; bits)
+        @test eta2 isa Rational{BigInt}
+        @test 0 < eta2 <= shrinking_squared_exact(new; antipodal = false, verbose = false)
+        @test eta2 == shrinking_squared_transfer(old, 1//2, 3old, 4; bits)
+        # Compare with the support-function bound at precision well above bits.
+        setprecision(512) do
+            bound = (sqrt(big(0.5)) - big(0.25))^2
+            @test BigFloat(eta2) <= bound
+            @test bound - BigFloat(eta2) <= big(4)/big(2)^bits
+        end
+    end
+    @test shrinking_squared_transfer(old, 1//2, new; bits = 3) == 9//64
+    @test shrinking_squared_transfer(old, 1//2, old) == 1//2
+    @test shrinking_squared_transfer(old, 1//2, 4old, 4) == 1//2
+    # A non-dyadic perturbation exercises upward rounding of sqrt(delta2).
+    new = Rational{BigInt}.(old) * (4//5)
+    for bits in (4, 40)
+        eta2 = shrinking_squared_transfer(old, 1//2, new; bits)
+        @test BigFloat(eta2) <= (sqrt(big(0.5)) - big(1)/5)^2
+    end
+    for bound in (0, -1//2, 2//1, 0.5, Inf, NaN)
+        @test_throws ArgumentError shrinking_squared_transfer(old, bound, old)
+    end
+    @test_throws DimensionMismatch shrinking_squared_transfer(old, 1//2, zeros(Int, 2, 2))
+    @test_throws ArgumentError shrinking_squared_transfer(Float64.(old), 1//2, old)
+    @test_throws ArgumentError shrinking_squared_transfer(old, 1//2, Float64.(old))
+    @test_throws ArgumentError shrinking_squared_transfer(old, 1//2, 2old)
+    @test_throws ArgumentError shrinking_squared_transfer(2old, 1//2, old)
+    @test_throws ArgumentError shrinking_squared_transfer(old, 1//2, zeros(Int, size(old)))
+    @test_throws ArgumentError shrinking_squared_transfer(zeros(Int, 0, 2), 1//2, zeros(Int, 0, 2))
+    for bits in (0, -1)
+        @test_throws ArgumentError shrinking_squared_transfer(old, 1//2, old; bits)
+    end
+    for denominator in (0, -1)
+        @test_throws ArgumentError shrinking_squared_transfer(old, 1//2, old, denominator)
+    end
+end
