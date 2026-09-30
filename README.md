@@ -99,6 +99,49 @@ Visibility: 0.8
 v_c ≤ 0.778392
 ```
 
+## Exact certificates after a run
+
+`dyadic_certificate` rounds the active-set weights to a common binary
+denominator, reconstructs the local mixture with exact integer arithmetic, and
+returns a rational visibility lower bound. It accepts the solver result, its
+active set (`res[5]`), or a saved `BellPolytopes.ActiveSetStorage`.
+
+For a full exact correlation tensor, the certificate concerns the finite
+scenario. The number of parties and the marginal convention are inferred from
+the active set:
+
+```julia
+p_exact = [1//1 1//1; 1//1 -1//1]
+res = bell_frank_wolfe(Float64.(p_exact); v0=0.49)
+cert = dyadic_certificate(res, p_exact; v0=49//100)
+cert.visibility_lower  # Rational{BigInt}
+```
+
+For a bipartite Gram target, round the measurement directions and include their
+exact convex-hull shrinking factors in the certificate:
+
+```julia
+res = bell_frank_wolfe(v*v'; v0=0.69)
+cert = dyadic_certificate(res; measurements=v, v0=69//100)
+```
+
+For other states, including multipartite states and marginals, provide
+`target=vertices -> exact_correlations(vertices)`. This function receives a tuple
+of the rounded rational measurement matrices and must return the full exact
+correlation tensor, with identities last on each axis. The geometry form
+compensates marginal blocks before applying white-noise shrinking. Its
+`finite_visibility` refers to that compensated finite target; `visibility_lower`
+also includes shrinking. Exact noise tensors and certified local radii are
+supported by the finite-target form through `o` and `radius`.
+
+An optional `q` supplies consecutive orbit labels for a uniform symmetry
+average. **The caller must guarantee that this averaging preserves locality**;
+no orbit verification or symmetry discovery is performed. Without `q`, the raw
+stored strategies are used. Floating-point targets, visibility values, and
+shrinking estimates are not accepted as exact certificates. The docstrings
+describe rounding precision, reusable squared shrinking bounds (`shr2`), and
+the `backend=:integer` alternative to exact integer products computed by BLAS.
+
 ## Going further
 
 More examples can be found in the corresponding folder of the package.
