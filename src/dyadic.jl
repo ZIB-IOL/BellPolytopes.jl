@@ -245,6 +245,21 @@ function _dyadic_floor_function(p::_DyadicGram, v0, ::Nothing, scale)
     return i -> fld(a * T(_dyadic_gram_numerator(p, Tuple(i)...)), b)
 end
 
+# Specialise the entrywise loop on the selected accumulator and floor function.
+# Keeping this behind a function barrier avoids boxing every Int128 operation
+# when the caller chooses between fixed-width and arbitrary-size arithmetic.
+function _dyadic_residual_squares!(H::Vector{T}, target_floor, local_floor, q, dims, marg) where {T}
+    indices = CartesianIndices(dims)
+    for (linear, i) in enumerate(indices)
+        marg && linear == length(indices) && continue
+        block = marg ? sum((i[n] < dims[n]) << (n - 1) for n in eachindex(dims)) : 1
+        label = q === nothing ? linear : q[linear]
+        error = abs(T(target_floor(i)) - local_floor[label]) + 1
+        H[block] += error^2
+    end
+    return H
+end
+
 """
     dyadic_residual_bound(target, orbit; q = nothing, marg = orbit.marg,
                           v0 = 1, o = nothing, bits = 40)
@@ -306,13 +321,7 @@ function dyadic_residual_bound(
         BigInt(length(target)) * (2BigInt(scale) + 1)^2 ≤ typemax(Int128)
     T = fixed ? Int128 : BigInt
     H = zeros(T, marg ? 2^ndims(target) - 1 : 1)
-    for (linear, i) in enumerate(CartesianIndices(target))
-        marg && linear == length(target) && continue
-        block = marg ? sum((i[n] < size(target, n)) << (n - 1) for n in 1:ndims(target)) : 1
-        label = q === nothing ? linear : q[linear]
-        error = abs(T(target_floor(i)) - local_floor[label]) + 1
-        H[block] += error^2
-    end
+    _dyadic_residual_squares!(H, target_floor, local_floor, q, size(target), marg)
     squared_numerators = BigInt.(H)
     block_squared_upper = [h // BigInt(scale)^2 for h in squared_numerators]
     block_norm_upper = map(squared_numerators) do h
