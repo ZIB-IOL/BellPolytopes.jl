@@ -202,6 +202,104 @@ function dyadic_orbit_sums(
 end
 export dyadic_orbit_sums
 
+"""
+    dyadic_probability_orbit_sums(ax, counts, outputs, q = nothing;
+        backend = :blas, row_block = 512, column_block = 512, atom_block = 4096)
+
+Exactly reconstruct a local probability mixture in full axis order
+`(a₁,…,aₙ,x₁,…,xₙ)`, optionally averaging over the orbits in `q`.
+`ax[n][k,x]` is the integer output (in `1:outputs[n]`) of atom `k`.
+For saved models pass `storage.ax`, `dyadic_weights(storage.weights).numerators`,
+and `storage.o`, where `storage` is an `ActiveSetStorageMulti`.
+
+Return `(numerators, multiplicities, denominator, dims, marg=false)`, compatible
+with [`dyadic_residual_bound`](@ref). That function requires an EXPLICIT noise
+tensor for probabilities (its default noise is zero). No analyticity radius or
+measurement shrinking is applied here. Orbit averaging must preserve locality;
+this is the caller's premise, as for [`dyadic_orbit_sums`](@ref).
+
+Blocked GEMM multiplies weighted 0/1 features. All intermediate sums are exact
+integers bounded by `sum(counts) ≤ 2^52`, under ordinary IEEE binary64 CPU BLAS
+arithmetic. `backend=:integer` supplies an independent direct-summation path.
+No active-set cache or full deterministic probability tensors are constructed.
+"""
+function dyadic_probability_orbit_sums(
+        ax::AbstractVector{<:AbstractMatrix{<:Integer}}, counts::AbstractVector{<:Integer},
+        outputs, q = nothing; backend::Symbol = :blas,
+        row_block::Int = 512, column_block::Int = 512, atom_block::Int = 4096,
+    )
+    Base.require_one_based_indexing(ax, counts)
+    N = length(ax)
+    N > 0 && length(outputs) == N || throw(DimensionMismatch("provide one output count per party"))
+    all(o -> o isa Integer && o > 0, outputs) || throw(ArgumentError("output counts must be positive integers"))
+    all(a -> size(a, 1) == length(counts) && size(a, 2) > 0, ax) ||
+        throw(DimensionMismatch("each response matrix needs one row per count and at least one setting"))
+    for n in 1:N
+        Base.require_one_based_indexing(ax[n])
+        all(a -> 1 ≤ a ≤ outputs[n], ax[n]) || throw(ArgumentError("responses must lie in 1:outputs[n]"))
+    end
+    all(≥(0), counts) || throw(ArgumentError("counts must be nonnegative"))
+    Q = sum(BigInt, counts)
+    0 < Q ≤ big(2)^52 || throw(ArgumentError("the count sum must lie in 1:2^52"))
+    all(>(0), (row_block, column_block, atom_block)) || throw(ArgumentError("block sizes must be positive"))
+    backend in (:blas, :integer) || throw(ArgumentError("backend must be :blas or :integer"))
+    o, m = Tuple(Int.(outputs)), Tuple(size(a, 2) for a in ax)
+    dims = (o..., m...)
+    mult = _dyadic_labels(q, dims; marg = false)
+    Q * prod(BigInt.(dims)) ≤ typemax(Int128) || throw(ArgumentError("orbit sums would overflow Int128"))
+    S = zeros(Int128, length(mult))
+    weights = Int64.(counts)
+    split = cld(N, 2)
+    left = CartesianIndices((o[1:split]..., m[1:split]...))
+    right = CartesianIndices((o[(split + 1):end]..., m[(split + 1):end]...))
+    linear = LinearIndices(dims)
+    fullindex(a, b) = linear[(Tuple(a)[1:split]..., Tuple(b)[1:(N-split)]...,
+                             Tuple(a)[(split+1):end]..., Tuple(b)[(N-split+1):end]...)...]
+    if backend == :integer
+        for b in right, a in left
+            s = Int64(0)
+            for k in eachindex(weights)
+                s += weights[k] * _dyadic_indicator(ax, k, a, 1:split) *
+                    _dyadic_indicator(ax, k, b, (split + 1):N)
+            end
+            i = fullindex(a, b)
+            S[q === nothing ? i : q[i]] += s
+        end
+    else
+        A = Matrix{Float64}(undef, min(row_block, length(left)), min(atom_block, length(weights)))
+        B = Matrix{Float64}(undef, min(atom_block, length(weights)), min(column_block, length(right)))
+        C = Matrix{Float64}(undef, size(A, 1), size(B, 2))
+        for j0 in 1:column_block:length(right), i0 in 1:row_block:length(left)
+            rows = i0:min(i0 + row_block - 1, length(left))
+            cols = j0:min(j0 + column_block - 1, length(right))
+            Cv = view(C, 1:length(rows), 1:length(cols))
+            fill!(Cv, 0)
+            for k0 in 1:atom_block:length(weights)
+                atoms = k0:min(k0 + atom_block - 1, length(weights))
+                Av, Bv = view(A, 1:length(rows), 1:length(atoms)), view(B, 1:length(atoms), 1:length(cols))
+                for (t, k) in enumerate(atoms), (ii, i) in enumerate(rows)
+                    Av[ii, t] = weights[k] * _dyadic_indicator(ax, k, left[i], 1:split)
+                end
+                for (jj, j) in enumerate(cols), (t, k) in enumerate(atoms)
+                    Bv[t, jj] = _dyadic_indicator(ax, k, right[j], (split + 1):N)
+                end
+                mul!(Cv, Av, Bv, 1.0, 1.0)
+            end
+            for (jj, j) in enumerate(cols), (ii, i) in enumerate(rows)
+                index = fullindex(left[i], right[j])
+                S[q === nothing ? index : q[index]] += Int64(Cv[ii, jj])
+            end
+        end
+    end
+    return (; numerators = S, multiplicities = mult, denominator = Int64(Q), dims, marg = false)
+end
+
+function _dyadic_indicator(ax, k, indices, parties)
+    h = length(parties)
+    return all(ax[n][k, indices[h + j]] == indices[j] for (j, n) in enumerate(parties))
+end
+export dyadic_probability_orbit_sums
+
 # A lazy Gram target keeps the original fast integer residual path, without
 # allocating a full matrix of rationals. Other targets use exact scalar floors.
 struct _DyadicGram{T <: Integer} <: AbstractMatrix{Rational{BigInt}}
