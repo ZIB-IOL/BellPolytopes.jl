@@ -14,18 +14,25 @@ function build_callback(
         file,
         save_interval;
         marg = false,
+        prob = false,
         inflate = identity,
         target = p,
         noise = o isa FrankWolfe.SubspaceVector ? inflate(collect(o)) : o,
-        radius::Real = 1,
+        radius = nothing,
     )
-    _check_radius(radius)
+    radius === nothing || _check_radius(radius)
     @assert !(0 < shortcut < 1)
     all(>(0), (nb_increment_interval, callback_interval, hyperplane_interval, bound_interval, save_interval)) ||
         throw(ArgumentError("callback intervals must be positive"))
     !save || file isa AbstractString || throw(ArgumentError("file must be provided when save=true"))
     if isnan(shr2)
         bound_interval = typemax(Int)
+    else
+        radius = _analyticity_radius(target, prob, radius; o = noise)
+        if prob
+            _check_probability_affine(target)
+            _check_probability_affine(noise)
+        end
     end
     if verbose > 3
         println("Intervals")
@@ -68,7 +75,7 @@ function build_callback(
             end
         end
         if verbose_bound && mod(state.t, bound_interval) == 0
-            ν = _analyticity_factor(active_set.x, target, v; marg, inflate, radius, o = noise)
+            ν = _analyticity_factor(active_set.x, target, v; marg, prob, inflate, radius, o = noise)
             @printf("v_c ≥ %f (%f)\n", shr2 * ν * v, shr2 * v)
         end
         if save && mod(state.t, save_interval) == 0

@@ -146,7 +146,7 @@ end
     @test BP._shrinking_product(0.25, 3) == 0.125
     @test BP._shrinking_product((0.25, 1.0, 0.0625), 3) == 0.125
     @test isnan(BP._shrinking_product(NaN, 3))
-    @test_throws ArgumentError bell_frank_wolfe(fill(0.25, 2, 2, 2, 2); prob = true, shr2 = 0.25)
+    @test_throws ArgumentError bell_frank_wolfe(fill(0.3, 2, 2, 2, 2); prob = true, shr2 = 0.25)
 end
 
 @testset "Corrected thresholds and local models" begin
@@ -172,7 +172,7 @@ end
         @test norm(corrected_x - corrected[1] * p - (1 - corrected[1]) * o) ≤ sqrt(2e-5)
     end
     @test_throws ArgumentError nonlocality_threshold(p0; o = ones(2, 2), analyticity = true)
-    @test_throws ArgumentError nonlocality_threshold(fill(0.25, 2, 2, 2, 2); prob = true, analyticity = true)
+    @test_throws ArgumentError nonlocality_threshold(fill(0.3, 2, 2, 2, 2); prob = true, analyticity = true)
 end
 
 @testset "Multipartite reports and custom symmetry" begin
