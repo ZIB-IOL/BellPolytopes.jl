@@ -715,7 +715,7 @@ function local_model(
     ) where {T <: Number, N}
     as = load_active_set(ass, T; deflate = expand_permutedims ? identity : deflate)
     if expand_permutedims
-        mode(as.atoms[1].lmo) < 2 || throw(ArgumentError("party permutations do not preserve sequential ordering"))
+        N ≤ 2 || mode(as.atoms[1].lmo) < 2 || throw(ArgumentError("party permutations do not preserve sequential ordering"))
         weights = repeat(as.weights / factorial(N); inner = factorial(N))
         atoms = Vector{BellProbabilitiesDS{T, 2N}}(undef, factorial(N) * length(as))
         i = 0
