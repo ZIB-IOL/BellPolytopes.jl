@@ -33,3 +33,23 @@ Temporary smoke checks also passed for specialized solvers, type conversions,
 active-set round trips, and threshold/local-model reconstruction. Small exact
 oracle comparisons and dense scalar-product checks were included where relevant.
 No new branch-specific unit-test suite was added; that remains the next step.
+
+Probability analyticity merge (2026-10-14)
+-----------------------------------------
+Merged main at d94348f, including probability analyticity, explicit
+probability shrinking targets, and 255 new probability checks. Also includes
+the intervening custom-radius, exact shrinking, rational approximation, and
+dyadic certificate updates from main. See PROBABILITY_ANALYTICITY_SUMMARY.txt
+for the shared workflow and its mathematical/numerical assumptions.
+
+- Enable probability analyticity on the ordinary Bell path (d=1), including
+  communication oracle modes used with one message. Preserve the d keyword.
+- Keep numerical thresholds for d>1: these strategies can signal, so the
+  no-signaling Bell ball cannot certify their residuals. Explicit requests for
+  shr2 reports or analyticity correction fail with an explanatory error.
+- Preserve StatsBase and all communication strategy/storage formats.
+
+Validation: the complete inherited suite passed (2,846 checks), plus
+6 communication integration checks, using Julia 1.13.1
+with --check-bounds=yes. Branch-specific checks were run as temporary smoke
+tests; no separate branch-specific unit-test suite was introduced.

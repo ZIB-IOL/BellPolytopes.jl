@@ -4,7 +4,7 @@
 Compute the nonlocality threshold of the probability/correlation tensor `p`.
 
 Returns:
- - `lower_bound`: a lower bound including the blockwise analyticity correction for white-noise correlation searches; an approximate finite-scenario bound otherwise,
+ - `lower_bound`: a lower bound including the analyticity correction for white-noise searches; an approximate finite-scenario bound otherwise,
  - `upper_bound`: a (heuristic) upper bound on the nonlocality threshold of `p`
  - `local_model`: a decomposition of the tensor `p` with visibility `lower_bound` (up to a distance `2√epsilon`),
  - `bell_inequality`: a (heuristic) Bell inequality corresponding to `upper_bound`.
@@ -17,14 +17,24 @@ the residual correction certifies locality without expanding its extra atoms.
 Floating-point evaluation does not provide interval-certified bounds.
 
 The search and returned bounds concern the supplied finite target. To compensate
-for measurement shrinking, pass `shrinking_target(p, eta)` and multiply the
-returned lower bound by `prod(eta)` (or `eta^ndims(p)` for a common factor).
-`shr2` only affects displayed bounds.
+for measurement shrinking, pass `shrinking_target(p, eta; prob, marg)` and multiply the
+returned lower bound by `prod(eta)` (or `eta^N` for a common factor and `N` parties).
+`shr2` only affects displayed bounds. With `prob=true`, use full probability
+coordinates and uniform output noise. The probability radius applies within
+the normalized no-signaling affine space; these conditions are checked when
+correction is enabled. Set `analyticity=false` for an uncorrected projection of
+arbitrary tensors. The default probability ball excludes the all-single-outcome
+scenario, whose affine space has dimension zero.
+
+With `prob=true, d>1`, analyticity correction is disabled because the Bell
+ball does not cover signaling communication strategies. Requesting correction
+explicitly raises an error; the ordinary `d=1` Bell path is supported.
 
 Optional arguments:
  - `upper`: whether to start from the upper bound or the lower bound, `false` by default
  - `digits`: number of digits of `lower_bound`, `3` by default,
- - `analyticity`: apply the residual correction, by default for correlation tensors with white noise. Set to `false` to return the uncorrected numerical bracket. `digits` controls that bracket; the corrected lower bound can be smaller.
+ - `analyticity`: apply the residual correction, by default for tensors with white noise. Set to `false` to return the uncorrected numerical bracket. `digits` controls that bracket; the corrected lower bound can be smaller.
+ - `radius`: `nothing` chooses the correlation unit radius or `probability_ball_radius(p)`; an explicit positive radius overrides it. The local radius is used by `analyticity_factor` and displayed bounds. With nonwhite noise, only the displayed bounds are corrected; returned bounds and models retain the uncorrected finite-scenario convention.
  - for the other optional arguments, see `bell_frank_wolfe`.
 """
 function nonlocality_threshold(
@@ -34,18 +44,21 @@ function nonlocality_threshold(
         upper::Bool = false,
         digits = 3,
         prob::Bool = false,
+        d::Int = 1,
         marg::Bool = false,
         o = nothing,
+        radius = nothing,
         sym = nothing,
         deflate = identity,
         inflate = identity,
-        analyticity::Bool = !prob && (o === nothing || _is_white_noise(o, marg)),
+        analyticity::Bool = !(prob && d > 1) && (o === nothing || _is_white_noise(o, marg; prob)),
         verbose = 0,
         active_set = nothing,
         shortcut = 2,
         time_limit = 120, # in seconds
         kwargs...,
     ) where {T <: Number, N}
+    radius === nothing || _check_radius(radius)
     lower_bound ≤ upper_bound || throw(ArgumentError("lower_bound must not exceed upper_bound"))
     @assert floor(log10(Base.rtoldefault(T))) + digits ≤ 0
     time_start = time_ns()
@@ -53,8 +66,11 @@ function nonlocality_threshold(
     expand_permutedims = sym === nothing
     _, _, _, o, sym, deflate, inflate = _bfw_init(p, 0, prob, marg, o, sym, deflate, inflate, verbose > 0)
     if analyticity
-        !prob && _is_white_noise(o, marg) ||
-            throw(ArgumentError("analyticity correction requires correlation tensors and the white-noise centre"))
+        prob && d > 1 && throw(ArgumentError("the Bell analyticity ball does not cover signaling communication strategies"))
+        _is_white_noise(o, marg; prob) ||
+            throw(ArgumentError("returned analyticity-corrected models require the white-noise centre"))
+        radius = _analyticity_radius(p, prob, radius; o)
+        prob && _check_probability_affine(p)
     end
     expand_permutedims &= sym
     v0 = upper ? upper_bound : lower_bound
@@ -66,8 +82,10 @@ function nonlocality_threshold(
         res = bell_frank_wolfe(p;
             v0,
             prob,
+            d,
             marg,
             o,
+            radius,
             sym,
             deflate,
             inflate,
@@ -100,7 +118,7 @@ function nonlocality_threshold(
             end
         else
             lower_bound = v0
-            correction = analyticity ? _analyticity_factor(active_set.x, p, v0; marg, inflate) : one(T)
+            correction = analyticity ? _analyticity_factor(active_set.x, p, v0; marg, prob, inflate, radius, o) : one(T)
             candidate = correction * v0
             if candidate ≥ corrected_lower
                 corrected_lower = candidate
@@ -115,7 +133,7 @@ function nonlocality_threshold(
     end
     model = ass === nothing ? nothing : local_model(ass; deflate, expand_permutedims)
     if model !== nothing && analyticity
-        model = _scale_local_model(model, nu; marg, deflate)
+        model = _scale_local_model(model, nu; marg, prob, deflate)
     end
     return corrected_lower, upper_bound, model, bell_inequality
 end
