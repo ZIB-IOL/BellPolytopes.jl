@@ -18,8 +18,8 @@ Returns:
  - `β`: the visibility bound along the line from `o` to `p`, reliable only if the last LMO is exact,
  - `status`: the termination status returned by FrankWolfe.
 
-For `out=true`, the marginal layout differs from standard Bell correlations;
-`shr2` lower-bound reports are unavailable.
+For `out=true`, the correlation layout and probability affine space differ from
+standard Bell models; `shr2` lower-bound reports are unavailable.
 
 Optional arguments:
  - `o`: same type as `p`, corresponds to the noise to be added, by default the center of the polytope,
@@ -29,7 +29,8 @@ Optional arguments:
  - `epsilon`: the tolerance, used as a stopping criterion (when the primal value or the dual gap go below its value), by default `10Base.rtoldefault(T)`,
  - `shortcut`: if positive, the ratio between primal and dual gap for early termination,
  - `verbose`: an integer, indicates the level of verbosity from 0 to 4,
- - `shr2`: a squared measurement shrinking factor (or one per party), used to display corrected white-noise correlation bounds; compensate marginal targets explicitly with `shrinking_target`,
+ - `shr2`: a squared measurement shrinking factor (or one per party), used to scale displayed corrected bounds. The usual product of shrinking factors applies to white noise with `shrinking_target`; for inverse-shrunk target and noise use `shr2 = 1`,
+ - `radius`: finite positive local radius about `o` in the residual norm, default `nothing` selects `1` for correlations or `probability_ball_radius(p)` for probabilities. For probabilities the norm is Euclidean on the full tensor and the default centre is uniform noise. For other noise the caller must supply a valid radius; see `analyticity_factor`,
  - `mode`: an integer, 0 is for the heuristic LMO, 1 for the enumeration LMO,
  - `nb`: an integer, number of random tries in the LMO, if heuristic, by default 10^2,
  - `TL`: type of the last call of the LMO,
@@ -50,6 +51,7 @@ function bell_frank_wolfe(
         verbose = 0,
         verbose_init = verbose > 0, # when used in nonlocality_threshold
         shr2 = NaN,
+        radius = nothing,
         mode::Int = 0,
         nb::Int = 10^2,
         TL::DataType = T,
@@ -76,12 +78,17 @@ function bell_frank_wolfe(
         seed::Int = 0,
         kwargs...,
     ) where {T <: Number, N}
+    radius === nothing || _check_radius(radius)
     Random.seed!(seed)
     LMO, DS, m, o, sym, deflate, inflate = _bfw_init(p, v0, prob, out, marg, o, sym, deflate, inflate, verbose_init)
     shrinking = _shrinking_product(shr2, prob ? N ÷ 2 : N)
     if !isnan(shrinking)
-        !prob && !out && _is_white_noise(o, marg) ||
-            throw(ArgumentError("shr2 lower bounds require standard correlation tensors and the white-noise centre"))
+        out && throw(ArgumentError("the Bell analyticity ball does not cover the outcome-dependent model"))
+        radius = _analyticity_radius(p, prob, radius; o)
+        if prob
+            _check_probability_affine(p)
+            _check_probability_affine(o)
+        end
     end
     if verbose > 0
         !verbose_init && println()
@@ -143,9 +150,12 @@ function bell_frank_wolfe(
         save,
         file,
         save_interval;
+        prob,
         marg,
         inflate,
         target = p,
+        noise = o,
+        radius,
     )
     # main call to FW
     res = FrankWolfe.blended_pairwise_conditional_gradient(
@@ -219,7 +229,7 @@ function bell_frank_wolfe(
         if primal > dual_gap
             @printf("v_c ≤ %f\n", β)
         elseif !isnan(shrinking)
-            ν = _analyticity_factor(as.x, p, v0; marg, inflate)
+            ν = _analyticity_factor(as.x, p, v0; marg, prob, inflate, radius, o)
             @printf("v_c ≥ %f (%f)\n", shrinking * ν * v0, shrinking * v0)
         end
     end

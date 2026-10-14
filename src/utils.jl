@@ -1092,47 +1092,83 @@ function polyhedronisme(f::String, m::Int)
 end
 export polyhedronisme
 
-# acos handling floating point imprecision
-function _unsafe_acos(x::T) where {T <: Number}
-    if x > one(T)
-        return 0.0
-    elseif x < -one(T)
-        return pi
+# Ported from mapsto: floating normalization and recursive rational half-angles.
+# Zero vectors choose the first coordinate axis deterministically.
+function _normalize!(v::AbstractVector{T}) where {T <: AbstractFloat}
+    isempty(v) && throw(ArgumentError("cannot normalise an empty vector"))
+    all(isfinite, v) || throw(ArgumentError("the vector must be finite"))
+    if all(iszero, v)
+        v[firstindex(v)] = one(T)
     else
-        return acos(x)
+        normalize!(v)
     end
+    return v
 end
 
+# The half-angle parametrisation enforces dot(v, v) == a^2 exactly.
+function _normalize!(v::AbstractVector{T}, a::T = one(T)) where {T <: Rational}
+    isempty(v) && throw(ArgumentError("cannot normalise an empty vector"))
+    isfinite(a) && a >= zero(T) || throw(ArgumentError("the radius must be finite and nonnegative"))
+    all(isfinite, v) || throw(ArgumentError("the vector must be finite"))
+    if iszero(a)
+        fill!(v, zero(T))
+    elseif length(v) == 1
+        v[firstindex(v)] = v[firstindex(v)] < zero(T) ? -a : a
+    elseif dot(v, v) != a^2
+        i = firstindex(v)
+        tail = view(v, (i + 1):lastindex(v))
+        # atan keeps tiny tails near an axis; abs selects a chart whose
+        # half-angle tangent is bounded by one, including the negative axis.
+        phi = atan(norm(float.(tail)), abs(float(v[i])))
+        t = T(tan(phi / 2))
+        sign = v[i] < zero(T) ? -one(T) : one(T)
+        v[i] = sign * a * (1 - t^2) / (1 + t^2)
+        _normalize!(tail, a * 2t / (1 + t^2))
+    end
+    return v
+end
+
+# acos handling floating point imprecision, without losing the input precision.
+_unsafe_acos(x::Real) = acos(clamp(float(x), -one(float(x)), one(float(x))))
+
 """
-Compute a rational approximation of a `m × 3` Bloch matrix.
+    pythagorean_approximation(vec; epsilon = 1.0e-16)
+
+Approximate the unit rows of an `m × d` real matrix by `Rational{BigInt}` rows
+of exactly unit squared norm, for any positive dimension `d`. The input is not
+modified. Entries smaller than the nonnegative finite `epsilon` are first set
+to zero. Rows must remain normalised up to floating-point precision after this
+cleanup. Exact rational unit rows are preserved.
+
+Uses the recursive rational half-angle parametrisation from `_normalize!`.
+For BigFloat input, run at the desired precision (e.g. inside `setprecision`).
 """
-function pythagorean_approximation(vecfloat::Matrix{T}; epsilon = 1.0e-16) where {T <: Number}
-    m = size(vecfloat, 1)
-    vecfloat = copy(vecfloat)
-    vecfloat[abs.(vecfloat) .< epsilon] .= zero(T) # remove the elements that are almost zero
-    res = zeros(Rational{BigInt}, m, 3)
-    for i in 1:m
-        x, y, z = vecfloat[i, :]
-        @assert x^2 + y^2 + z^2 ≈ one(T)
-        if norm([x, y, z], 1) == one(T) # avoid a numerical imprecision causing [0, 0, 1] to be match to [1e-16, 1e-16, 1]
-            a, b, c = Rational{BigInt}.([x, y, z])
-        else
-            φ = _unsafe_acos(z)
-            θ = (φ == 0.0) ? 0.0 : _unsafe_acos(x / sin(φ))
-            tφ2 = Rational{BigInt}(tan(φ / 2))
-            tθ2 = Rational{BigInt}(tan(θ / 2))
-            a = 2tφ2 / (1 + tφ2^2) * (1 - tθ2^2) / (1 + tθ2^2)
-            b = (y < 0 ? -1 : 1) * 2tφ2 / (1 + tφ2^2) * 2tθ2 / (1 + tθ2^2)
-            c = (1 - tφ2^2) / (1 + tφ2^2)
-        end
-        @assert a^2 + b^2 + c^2 == 1
-        res[i, :] = [a, b, c]
+function pythagorean_approximation(vec::AbstractMatrix{<:Real}; epsilon::Real = 1.0e-16)
+    Base.require_one_based_indexing(vec)
+    size(vec, 2) > 0 || throw(ArgumentError("vectors must have positive dimension"))
+    isfinite(epsilon) && epsilon >= zero(epsilon) ||
+        throw(ArgumentError("epsilon must be finite and nonnegative"))
+    all(isfinite, vec) || throw(ArgumentError("the vectors must be finite"))
+    res = Matrix{Rational{BigInt}}(undef, size(vec))
+    for i in axes(vec, 1)
+        row = [abs(x) < epsilon ? zero(x) : x for x in view(vec, i, :)]
+        norm(row) ≈ one(float(zero(eltype(vec)))) ||
+            throw(ArgumentError("row $i must have unit norm"))
+        res[i, :] .= row
+        _normalize!(view(res, i, :))
     end
     return res
 end
 
 """
-Compute the shrinking factor of a `m × 3` Bloch matrix, symmetrising it to account for antipodal vectors.
+    shrinking_squared(vec; verbose = true)
+    shrinking_squared(vecs; verbose = true)
+
+Estimate the squared shrinking factor of an `m × d` Bloch matrix, including
+antipodal rows. For a vector of matrices, return the minimum squared factor.
+This uses numerical norms even for rational vertices; use
+[`shrinking_squared_exact`](@ref) for an exact rational result, or
+[`shrinking_squared_transfer`](@ref) to transfer a certified lower bound.
 """
 function shrinking_squared(vec::AbstractMatrix{T}; verbose = true) where {T <: Number}
     d = size(vec, 2)
@@ -1145,17 +1181,141 @@ function shrinking_squared(vec::AbstractMatrix{T}; verbose = true) where {T <: N
     return shr^2
 end
 
-function shrinking_squared(vecs::Vector{<:AbstractMatrix{T}}; verbose = true) where {T <: Number}
-    eta2 = typemax(T)
-    for i in 1:length(vecs)
-        eta2 = min(eta2, shrinking_squared(vecs[i]; verbose = false))
-    end
+function shrinking_squared(vecs::AbstractVector{<:AbstractMatrix}; verbose = true)
+    isempty(vecs) && throw(ArgumentError("provide at least one vertex matrix"))
+    eta2 = minimum(vec -> shrinking_squared(vec; verbose = false), vecs)
     if verbose
         @printf("  Inradius: %.8f\n", Float64(sqrt(eta2)))
     end
     return eta2
 end
 export shrinking_squared
+
+# Convert before arithmetic to avoid overflowing fixed-width integers/rationals.
+function _shrinking_exact_points(vec::AbstractMatrix{<:Real})
+    Base.require_one_based_indexing(vec)
+    all(>(0), size(vec)) || throw(ArgumentError("the vertex matrix must be nonempty"))
+    all(x -> x isa Union{Integer, Rational} && isfinite(x), vec) ||
+        throw(ArgumentError("vertices must be finite exact integers or rationals"))
+    points = Rational{BigInt}.(vec)
+    all(row -> sum(abs2, row) <= 1, eachrow(points)) ||
+        throw(ArgumentError("vertices must lie in the unit ball"))
+    return points
+end
+
+function _shrinking_rational_points(vec::AbstractMatrix{<:Integer}, denominator::Integer)
+    denominator > 0 || throw(ArgumentError("the denominator must be positive"))
+    return Rational{BigInt}.(vec) ./ BigInt(denominator)
+end
+
+"""
+    shrinking_squared_exact(vec; antipodal = true, verbose = true)
+    shrinking_squared_exact(numerators, denominator; kwargs...)
+    shrinking_squared_exact(vecs; kwargs...)
+
+Compute the exact squared inradius about the origin of the convex hull of the
+rows of an `m × d` matrix. Include antipodal vertices by default, as in
+[`shrinking_squared`](@ref). Entries must be integers or rationals, and all rows
+must lie in the unit ball. The hull must be full dimensional with the origin
+strictly inside. The result is a `Rational{BigInt}`.
+
+Enumerate facets using Polyhedra with rational coordinates and minimise
+`beta^2 / sum(abs2, normal)`; no square root or floating-point geometry enters
+the result. Floating-point inputs are rejected: convert or approximate them
+explicitly first. The two-argument form takes integer numerators and a positive
+common integer denominator. For a vector of matrices, return the minimum of
+their squared shrinking factors. `verbose` prints a numerical inradius only.
+"""
+function shrinking_squared_exact(vec::AbstractMatrix{<:Real}; antipodal::Bool = true, verbose = true)
+    points = _shrinking_exact_points(vec)
+    antipodal && (points = unique(vcat(points, -points); dims = 1))
+    pol = polyhedron(vrep(points))
+    hr = hrep(pol)
+    nhyperplanes(hr) == 0 || throw(ArgumentError("the hull must be full dimensional"))
+    eta2 = one(Rational{BigInt})
+    seen = false
+    for hs in halfspaces(hr)
+        all(x -> x isa Union{Integer, Rational}, hs.a) && hs.β isa Union{Integer, Rational} ||
+            throw(ArgumentError("the hull backend must return exact facet coefficients"))
+        hs.β > 0 || throw(ArgumentError("the origin must be strictly inside the hull"))
+        normal2 = sum(abs2, Rational{BigInt}.(hs.a))
+        normal2 > 0 || throw(ArgumentError("a facet has a zero normal"))
+        eta2 = min(eta2, Rational{BigInt}(hs.β)^2 / normal2)
+        seen = true
+    end
+    seen || throw(ArgumentError("the hull has no facets"))
+    if verbose
+        @printf(" Bloch dim: %d\n", size(points, 2))
+        @printf("  Inradius: %.8f\n", Float64(sqrt(eta2)))
+    end
+    return eta2
+end
+
+function shrinking_squared_exact(vec::AbstractMatrix{<:Integer}, denominator::Integer; kwargs...)
+    return shrinking_squared_exact(_shrinking_rational_points(vec, denominator); kwargs...)
+end
+
+function shrinking_squared_exact(vecs::AbstractVector{<:AbstractMatrix}; verbose = true, kwargs...)
+    isempty(vecs) && throw(ArgumentError("provide at least one vertex matrix"))
+    eta2 = minimum(vec -> shrinking_squared_exact(vec; verbose = false, kwargs...), vecs)
+    if verbose
+        @printf("  Inradius: %.8f\n", Float64(sqrt(eta2)))
+    end
+    return eta2
+end
+export shrinking_squared_exact
+
+"""
+    shrinking_squared_transfer(old_vertices, old_eta2, new_vertices; bits = 60)
+    shrinking_squared_transfer(old_vertices, old_eta2, numerators, denominator; bits = 60)
+
+Transfer a previously certified squared shrinking lower bound `old_eta2` to
+paired new vertices, without enumerating their hull. Both matrices must have
+identical sizes, exact integer/rational entries, and rows inside the unit ball.
+`old_eta2` must be an exact integer or rational in `(0, 1]`; its validity for the
+old hull is the caller's responsibility. Use the same antipodal convention for
+both hulls, and pair corresponding rows. A common positive integer denominator
+may be supplied for the new integer numerators.
+
+If `delta` is the largest distance between paired vertices, support functions
+change by at most `delta`, hence `eta_new >= sqrt(old_eta2) - delta`. Round the
+first square root down and the second up to multiples of `2^-bits`, using
+integer arithmetic only. Return their positive squared difference as a
+`Rational{BigInt}`. Throw if this bound is nonpositive (increasing `bits` may
+help when rounding is responsible). Identical vertices preserve `old_eta2`.
+This is a certified lower bound, not in general the exact new inradius.
+"""
+function shrinking_squared_transfer(
+        old_vertices::AbstractMatrix{<:Real}, old_eta2::Real,
+        new_vertices::AbstractMatrix{<:Real}; bits::Integer = 60,
+    )
+    size(old_vertices) == size(new_vertices) || throw(DimensionMismatch("paired vertex matrices must have identical sizes"))
+    old_eta2 isa Union{Integer, Rational} && 0 < old_eta2 <= 1 ||
+        throw(ArgumentError("old_eta2 must be a certified exact bound in (0, 1]"))
+    bits > 0 || throw(ArgumentError("bits must be positive"))
+    old = _shrinking_exact_points(old_vertices)
+    new = _shrinking_exact_points(new_vertices)
+    eta2 = Rational{BigInt}(old_eta2)
+    delta2 = maximum(sum(abs2, view(old, i, :) - view(new, i, :)) for i in axes(old, 1))
+    iszero(delta2) && return eta2
+    scale = big(1) << bits
+    scaled_eta2 = eta2 * scale^2
+    scaled_delta2 = delta2 * scale^2
+    eta_n = isqrt(fld(numerator(scaled_eta2), denominator(scaled_eta2)))
+    delta_n = isqrt(fld(numerator(scaled_delta2), denominator(scaled_delta2)))
+    delta_n^2 < scaled_delta2 && (delta_n += 1)
+    eta_n > delta_n || throw(ArgumentError("the perturbation bound exhausts the inradius"))
+    return ((eta_n - delta_n) // scale)^2
+end
+
+function shrinking_squared_transfer(
+        old_vertices::AbstractMatrix{<:Real}, old_eta2::Real,
+        numerators::AbstractMatrix{<:Integer}, denominator::Integer; kwargs...,
+    )
+    return shrinking_squared_transfer(old_vertices, old_eta2,
+        _shrinking_rational_points(numerators, denominator); kwargs...)
+end
+export shrinking_squared_transfer
 
 """
     move_marg(FC::AbstractArray, sense::Int = -1)
