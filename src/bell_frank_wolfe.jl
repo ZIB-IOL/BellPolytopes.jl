@@ -100,11 +100,10 @@ function bell_frank_wolfe(
         lmo = LMO(p, vp; mode, nb, marg)
     end
     # from now on, only uses deflated vectors
-    # useful to make f efficient
-    normp2 = dot(vp, vp) / 2
-    # weird syntax to enable the compiler to correctly understand the type
-    f = let vp = vp, normp2 = normp2
-        x -> normp2 + dot(x, x) / 2 - dot(vp, x)
+    # Evaluate the residual directly: subtracting three large dot products
+    # loses the small primal near convergence, even if x itself is accurate.
+    f = let vp = vp
+        x -> _residual_primal(x, vp)
     end
     grad! = let vp = vp
         (storage, xit) -> begin
@@ -162,6 +161,10 @@ function bell_frank_wolfe(
         epsilon,
         lazy,
         line_search = FrankWolfe.Shortstep(one(T)),
+        # A reduced iterate's full buffer may be uninitialized. In particular,
+        # collecting it fails for reference-valued elements such as BigFloat.
+        # vp has initialized data; grad! overwrites its reduced coordinates.
+        gradient = collect(vp),
         max_iteration,
         trajectory = false,
         verbose = false,
@@ -189,6 +192,7 @@ function bell_frank_wolfe(
     as = T == TL ? as : FrankWolfe.ActiveSetQuadraticProductCaching([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
     FrankWolfe.compute_active_set_iterate!(as)
     x = as.x
+    primal = _residual_primal(x, vp_last)
     tmp = abs(dot(vp_last - x, rp))
     if sym
         M = FrankWolfe.SubspaceVector(TL.(vp_last.data - inflate(x)) / (tmp == 0 ? 1 : tmp), TL.(vp_last.vec - x.vec) / (tmp == 0 ? 1 : tmp))
@@ -238,3 +242,9 @@ function bell_frank_wolfe(
     end
 end
 export bell_frank_wolfe
+
+# Respect the metric for both normalized and multiplicity-weighted reductions.
+_residual_primal(x, y) = sum(i -> abs2(x[i] - y[i]), eachindex(x, y)) / 2
+function _residual_primal(x::FrankWolfe.SubspaceVector{true}, y::FrankWolfe.SubspaceVector{true})
+    return sum(i -> x.mul[i] * abs2(x[i] - y[i]), eachindex(x, y)) / 2
+end
