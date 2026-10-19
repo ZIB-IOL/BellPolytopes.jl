@@ -100,10 +100,10 @@ function bell_frank_wolfe(
         lmo = LMO(p, vp; mode, nb, marg)
     end
     # from now on, only uses deflated vectors
-    # Evaluate the residual directly: subtracting three large dot products
-    # loses the small primal near convergence, even if x itself is accurate.
-    f = let vp = vp
-        x -> _residual_primal(x, vp)
+    # Cache the target norm and use BLAS-backed scalar products in the iterations.
+    normp2 = dot(vp, vp) / 2
+    f = let vp = vp, normp2 = normp2
+        x -> normp2 + dot(x, x) / 2 - dot(vp, x)
     end
     grad! = let vp = vp
         (storage, xit) -> begin
@@ -192,7 +192,6 @@ function bell_frank_wolfe(
     as = T == TL ? as : FrankWolfe.ActiveSetQuadraticProductCaching([(TL.(as.weights[i]), atoms[i]) for i in eachindex(as)], I, -vp_last)
     FrankWolfe.compute_active_set_iterate!(as)
     x = as.x
-    primal = _residual_primal(x, vp_last)
     tmp = abs(dot(vp_last - x, rp))
     if sym
         M = FrankWolfe.SubspaceVector(TL.(vp_last.data - inflate(x)) / (tmp == 0 ? 1 : tmp), TL.(vp_last.vec - x.vec) / (tmp == 0 ? 1 : tmp))
@@ -220,6 +219,8 @@ function bell_frank_wolfe(
     end
     β = (dot(M, ds) - dot(M, ro)) / (dot(M, rp) - dot(M, ro)) # local/global max found by the LMO
     gradient_last = x - vp_last
+    # Reuse the final residual for an accurate primal without cancellation.
+    primal = dot(gradient_last, gradient_last) / 2
     dual_gap = dot(gradient_last, x) - dot(gradient_last, ds)
     if verbose > 0
         if verbose ≥ 2 && mode_last ≥ 0
@@ -242,9 +243,3 @@ function bell_frank_wolfe(
     end
 end
 export bell_frank_wolfe
-
-# Respect the metric for both normalized and multiplicity-weighted reductions.
-_residual_primal(x, y) = sum(i -> abs2(x[i] - y[i]), eachindex(x, y)) / 2
-function _residual_primal(x::FrankWolfe.SubspaceVector{true}, y::FrankWolfe.SubspaceVector{true})
-    return sum(i -> x.mul[i] * abs2(x[i] - y[i]), eachindex(x, y)) / 2
-end
